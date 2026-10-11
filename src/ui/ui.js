@@ -190,17 +190,17 @@ export class UI {
         if (!g.orders.length) body += '<div class="muted">No pending deliveries.</div>';
         for (const o of g.orders) body += `<div>Order #${o.id}: ${o.items.map((i) => DEFS[i].name).join(', ')} — arrives ${g.life.fmtTime(o.eta)}</div>`;
       } else if (tab === 'bank') {
-        body += `<div class="cat">Osuuspankki — account of JC</div><div class="money">Balance: ${fmtMoney(g.money)}</div>`;
+        body += `<div class="cat">Bank — JC's account</div><div class="money">Balance: ${fmtMoney(g.money)}</div>`;
         body += `<div class="muted">Weekly bills (rent, electricity, insurance) are due every Monday: ${fmtMoney(g.life.weeklyBill)}.</div>`;
         body += '<div class="cat">Recent transactions</div>' + g.ledger.slice(-14).reverse().map((l) => `<div>${l.when} — ${l.text}: <b>${l.amount > 0 ? '+' : ''}${fmtMoney(l.amount)}</b></div>`).join('');
       } else if (tab === 'sell') {
-        body += `<div class="cat">Tori.fi classifieds</div><div class="muted">Put things you want to sell on the delivery pallet outside the garage door. Buyers pay about 40–70% of new price depending on condition. They pick them up immediately.</div>`;
+        body += `<div class="cat">Classified ads — sell your stuff</div><div class="muted">Put things you want to sell on the delivery pallet outside the garage door. Buyers pay about 40–70% of new price depending on condition. They pick them up immediately.</div>`;
         const items = g.palletItems();
         if (!items.length) body += '<div style="margin-top:8px">Nothing on the pallet.</div>';
         else body += '<table><tr><th>Item</th><th>Condition</th><th>Offer</th><th></th></tr>' + items.map((it) => `<tr><td>${it.def.name}</td><td>${Math.round(it.cond * 100)}%</td><td>${fmtMoney(g.sellPrice(it))}</td><td><button data-sell="${it.uid}">Sell</button></td></tr>`).join('') + '</table>';
       } else if (tab === 'rally') {
         const R = g.rally;
-        body += `<div class="cat">Suomen Ralliliitto</div><div>Reputation: <b>${R.rep}</b> · Championship points: <b>${R.points}</b></div><button class="small" id="openRally">Open the event list & standings</button>`;
+        body += `<div class="cat">Finnish Rally Federation</div><div>Reputation: <b>${R.rep}</b> · Championship points: <b>${R.points}</b></div><button class="small" id="openRally">Open the event list & standings</button>`;
         if (R.results.length) body += '<div class="cat">Your results</div>' + R.results.slice().reverse().map((r) => `<div>Day ${r.day + 1}: ${r.ev} — ${r.pos === 'DNF' ? 'DNF' : 'P' + r.pos + ', ' + R.fmt(r.t)}</div>`).join('');
       } else if (tab === 'jobs') {
         body += '<div class="cat">Work around Ruskala</div>' + g.jobs.list().map((j) => `<div style="margin:6px 0"><b>${j.title}</b> — ${j.pay}<div class="muted">${j.status}</div></div>`).join('');
@@ -213,11 +213,11 @@ export class UI {
           <li>Unbolt the engine from the stand, lift it with the hoist (F at the hoist), roll it to the car, lower it onto the mounts.</li>
           <li>Connect hoses, wiring, fuel line, exhaust, cables. Fill oil, coolant, gear oil, brake fluid and petrol. Then turn the key (T in the car).</li>
           <li>No car yet? The moped outside gets you to Ruskala village (east along Route 54): parts store, shop, post office jobs, gas station, Esa's workshop, inspection and the Rally HQ.</li>
-          <li>Money: parcels from the post office, mowing Pertti's lawn, scrap metal for Romu-Raimo (west), jobs at Esa's. Phone (P) calls a tow truck if you get stuck.</li>
+          <li>Money: parcels from the post office, mowing Pertti's lawn, scrap metal for Raimo's scrapyard (far west), jobs at Esa's. Phone (P) calls a tow truck if you get stuck.</li>
           <li>Rallying: get the car inspected (Katsastus), enter events at the Rally HQ, drive to the START arch, press Enter. Practice any stage any time.</li>
         </ol>`;
       }
-      el.innerHTML = `<div class="pc"><div class="bar"><span>Pentium 75 — ${tab === 'shop' ? 'Rautaosa.fi' : tab}</span><span>${fmtMoney(g.money)} <button id="pcClose">✕</button></span></div>
+      el.innerHTML = `<div class="pc"><div class="bar"><span>Pentium 75 — ${tab === 'shop' ? 'Rautaosa.fi — car parts' : tab}</span><span>${fmtMoney(g.money)} <button id="pcClose">✕</button></span></div>
         <div class="tabs">${['shop', 'orders', 'sell', 'jobs', 'rally', 'bank', 'help'].map((t) => `<button data-tab="${t}" class="${t === tab ? 'on' : ''}">${{ shop: 'Parts shop', orders: 'Deliveries', sell: 'Sell stuff', jobs: 'Jobs', rally: 'Rally', bank: 'Bank', help: 'Notes' }[t]}</button>`).join('')}</div>
         <div class="body">${body}</div></div>`;
       el.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
@@ -243,30 +243,109 @@ export class UI {
   openMap() {
     const g = this.game;
     const c = $('mapcanvas'), x = c.getContext('2d');
-    const S = c.width, sc = S / 1600, tx = (v) => (v + 800) * sc;
-    x.fillStyle = '#3b5a32'; x.fillRect(0, 0, S, S);
-    x.fillStyle = '#2a4a6a'; x.beginPath(); x.arc(tx(LAKE.x), tx(LAKE.z), LAKE.r * sc * 1.3, 0, 7); x.fill();
-    for (const r of ROADS) {
-      x.strokeStyle = r.type === 'asphalt' ? '#ddd' : r.type === 'gravel' ? '#c8b08a' : '#9a7a58'; x.lineWidth = r.type === 'asphalt' ? 4 : 3;
-      x.beginPath(); r.samples.forEach((p, i) => i ? x.lineTo(tx(p.x), tx(p.z)) : x.moveTo(tx(p.x), tx(p.z))); x.stroke();
-      const m = r.samples[Math.floor(r.samples.length / 2)];
-      x.fillStyle = '#fff'; x.font = '13px Arial'; x.fillText(r.name, tx(m.x) + 6, tx(m.z) - 6);
-    }
-    x.fillStyle = '#f2c14e'; x.fillRect(tx(-15), tx(-5), 21 * sc + 4, 10 * sc + 4); x.fillText('Home', tx(10), tx(-8));
-    for (const st of Object.values(g.rally.stages)) {
-      const s0 = st.samples[0];
-      const next = st.id === g.rally.nextStageId();
-      x.fillStyle = next ? '#ff3030' : st.def.rev ? '#40a0ff' : '#ff9020'; x.fillRect(tx(s0.x) - 4, tx(s0.z) - 4, 8, 8);
-      x.fillStyle = next ? '#ff8080' : '#ffd090'; x.font = '11px Arial'; x.fillText((next ? 'NEXT: ' : '') + st.def.name, tx(s0.x) + 7, tx(s0.z) + (st.def.rev ? 22 : 12));
-    }
-    x.font = 'bold 15px Arial';
-    for (const [n, px, pz] of [['RUSKALA', 565, 135], ['Romu-Raimo scrapyard', -470, 225], ['Pertti', -205, 112], ['Mäkelä farm', 330, 128], ['Gas', 482, 104], ['Service park', 632, 222]]) { x.fillStyle = '#000a'; x.fillText(n, tx(px) - 30 + 1, tx(pz) + 1); x.fillStyle = '#fff'; x.fillText(n, tx(px) - 30, tx(pz)); }
-    for (const m of g.jobs.markers()) { x.fillStyle = m.c; x.beginPath(); x.arc(tx(m.x), tx(m.z), m.t ? 6 : 3, 0, 7); x.fill(); if (m.t) { x.font = '12px Arial'; x.fillText(m.t, tx(m.x) + 8, tx(m.z) - 6); } }
-    const mp = g.moped.pos; x.fillStyle = '#9fe39a'; x.beginPath(); x.arc(tx(mp.x), tx(mp.z), 4, 0, 7); x.fill();
-    const p = g.player.pos;
-    x.fillStyle = '#ff4040'; x.beginPath(); x.arc(tx(p.x), tx(p.z), 6, 0, 7); x.fill();
-    const cp = g.car.chassis.obj.position;
-    x.fillStyle = '#40a0ff'; x.beginPath(); x.arc(tx(cp.x), tx(cp.z), 4, 0, 7); x.fill();
+    const S = c.width;
+    x.clearRect(0, 0, S, S);
+    // draw the world into a rectangle [x0..x1]×[z0..z1] → screen box
+    const drawWorld = (bx, by, bw, wx0, wz0, wsize, detail) => {
+      const k = bw / wsize, tx = (v) => bx + (v - wx0) * k, tz = (v) => by + (v - wz0) * k;
+      x.save(); x.beginPath(); x.rect(bx, by, bw, bw); x.clip();
+      x.fillStyle = '#3b5a32'; x.fillRect(bx, by, bw, bw);
+      x.fillStyle = '#2a4a6a'; x.beginPath(); x.arc(tx(LAKE.x), tz(LAKE.z), LAKE.r * k * 1.3, 0, 7); x.fill();
+      for (const r of ROADS) {
+        const stage = !!r.stage;
+        x.setLineDash(stage ? [8, 5] : []);
+        x.strokeStyle = stage ? '#ff5040' : r.type === 'asphalt' ? '#e8e8e8' : '#c8b08a';
+        x.lineWidth = (r.type === 'asphalt' && !stage ? 4.5 : 3) * Math.max(1, k * 0.9);
+        x.beginPath(); r.samples.forEach((p, i) => (i ? x.lineTo(tx(p.x), tz(p.z)) : x.moveTo(tx(p.x), tz(p.z)))); x.stroke();
+      }
+      x.setLineDash([]);
+      if (!detail) for (const r of ROADS) {
+        if (['Driveway', 'Romutie', 'Pertin tie', 'Makelantie', 'Kirkkotie'].includes(r.name)) continue;
+        const m = r.samples[Math.floor(r.samples.length * 0.45)];
+        x.font = 'italic 12px Arial'; x.fillStyle = '#000a'; x.fillText(r.label || r.name, tx(m.x) + 7, tz(m.z) - 5); x.fillStyle = r.stage ? '#ffb0a0' : '#fff'; x.fillText(r.label || r.name, tx(m.x) + 6, tz(m.z) - 6);
+      }
+      // stage starts
+      for (const st of Object.values(g.rally.stages)) {
+        const s0 = st.samples[0];
+        const next = st.id === g.rally.nextStageId();
+        this.mapIcon(x, 'rally', tx(s0.x), tz(s0.z), next ? 11 : 8);
+        if (next) { x.font = 'bold 12px Arial'; x.fillStyle = '#ff8080'; x.fillText('NEXT STAGE', tx(s0.x) + 10, tz(s0.z) - 8); }
+      }
+      // places
+      for (const p of MAP_POIS) {
+        const sx = tx(p.x), sy = tz(p.z);
+        if (sx < bx - 20 || sy < by - 20 || sx > bx + bw + 20 || sy > by + bw + 20) continue;
+        this.mapIcon(x, p.t, sx, sy, detail ? 10 : p.t === 'home' ? 10 : 7);
+        if (p.also) this.mapIcon(x, p.also, sx - (detail ? 14 : 9), sy, detail ? 8 : 6);
+        if (detail || p.big) { x.font = `${p.big ? 'bold 13' : '11'}px Arial`; x.fillStyle = '#000b'; x.fillText(p.n, sx + 11, sy + 5); x.fillStyle = '#fff'; x.fillText(p.n, sx + 10, sy + 4); }
+      }
+      // active job markers
+      for (const m of g.jobs.markers()) { x.fillStyle = m.c; x.beginPath(); x.arc(tx(m.x), tz(m.z), m.t ? 6 : 3, 0, 7); x.fill(); if (m.t && !detail) { x.font = '12px Arial'; x.fillText(m.t, tx(m.x) + 8, tz(m.z) - 6); } }
+      // you / car / moped
+      const dot = (p, col, r) => { x.fillStyle = '#000'; x.beginPath(); x.arc(tx(p.x), tz(p.z), r + 2, 0, 7); x.fill(); x.fillStyle = col; x.beginPath(); x.arc(tx(p.x), tz(p.z), r, 0, 7); x.fill(); };
+      dot(g.moped.pos, '#9fe39a', 4); dot(g.car.chassis.obj.position, '#40a0ff', 5); dot(g.player.pos, '#ff3030', 6);
+      x.restore();
+      x.strokeStyle = '#5a4a30'; x.lineWidth = 2; x.strokeRect(bx, by, bw, bw);
+    };
+    drawWorld(0, 0, S, -800, -800, 1600, false);
+    // village inset (top right)
+    const iw = 400, ix = S - iw - 10, iy = 10;
+    x.fillStyle = '#000'; x.fillRect(ix - 3, iy - 3, iw + 6, iw + 26);
+    drawWorld(ix, iy, iw, 455, 60, 230, true);
+    x.fillStyle = '#ffd070'; x.font = 'bold 13px Arial'; x.fillText('RUSKALA VILLAGE (zoomed in)', ix + 6, iy + iw + 17);
+    // legend (bottom left)
+    const L = [['home', 'Your house & garage'], ['house', "Someone's house"], ['store', 'Store (buy things)'], ['job', 'Job / way to earn money'], ['service', 'Service (repairs, paint, inspection)'], ['rally', 'Rally HQ / stage start'], ['road', 'Rally stage road'], ['you', 'You'], ['car', 'Your car'], ['moped', 'Your moped']];
+    const lx = 10, ly = S - L.length * 22 - 34;
+    x.fillStyle = 'rgba(15,15,15,.85)'; x.fillRect(lx, ly, 290, L.length * 22 + 26);
+    x.fillStyle = '#ffd070'; x.font = 'bold 14px Arial'; x.fillText('MAP KEY', lx + 10, ly + 18);
+    L.forEach(([t, label], i) => {
+      const yy = ly + 38 + i * 22;
+      if (t === 'road') { x.setLineDash([8, 5]); x.strokeStyle = '#ff5040'; x.lineWidth = 3; x.beginPath(); x.moveTo(lx + 8, yy - 4); x.lineTo(lx + 32, yy - 4); x.stroke(); x.setLineDash([]); }
+      else if (t === 'you' || t === 'car' || t === 'moped') { x.fillStyle = t === 'you' ? '#ff3030' : t === 'car' ? '#40a0ff' : '#9fe39a'; x.beginPath(); x.arc(lx + 20, yy - 4, 6, 0, 7); x.fill(); }
+      else this.mapIcon(x, t, lx + 20, yy - 4, 9);
+      x.fillStyle = '#eee'; x.font = '13px Arial'; x.fillText(label, lx + 42, yy);
+    });
     this.openModal('mapscreen');
   }
+  mapIcon(x, t, cx, cy, r) {
+    x.save(); x.lineWidth = 2; x.strokeStyle = '#000';
+    if (t === 'home' || t === 'house') {
+      x.fillStyle = t === 'home' ? '#f2c14e' : '#6aa8ff';
+      x.beginPath(); x.moveTo(cx - r, cy); x.lineTo(cx, cy - r); x.lineTo(cx + r, cy); x.lineTo(cx + r * 0.75, cy); x.lineTo(cx + r * 0.75, cy + r * 0.85); x.lineTo(cx - r * 0.75, cy + r * 0.85); x.lineTo(cx - r * 0.75, cy); x.closePath(); x.fill(); x.stroke();
+    } else if (t === 'store') {
+      x.fillStyle = '#ffd23c'; x.fillRect(cx - r, cy - r, r * 2, r * 2); x.strokeRect(cx - r, cy - r, r * 2, r * 2);
+      x.fillStyle = '#000'; x.font = `bold ${Math.round(r * 1.5)}px Arial`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('$', cx, cy + 1);
+    } else if (t === 'job') {
+      x.fillStyle = '#5ce05c'; x.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r * 1.1; x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } x.closePath(); x.fill(); x.stroke();
+    } else if (t === 'service') {
+      x.fillStyle = '#c070ff'; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill(); x.stroke();
+      x.fillStyle = '#000'; x.font = `bold ${Math.round(r * 1.3)}px Arial`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('R', cx, cy + 1);
+    } else if (t === 'rally') {
+      x.strokeStyle = '#000'; x.beginPath(); x.moveTo(cx - r * 0.6, cy + r); x.lineTo(cx - r * 0.6, cy - r); x.stroke();
+      x.fillStyle = '#ff3a2a'; x.beginPath(); x.moveTo(cx - r * 0.6, cy - r); x.lineTo(cx + r, cy - r * 0.5); x.lineTo(cx - r * 0.6, cy); x.closePath(); x.fill(); x.stroke();
+    }
+    x.restore();
+  }
 }
+
+// places shown on the map (t: home | house | store | job | service | rally)
+const MAP_POIS = [
+  { t: 'home', n: 'Your house & garage', x: -5, z: 0, big: true },
+  { t: 'job', n: "Pertti's lawn (mowing job)", x: -224, z: 100 },
+  { t: 'house', n: "Pertti's farm", x: -215, z: 122, big: true },
+  { t: 'house', n: "Mäkelä's farm", x: 322, z: 132, big: true },
+  { t: 'store', n: "Raimo's scrapyard (used parts)", x: -462, z: 238, big: true },
+  { t: 'job', n: 'Scrap scale (sell scrap)', x: -484, z: 205 },
+  { t: 'store', n: 'Gas station, kiosk & air pump', x: 482, z: 108 },
+  { t: 'store', n: 'Car parts store', x: 540, z: 113 },
+  { t: 'job', n: 'Post office (parcel jobs)', x: 540, z: 148 },
+  { t: 'store', n: 'Village shop (food)', x: 541, z: 183 },
+  { t: 'job', n: 'Job board', x: 574, z: 96 },
+  { t: 'service', n: "Esa's garage: repairs, paint, jobs", x: 598, z: 112, also: 'job' },
+  { t: 'service', n: 'Car inspection', x: 603, z: 152 },
+  { t: 'rally', n: 'Rally HQ (enter events)', x: 610, z: 190 },
+  { t: 'rally', n: 'Rally service park', x: 632, z: 222 },
+  { t: 'house', n: 'Virtanen', x: 528, z: 230 }, { t: 'house', n: 'Laine', x: 610, z: 245 }, { t: 'house', n: 'Heikkinen', x: 545, z: 262 },
+  { t: 'house', n: 'Koskinen', x: 500, z: 150 }, { t: 'house', n: 'Salo', x: 640, z: 140 },
+  { t: 'store', n: 'Ruskala village', x: 565, z: 160, big: true, hidden: true },
+].filter((p) => !p.hidden);

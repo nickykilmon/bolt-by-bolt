@@ -25,7 +25,10 @@ function solid(g, w, h, d, mat, x, y, z, opts = {}) {
   return m;
 }
 function sign(g, text, w, h, x, y, z, bg = '#1a3a7a', fg = '#fff', ry = 0) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: labelTex(text, 512, Math.round(512 * h / w), bg, fg, `bold ${Math.round(300 * h / w)}px Arial`), roughness: 0.6 }));
+  // fit one or two lines of text to the sign
+  const ch = Math.round(512 * h / w), lines = text.split('\n'), longest = Math.max(...lines.map((l) => l.length));
+  const px = Math.round(Math.min(ch / (lines.length * 1.2), 512 / (longest * 0.62)));
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: labelTex(text, 512, ch, bg, fg, `bold ${px}px Arial`), roughness: 0.6 }));
   m.position.set(x, y, z); m.rotation.y = ry; g.add(m); return m;
 }
 
@@ -50,7 +53,7 @@ function building(parent, { x, z, rot = 0, w = 10, d = 8, h = 3.4, wallMat, roof
   solid(g, w + 0.6, 0.15, d + 0.6, R, 0, h + 0.07, 0, { collide: false });
   for (const s of [1, -1]) { const r = box(g, w + 0.8, 0.08, d / 2 + 0.6, R, 0, h + 0.75, s * d / 4); r.rotation.x = s * 0.33; r.castShadow = true; }
   box(g, w, 1.1, 0.12, W, 0, h + 0.55, d / 2 - 0.05); box(g, w, 1.1, 0.12, W, 0, h + 0.55, -d / 2 + 0.05);
-  if (title) sign(g, title, Math.min(w - 1, 6), 0.8, 0, h - 0.5, d / 2 + 0.13, signBg);
+  if (title) sign(g, title, Math.min(w - 1, 6), title.includes('\n') ? 1.1 : 0.8, 0, h - 0.6, d / 2 + 0.13, signBg);
   const lamp = new THREE.PointLight(0xffe8c0, 6, 12, 1.6); lamp.position.set(0, h - 0.4, 0); g.add(lamp);
   return g;
 }
@@ -96,7 +99,7 @@ export function buildTown(game) {
   box(gas, 14, 0.4, 9, canopyM, 0, 4.6, -1);
   box(gas, 14.05, 0.42, 0.2, MAT.redPaint, 0, 4.6, 3.5);
   for (const sx of [-5.5, 5.5]) solid(gas, 0.35, 4.5, 0.35, MAT.chrome, sx, 2.25, -1);
-  sign(gas, 'KAASU-KALLE  ·  BENSA 7,90 mk/L', 8, 0.6, 0, 4.2, 3.62, '#b01010');
+  sign(gas, 'KALLE\'S GAS STATION\nPETROL 7,90 mk / litre', 8, 1.0, 0, 4.2, 3.62, '#b01010');
   const pumps = [];
   for (const sx of [-3, 3]) {
     const p = new THREE.Group(); p.position.set(sx, 0, -1); gas.add(p);
@@ -111,10 +114,10 @@ export function buildTown(game) {
   game.pumps = pumps;
   // air compressor
   const air = new THREE.Group(); air.position.set(7.5, 0, -1); gas.add(air);
-  solid(air, 0.5, 1.2, 0.4, MAT.bluePaint, 0, 0.6, 0); sign(air, 'ILMA / AIR', 0.5, 0.2, 0, 1.0, 0.21, '#1a3a7a');
+  solid(air, 0.5, 1.2, 0.4, MAT.bluePaint, 0, 0.6, 0); sign(air, 'AIR · SETUP', 0.5, 0.2, 0, 1.0, 0.21, '#1a3a7a');
   interact(air, { prompt: () => '<span class="k">E</span>Tyre air & setup (tuning screen)', use: () => game.ui.openTuning() });
   // kiosk
-  const kiosk = building(root, { x: 482, z: 116, w: 9, d: 6, title: 'KIOSKI', signBg: '#b01010', y: T, rot: Math.PI });
+  const kiosk = building(root, { x: 482, z: 116, w: 9, d: 6, title: 'KIOSK\nSNACKS · JERRY CANS', signBg: '#b01010', y: T, rot: Math.PI });
   counter(kiosk, 0, -1.2, 3);
   shelfRow(kiosk, -3.6, -1.8, 2);
   game.npcSpots.kiosk = kiosk.localToWorld(new THREE.Vector3(0, 0, -2.1));
@@ -122,35 +125,35 @@ export function buildTown(game) {
 
   // ---------------- Kirkkotie (village street) ----------------
   // west side, fronts face +x (rot = +90°)
-  const parts = building(root, { x: 540, z: 113, rot: Math.PI / 2, w: 11, d: 8, title: 'RAUTAOSA — VARAOSAT', signBg: '#1a3a7a', y: T });
+  const parts = building(root, { x: 540, z: 113, rot: Math.PI / 2, w: 11, d: 8, title: 'RAUTAOSA\nCAR PARTS STORE', signBg: '#1a3a7a', y: T });
   counter(parts, 0, -1.4, 3); shelfRow(parts, -4.2, -2.4, 3); shelfRow(parts, 4.2, -2.4, 3);
   game.npcSpots.parts = parts.localToWorld(new THREE.Vector3(0, 0, -2.3));
   game.partsCounter = parts.localToWorld(new THREE.Vector3(0, 1.02, -1.4));
-  const post = building(root, { x: 540, z: 148, rot: Math.PI / 2, w: 9, d: 7, title: 'POSTI', signBg: '#d08a10', y: T });
+  const post = building(root, { x: 540, z: 148, rot: Math.PI / 2, w: 9, d: 7, title: 'POST OFFICE\nPARCEL JOBS', signBg: '#d08a10', y: T });
   counter(post, 0, -1.2, 3);
   for (let i = 0; i < 6; i++) box(post, 0.4, 0.3, 0.3, MAT.cardboard, -3 + (i % 3) * 0.5, 0.15 + Math.floor(i / 3) * 0.3, -2.8);
   game.npcSpots.post = post.localToWorld(new THREE.Vector3(0, 0, -2.0));
   game.postCounter = post.localToWorld(new THREE.Vector3(0, 1.02, -1.2));
-  const groc = building(root, { x: 541, z: 183, rot: Math.PI / 2, w: 11, d: 8, title: 'KYLÄN KAUPPA', signBg: '#2a7a2a', y: T });
+  const groc = building(root, { x: 541, z: 183, rot: Math.PI / 2, w: 11, d: 8, title: 'VILLAGE SHOP\nGROCERIES', signBg: '#2a7a2a', y: T });
   counter(groc, -3, -1.6, 2.4); shelfRow(groc, 2, -2.6, 3); shelfRow(groc, 4.4, -2.6, 3);
   game.npcSpots.grocery = groc.localToWorld(new THREE.Vector3(-3, 0, -2.4));
   game.groceryCounter = groc.localToWorld(new THREE.Vector3(-3, 1.02, -1.6));
   // east side, fronts face -x
-  const shop = building(root, { x: 596, z: 112, rot: -Math.PI / 2, w: 14, d: 11, h: 4.4, title: 'ESAN KORJAAMO & MAALAAMO', signBg: '#5a2a7a', garageDoor: 4.2, y: T });
+  const shop = building(root, { x: 596, z: 112, rot: -Math.PI / 2, w: 14, d: 11, h: 4.4, title: 'ESA\'S GARAGE\nREPAIRS · PAINT · JOBS', signBg: '#5a2a7a', garageDoor: 4.2, y: T });
   solid(shop, 3, 0.9, 0.7, MAT.wood, -4.5, 0.45, -4.6, { surface: true });
   game.npcSpots.mechanic = shop.localToWorld(new THREE.Vector3(-4.5, 0, -3.6));
   game.npcSpots.painter = shop.localToWorld(new THREE.Vector3(4.6, 0, -3.8));
   const booth = box(shop, 4.6, 3.4, 0.1, new THREE.MeshStandardMaterial({ color: 0xe8e8f0, transparent: true, opacity: 0.35 }), 4.4, 1.7, -1.5);
-  sign(shop, 'MAALAAMO', 2, 0.4, 4.4, 3.6, -1.44, '#5a2a7a');
+  sign(shop, 'PAINT SHOP', 2, 0.4, 4.4, 3.6, -1.44, '#5a2a7a');
   game.workshopBench = shop.localToWorld(new THREE.Vector3(-4.5, 0.92, -4.6));
   game.workshopStandPos = shop.localToWorld(new THREE.Vector3(-1.5, 0, -3.5));
-  const insp = building(root, { x: 603, z: 152, rot: -Math.PI / 2, w: 12, d: 8, h: 4.2, title: 'KATSASTUS', signBg: '#0a6a6a', garageDoor: 4, y: T });
+  const insp = building(root, { x: 603, z: 152, rot: -Math.PI / 2, w: 12, d: 8, h: 4.2, title: 'CAR INSPECTION\n(needed for rallies)', signBg: '#0a6a6a', garageDoor: 4, y: T });
   for (const s of [-1, 1]) box(insp, 0.15, 0.02, 7, MAT.yellowPaint, s * 1.3, 0.02, 0);
   game.npcSpots.inspector = insp.localToWorld(new THREE.Vector3(3.5, 0, -2.8));
   game.inspectionLane = insp.localToWorld(new THREE.Vector3(0, 0, 0.5));
-  const hq = building(root, { x: 610, z: 190, rot: -Math.PI / 2, w: 10, d: 7, title: 'RALLI-HQ', signBg: '#a01818', y: T });
+  const hq = building(root, { x: 610, z: 190, rot: -Math.PI / 2, w: 10, d: 7, title: 'RALLY HQ\nENTER EVENTS', signBg: '#a01818', y: T });
   counter(hq, 0, -1.2, 3);
-  const board = sign(hq, 'SM-SARJA', 2.2, 1.2, -3, 1.8, -3.38, '#222', '#ffd070');
+  const board = sign(hq, 'CHAMPIONSHIP', 2.2, 1.2, -3, 1.8, -3.38, '#222', '#ffd070');
   game.npcSpots.organizer = hq.localToWorld(new THREE.Vector3(0, 0, -2.1));
   // service park (gravel lot with tents) behind HQ
   const sp = new THREE.Group(); sp.position.set(632, T, 222); root.add(sp);
@@ -159,7 +162,7 @@ export function buildTown(game) {
     box(sp, 4.6, 0.08, 4, tm, x, 2.6, 0);
     for (const sx of [-2.2, 2.2]) for (const sz of [-1.9, 1.9]) box(sp, 0.06, 2.6, 0.06, MAT.chrome, x + sx, 1.3, sz);
   }
-  sign(sp, 'HUOLTO / SERVICE PARK', 4, 0.6, 0, 3.2, 2.05, '#222', '#ffd070');
+  sign(sp, 'RALLY SERVICE PARK', 4, 0.6, 0, 3.2, 2.05, '#222', '#ffd070');
   game.servicePark = sp.position.clone();
   game.npcSpots.service = sp.localToWorld(new THREE.Vector3(0, 0, -1));
   for (const [x, z] of [[-6, -1], [6, -1]]) { box(sp, 0.9, 0.9, 0.6, MAT.redPaint, x, 0.45, z - 1.2); for (let i = 0; i < 3; i++) cyl(sp, 0.3, 0.2, MAT.tire, x + 1.2, 0.1 + i * 0.21, z - 1.3, 'y', 14); }
@@ -168,7 +171,7 @@ export function buildTown(game) {
   for (const sx of [-0.8, 0.8]) box(nb, 0.1, 2, 0.1, MAT.wood, sx, 1, 0);
   box(nb, 1.8, 1.1, 0.06, MAT.wood, 0, 1.5, 0);
   for (let i = 0; i < 5; i++) box(nb, 0.3, 0.38, 0.01, MAT.paper, -0.6 + i * 0.3, 1.5 + (i % 2) * 0.1, -0.035);
-  sign(nb, 'ILMOITUKSET', 1.6, 0.25, 0, 2.15, -0.04, '#5a3a1a', '#fff', Math.PI);
+  sign(nb, 'NOTICE BOARD · JOBS', 1.6, 0.25, 0, 2.15, -0.04, '#5a3a1a', '#fff', Math.PI);
   interact(nb, { prompt: () => '<span class="k">E</span>Read the notice board (jobs)', use: () => game.ui.openJobs() });
   // village dressing: houses, lamps, benches
   const houses = [[528, 230, Math.PI / 2, 0xc8a050, 'Virtanen'], [610, 245, -Math.PI / 2, 0x8a3a2a, 'Laine'], [545, 262, Math.PI / 2, 0x6a8aa8, 'Heikkinen'], [500, 150, 0, 0xd8d0b0, 'Koskinen'], [640, 140, -Math.PI / 2, 0xb8c070, 'Salo']];
@@ -192,7 +195,7 @@ export function buildTown(game) {
     const len = Math.hypot(x1 - x0, z1 - z0), mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
     solid(sy, Math.abs(x1 - x0) || 0.1, 2.2, Math.abs(z1 - z0) || 0.1, fenceM, mx, 1.1, mz);
   }
-  sign(sy, 'ROMU-RAIMO — OSTO & MYYNTI', 7, 0.8, 0, 3, -40.1, '#5a4a1a', '#ffe0a0', Math.PI);
+  sign(sy, 'RAIMO\'S SCRAPYARD\nUSED PARTS · WE BUY SCRAP', 7, 1.2, 0, 3, -40.1, '#5a4a1a', '#ffe0a0', Math.PI);
   // junk cars
   const r = mulberry32(77);
   const junkM = [MAT.rust, new THREE.MeshStandardMaterial({ color: 0x5a6a3a, roughness: 0.9 }), new THREE.MeshStandardMaterial({ color: 0x7a2a1a, roughness: 0.9 }), new THREE.MeshStandardMaterial({ color: 0x3a4a6a, roughness: 0.9 })];
@@ -206,13 +209,13 @@ export function buildTown(game) {
   }
   for (let i = 0; i < 8; i++) for (let k = 0; k < 4; k++) cyl(sy, 0.3, 0.17, MAT.tire, 30 + (i % 4) * 0.7, 0.09 + k * 0.18, -30 + Math.floor(i / 4) * 0.7, 'y', 12);
   // cabin
-  const cab = building(sy, { x: -30, z: -20, rot: Math.PI / 2, w: 6, d: 5, h: 2.8, title: 'TOIMISTO', signBg: '#5a4a1a', y: 0 });
+  const cab = building(sy, { x: -30, z: -20, rot: Math.PI / 2, w: 6, d: 5, h: 2.8, title: 'OFFICE', signBg: '#5a4a1a', y: 0 });
   counter(cab, 0, -0.9, 2.2);
   game.npcSpots.scrap = cab.localToWorld(new THREE.Vector3(0, 0, -1.6));
   // scale platform
   const scale = new THREE.Group(); scale.position.set(-12, 0, -20); sy.add(scale);
   const plate = box(scale, 4, 0.12, 3, MAT.darkSteel, 0, 0.06, 0); plate.userData.surface = true;
-  sign(scale, 'VAAKA / SCALE', 1.6, 0.4, 0, 1.4, -1.6, '#333', '#ffd070');
+  sign(scale, 'SCRAP SCALE', 1.6, 0.4, 0, 1.4, -1.6, '#333', '#ffd070');
   box(scale, 0.08, 1.2, 0.08, MAT.darkSteel, 0, 0.6, -1.6);
   game.scrapScale = { center: scale.getWorldPosition(new THREE.Vector3()), half: [2.2, 1.7] };
   // used-part racks

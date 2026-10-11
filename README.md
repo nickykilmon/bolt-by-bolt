@@ -44,6 +44,9 @@ Settings include quick fastening (one bolt does the whole group, still needs the
 
 ## How to get the car running
 
+You start with 400 mk, which is not enough for every part on purpose: fit everything you can with what's in the garage, then earn the rest with jobs. The build guide (top left, H to hide) walks you through it and tells you exactly how much you still need.
+
+
 1. Hold **Tab** next to the engine stand or the car to see what's missing.
 2. The ratchet and socket case are in the top drawer of the red toolbox. With the ratchet in hand, press **E** on the socket case (or scroll near it) to change sockets.
 3. Order missing parts and fluids on the computer in the house (delivered to the pallet outside the garage door after ~2 game hours).

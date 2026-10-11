@@ -123,13 +123,13 @@ export class Jobs {
       const pay = 180;
       this.mowing = null;
       g.addMoney(pay, 'Mowed Pertti\'s lawn');
-      g.ui.dialog('Naapuri-Pertti', 'Hmm. Not bad. Not bad at all. Here. Same again next week?', [{ label: 'Thanks', go: () => {} }]);
+      g.ui.dialog('Pertti (neighbour)', 'Hmm. Not bad. Not bad at all. Here. Same again next week?', [{ label: 'Thanks', go: () => {} }]);
       this.lastMowWeek = Math.floor(g.life.day / 7);
       return;
     }
-    if (this.mowing) { g.ui.dialog('Naapuri-Pertti', `You've done ${Math.round(this.mowProgress() * 100)}%. I said the WHOLE lawn. The mower is by the lawn.`, [{ label: 'OK', go: () => {} }]); return; }
-    if (this.lastMowWeek === Math.floor(g.life.day / 7)) { g.ui.dialog('Naapuri-Pertti', 'The grass hasn\'t grown back yet. Come back next week.', [{ label: 'OK', go: () => {} }]); return; }
-    g.ui.dialog('Naapuri-Pertti', 'My knees are no good. Mow the lawn by the house and I\'ll pay you 180 mk. The mower is the red thing.', [
+    if (this.mowing) { g.ui.dialog('Pertti (neighbour)', `You've done ${Math.round(this.mowProgress() * 100)}%. I said the WHOLE lawn. The mower is by the lawn.`, [{ label: 'OK', go: () => {} }]); return; }
+    if (this.lastMowWeek === Math.floor(g.life.day / 7)) { g.ui.dialog('Pertti (neighbour)', 'The grass hasn\'t grown back yet. Come back next week.', [{ label: 'OK', go: () => {} }]); return; }
+    g.ui.dialog('Pertti (neighbour)', 'My knees are no good. Mow the lawn by the house and I\'ll pay you 180 mk. The mower is the red thing.', [
       { label: 'Deal', go: () => { this.mowing = { active: true }; for (let i = 0; i < this.tufts.length; i++) this.setTuft(i, false); g.say('Push the mower over the lawn (E to grab it).'); } },
       { label: 'Maybe later', go: () => {} },
     ]);
@@ -155,7 +155,7 @@ export class Jobs {
   offerScrap() {
     const g = this.game;
     this.scrapKnown = true;
-    g.ui.dialog('Scrap metal', `Old junk lies in ditches and forest edges all over the parish. Romu-Raimo pays ${SCRAP_PRICE} mk/kg on his scale. Heavy pieces need the car — put them in the boot. Spots are now marked on your map (M).`, [{ label: 'Got it', go: () => {} }]);
+    g.ui.dialog('Scrap metal', `Old junk lies in ditches and forest edges all over the parish. Raimo at the scrapyard (far west) pays ${SCRAP_PRICE} mk/kg on his scale. Heavy pieces need the car — put them in the boot. Spots are now marked on your map (M).`, [{ label: 'Got it', go: () => {} }]);
   }
   scaleItems() {
     const s = this.game.scrapScale;
@@ -164,7 +164,7 @@ export class Jobs {
   sellScale() {
     const g = this.game;
     const items = this.scaleItems();
-    if (!items.length) { g.ui.dialog('Romu-Raimo', 'The scale is empty. Put the stuff ON the scale. The big steel plate.', [{ label: 'OK', go: () => {} }]); return; }
+    if (!items.length) { g.ui.dialog('Raimo (scrapyard)', 'The scale is empty. Put the stuff ON the scale. The big steel plate.', [{ label: 'OK', go: () => {} }]); return; }
     let pay = 0, kg = 0;
     for (const it of items) {
       const m = g.asm.subtreeMass(it); kg += m;
@@ -173,7 +173,7 @@ export class Jobs {
     }
     pay = Math.round(pay);
     g.addMoney(pay, `Scrap sold to Raimo (${Math.round(kg)} kg)`);
-    g.ui.dialog('Romu-Raimo', `${Math.round(kg)} kilos. ${pay} mk. Pleasure doing business.`, [{ label: 'Thanks', go: () => {} }]);
+    g.ui.dialog('Raimo (scrapyard)', `${Math.round(kg)} kilos. ${pay} mk. Pleasure doing business.`, [{ label: 'Thanks', go: () => {} }]);
   }
   restockScrapyard() {
     const g = this.game;
@@ -281,10 +281,10 @@ export class Jobs {
   }
   list() {
     const g = this.game, L = [];
-    L.push({ title: 'Parcel delivery (Posti, Ruskala)', status: this.parcels ? `${this.parcels.list.filter((p) => g.asm.get(p.uid)).length} parcels to deliver by ${g.life.fmtTime(this.parcels.deadline)}` : 'Ask Helena at the post office, 8–17', pay: '45–150 mk / parcel' });
-    L.push({ title: 'Mow Naapuri-Pertti\'s lawn', status: this.mowing ? `${Math.round(this.mowProgress() * 100)}% mowed` : 'Talk to Pertti (farm west of your place)', pay: '180 mk / week' });
-    L.push({ title: 'Scrap metal for Romu-Raimo', status: this.scrapKnown ? 'Collect junk around the parish and put it on the scale' : 'Ask Raimo or Mäkelä', pay: `${SCRAP_PRICE} mk/kg` });
-    L.push({ title: 'Workshop jobs at Esa\'s Korjaamo', status: this.workshop ? `${this.workshop.title}: ${this.workshop.tasks.filter((t) => !this.taskDone(t)).length} tasks left` : 'Ask Esa, 8–18 (one job per day)', pay: '240–380 mk' });
+    L.push({ title: 'Parcel delivery (post office, Ruskala)', status: this.parcels ? `${this.parcels.list.filter((p) => g.asm.get(p.uid)).length} parcels to deliver by ${g.life.fmtTime(this.parcels.deadline)}` : 'Ask Helena at the post office, 8–17', pay: '45–150 mk / parcel' });
+    L.push({ title: 'Mow neighbour Pertti\'s lawn', status: this.mowing ? `${Math.round(this.mowProgress() * 100)}% mowed` : 'Talk to Pertti (farm west of your place)', pay: '180 mk / week' });
+    L.push({ title: 'Scrap metal for Raimo\'s scrapyard', status: this.scrapKnown ? 'Collect junk around the parish and put it on the scale' : 'Ask Raimo or Mäkelä', pay: `${SCRAP_PRICE} mk/kg` });
+    L.push({ title: 'Workshop jobs at Esa\'s garage', status: this.workshop ? `${this.workshop.title}: ${this.workshop.tasks.filter((t) => !this.taskDone(t)).length} tasks left` : 'Ask Esa, 8–18 (one job per day)', pay: '240–380 mk' });
     return L;
   }
   serialize() { return { parcels: this.parcels, mowing: this.mowing, cut: Array.from(this.mowCut).join(''), workshop: this.workshop, scrapKnown: this.scrapKnown, restockDay: this.restockDay, scrapSeeded: this.scrapSeeded, lastMowWeek: this.lastMowWeek, lastWorkshopDay: this.lastWorkshopDay }; }

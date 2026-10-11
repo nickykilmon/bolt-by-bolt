@@ -146,6 +146,7 @@ export class Guide {
         if (!inst) {
           const item = this.pick(type, o.minCond || 0);
           if (!item) return this.buyGuide(type, o.minCond);
+          if (!this.asm.checkInstall(item, host, slot).ok) return { blocked: true }; // something else has to go on first
           const held = this.game.interaction.held;
           if (held !== item) {
             if (held) return { text: `Put down the ${short(held.def.name)} (G) and grab the ${short(item.def.name)}`, targets: [this.itemTarget(item)] };
@@ -192,11 +193,7 @@ export class Guide {
     const def = isId ? DEFS[typeOrId] : Object.values(DEFS).find((d) => d.type === typeOrId && d.shop && d.kind === 'part' && !['Performance'].includes(d.cat)) || Object.values(DEFS).find((d) => d.type === typeOrId);
     const name = def ? def.name : typeOrId;
     const g = this.game;
-    const box = [...this.asm.items.values()].find((i) => i.def.type === 'box');
-    if (box) return { text: `A delivery has arrived — open the box on the pallet (E)`, targets: [{ kind: 'mark', pos: this.center(box), text: 'Open the delivery box', col: COL.grab }] };
-    const ordered = g.orders.some((o) => o.items.some((id) => DEFS[id].type === (def?.type)));
-    if (ordered) { const o = g.orders.find((x) => x.items.some((id) => DEFS[id].type === def?.type)); return { text: `Waiting for the delivery of the ${short(name)} (arrives ${g.life.fmtTime(o.eta)}). Sleep or do other jobs meanwhile.`, targets: [{ kind: 'mark', pos: g.deliverySpot.clone(), text: 'Delivery pallet', col: COL.go }] }; }
-    return { text: `You need a new ${short(name)}${minCond ? ' (yours is worn out)' : ''}. Order it on the computer in the house (Parts shop → Add → Order basket).`, targets: [{ kind: 'mark', pos: this.pcPos(), text: 'Computer: order parts', col: COL.go }] };
+    return { buy: true, need: name };
   }
   pcPos() { return new THREE.Vector3(-11.0, 1.1, -4.6); }
   underOk() { const s = this.car.support; return s.F.stands && s.R.stands; }
@@ -220,23 +217,12 @@ export class Guide {
   // ---------------- the build ----------------
   buildSteps() {
     const B = () => this.block();
-    const H = () => this.block()?.kids.head || null;
+    const H = () => this.block()?.kids.head || [...this.asm.items.values()].find((i) => i.def.type === 'cylinder_head' && !i.slot && !i.props.forSale && !this.isJobItem(i)) || null;
     const onStandOrCar = () => { const b = B(); return b && b.slot ? this.asm.hostOf(b) : null; };
     const inCar = () => (this.C.kids.engine ? this.C : null);
     const car = () => this.C;
     const piston4 = () => this.pick('piston') ;
     const steps = [];
-    // 0: order the parts that are definitely needed
-    steps.push({
-      title: 'Order the missing parts',
-      state: () => {
-        const need = this.shoppingList();
-        if (!need.length) return { done: true };
-        const box = [...this.asm.items.values()].find((i) => i.def.type === 'box');
-        if (box) return { text: 'Your delivery has arrived — open the box on the pallet (E).', targets: [{ kind: 'mark', pos: this.center(box), text: 'Open the delivery box', col: COL.grab }] };
-        return { text: `Order on the computer in the house (Parts shop → Add each → Order basket): ${need.join(', ')}. Delivery takes ~2 game hours — you can keep working meanwhile.`, targets: [{ kind: 'mark', pos: this.pcPos(), text: 'Computer: order parts', col: COL.go }] };
-      },
-    });
     steps.push({
       title: 'Fit new rings to piston #4',
       state: () => {
@@ -283,7 +269,7 @@ export class Guide {
     steps.push(this.fluid('Fill the gearbox with gear oil', () => B()?.kids.gearbox?.props.oil || 0, 1.5, 'gearoil', () => B()?.kids.gearbox, { capName: 'gearbox filler plug (side of the gearbox)' }));
     // engine into the car
     steps.push({
-      title: 'Unbolt the engine from the stand',
+      title: 'Unbolt the engine from the stand', gate: true,
       state: () => {
         const b = B(); if (!b) return { done: false, blocked: true };
         if (this.asm.hostOf(b) !== this.game.stand) return { done: true };
@@ -294,7 +280,7 @@ export class Guide {
       },
     });
     steps.push({
-      title: 'Lift the engine with the hoist',
+      title: 'Lift the engine with the hoist', gate: true,
       state: () => {
         const b = B(); if (!b) return { done: false, blocked: true };
         if (b.loc?.kind === 'hoist' || this.asm.hostOf(b) === this.C) return { done: true };
@@ -305,7 +291,7 @@ export class Guide {
       },
     });
     steps.push({
-      title: 'Lower the engine into the car',
+      title: 'Lower the engine into the car', gate: true,
       state: () => {
         const b = B(); if (!b) return { done: false, blocked: true };
         if (this.asm.hostOf(b) === this.C) return { done: true };
@@ -345,9 +331,9 @@ export class Guide {
         return { text: `Lower the ${name}: hold the jack handle and press RMB.`, targets: [{ kind: 'mark', pos: g.jackPoint(ax), text: 'Release jack (RMB)', col: COL.go }] };
       },
     });
-    steps.push(this.fluid('Fill the cooling system', () => this.C.props.coolant || 0, 5.5, 'coolant', () => this.C.kids.radiator, { car: true, capName: 'radiator cap' }));
+    steps.push({ gate: true, ...this.fluid('Fill the cooling system', () => this.C.props.coolant || 0, 5.5, 'coolant', () => this.C.kids.radiator, { car: true, capName: 'radiator cap' }) });
     steps.push({
-      title: 'Start the engine!',
+      title: 'Start the engine!', gate: true,
       state: () => {
         if (this.started) return { done: true };
         const g = this.game;
@@ -359,7 +345,7 @@ export class Guide {
       },
     });
     steps.push({
-      title: 'Take it for a drive',
+      title: 'Take it for a drive', gate: true,
       state: () => {
         if (this.driven) return { done: true };
         if (this.car.speed > 8) this.driven = true;
@@ -369,32 +355,57 @@ export class Guide {
     return steps;
   }
 
-  shoppingList() {
+  // what still has to be bought (and isn't owned or on order), with prices
+  shoppingItems() {
     const out = [];
     const b = this.block();
+    const add = (id, qty = 1) => { if (qty > 0) out.push({ id, qty, name: DEFS[id].name, price: DEFS[id].price * qty }); };
     const have = (type, minCond = 0) => [...this.asm.items.values()].some((i) => i.def.type === type && i.cond >= minCond && !i.props.forSale && !this.isJobItem(i));
     const ordered = (type) => this.game.orders.some((o) => o.items.some((id) => DEFS[id].type === type));
-    const need = (type, name, minCond = 0) => { if (!have(type, minCond) && !ordered(type)) out.push(name); };
-    if (b && !b.kids.headGasket) need('head_gasket', 'head gasket', 0.3);
+    const need = (type, id, minCond = 0) => { if (!have(type, minCond) && !ordered(type)) add(id); };
+    if (b && !b.kids.headGasket) need('head_gasket', 'head_gasket_16', 0.3);
     if (!b?.kids.piston4 || !b.kids.piston4.kids.rings) {
-      const p4rings = [...this.asm.items.values()].some((i) => i.def.type === 'piston_rings' && i.cond >= 0.3 && !(this.asm.hostOf(i)?.def.type === 'piston' && this.asm.hostOf(i)?.slot));
-      if (!p4rings && !ordered('piston_rings')) out.push('piston ring set');
+      const ok = [...this.asm.items.values()].some((i) => i.def.type === 'piston_rings' && i.cond >= 0.3 && !(this.asm.hostOf(i)?.def.type === 'piston' && this.asm.hostOf(i)?.slot));
+      if (!ok && !ordered('piston_rings')) add('rings_16');
     }
-    if (b && !b.kids.oilFilter) need('oil_filter', 'oil filter');
-    if (b && !b.kids.timingBelt) need('timing_belt', 'timing belt', 0.3);
-    const head = b?.kids.head || [...this.asm.items.values()].find((i) => i.def.type === 'cylinder_head' && !this.isJobItem(i));
+    if (b && !b.kids.oilFilter) need('oil_filter', 'oil_filter');
+    if (b && !b.kids.timingBelt) need('timing_belt', 'timing_belt', 0.3);
+    const head = b?.kids.head || [...this.asm.items.values()].find((i) => i.def.type === 'cylinder_head' && !this.isJobItem(i) && !i.props.forSale);
     if (head) {
       const empty = [1, 2, 3, 4].filter((n) => !head.kids['plug' + n]).length;
-      const spare = [...this.asm.items.values()].filter((i) => i.def.type === 'spark_plug' && !i.slot && !this.isJobItem(i)).length + this.game.orders.reduce((n, o) => n + o.items.filter((id) => id === 'spark_plug').length, 0);
-      if (spare < empty) out.push(`spark plug ×${empty - spare}`);
+      const spare = [...this.asm.items.values()].filter((i) => i.def.type === 'spark_plug' && !i.slot && !this.isJobItem(i) && !i.props.forSale).length + this.game.orders.reduce((n, o) => n + o.items.filter((id) => id === 'spark_plug').length, 0);
+      add('spark_plug', empty - spare);
     }
-    const fluidHave = (f) => [...this.asm.items.values()].reduce((s, i) => s + (i.def.type === 'fluid' && i.def.fluid === f && !i.def.infinite ? i.props.amount || 0 : 0), 0) + this.game.orders.reduce((s, o) => s + o.items.filter((id) => DEFS[id].fluid === f).reduce((t, id) => t + DEFS[id].cap, 0), 0);
-    if (b && (b.props.oil || 0) + fluidHave('oil') < 3.7) out.push('motor oil (4 L)');
+    const fluidHave = (f) => [...this.asm.items.values()].reduce((t, i) => t + (i.def.type === 'fluid' && i.def.fluid === f && !i.def.infinite ? i.props.amount || 0 : 0), 0) + this.game.orders.reduce((t, o) => t + o.items.filter((id) => DEFS[id].fluid === f).reduce((u, id) => u + DEFS[id].cap, 0), 0);
+    if (b && (b.props.oil || 0) + fluidHave('oil') < 3.7) add('oil_jug');
     const coolNeed = 6 - (this.C.props.coolant || 0) - fluidHave('coolant');
-    if (coolNeed > 0.5) out.push(`coolant ×${Math.ceil(coolNeed / 5)}`);
+    if (coolNeed > 0.5) add('coolant_jug', Math.ceil(coolNeed / 5));
     const stands = [...this.asm.items.values()].filter((i) => i.def.type === 'axle_stands').length + this.game.orders.reduce((n, o) => n + o.items.filter((id) => id === 'axle_stands').length, 0);
-    if (stands < 2 && !(this.C.kids.muffler && this.C.kids.propshaft && this.C.kids.gearboxMount && this.C.kids.midpipe)) out.push('a second pair of axle stands');
+    if (stands < 2 && !(this.C.kids.muffler && this.C.kids.propshaft && this.C.kids.gearboxMount && this.C.kids.midpipe)) add('axle_stands');
     return out;
+  }
+  shoppingList() { return this.shoppingItems().map((x) => (x.qty > 1 ? `${x.name} ×${x.qty}` : x.name)); }
+
+  // when nothing else can be done: buy parts, or earn the money for them, or wait for the van
+  moneyStep() {
+    const g = this.game;
+    const items = this.shoppingItems();
+    const fmt = (v) => Math.round(v).toLocaleString('fi-FI') + ' mk';
+    if (items.length) {
+      const total = items.reduce((t, x) => t + x.price, 0) + 25;
+      const list = items.map((x) => `${x.qty > 1 ? x.qty + '× ' : ''}${short(x.name)} (${fmt(x.price)})`).join(', ');
+      if (g.money >= total) return { st: { title: 'Order the parts you still need' }, s: { text: `You've done everything you can with what you have. Order on the computer in the house (Parts shop → Add each → Order basket): ${list}. Total ${fmt(total)} incl. delivery — you have ${fmt(g.money)}.`, targets: [{ kind: 'mark', pos: this.pcPos(), text: 'Computer: order parts', col: COL.go }] } };
+      const short_ = total - g.money;
+      const sp = g.npcSpots || {};
+      const job = (pos, label) => pos ? [{ kind: 'mark', pos: pos.clone().add(new THREE.Vector3(0, 2.2, 0)), text: `${label} — ${Math.round(pos.distanceTo(g.camera.position))} m`, col: COL.grab }] : [];
+      return { st: { title: `Earn ${fmt(short_)} for parts` }, s: {
+        text: `You've done everything you can with the parts you have. Still needed: ${list} — ${fmt(total)} with delivery, and you have ${fmt(g.money)}. Do some jobs: parcels at the post office and work at Esa's garage (Ruskala village, east — take the moped), mowing Pertti's lawn (west), or scrap metal for Raimo's scrapyard (far west). You can also order the cheapest parts now and the rest later.`,
+        targets: [...job(sp.post, 'Jobs: post office'), ...job(sp.mechanic, "Jobs: Esa's garage"), ...job(sp.pertti, 'Job: mow the lawn'), ...job(g.scrapScale?.center, 'Job: sell scrap')],
+      } };
+    }
+    const o = g.orders[0];
+    if (o) return { st: { title: 'Wait for your parts' }, s: { text: `Your order arrives ${g.life.fmtTime(o.eta)} on the pallet outside the garage. Sleep, eat, or do a job meanwhile.`, targets: [{ kind: 'mark', pos: g.deliverySpot.clone(), text: 'Delivery pallet', col: COL.go }] } };
+    return null;
   }
 
   // ---------------- per frame ----------------
@@ -405,15 +416,20 @@ export class Guide {
     if (this.t > 0.2) {
       this.t = 0;
       this.cur = null;
-      let doneCount = 0;
+      let doneCount = 0, allPrevDone = true;
+      const box = [...this.asm.items.values()].find((i) => i.def.type === 'box');
       for (const st of this.steps) {
         let s;
-        try { s = st.state(); } catch (e) { console.error('guide step failed', st.title, e); continue; }
+        try { s = st.state(); } catch (e) { console.error('guide step failed', st.title, e); allPrevDone = false; continue; }
         if (s.done) { doneCount++; continue; }
-        if (s.blocked) continue;
+        const gated = st.gate && !allPrevDone;
+        allPrevDone = false;
+        if (s.blocked || s.buy || gated) continue;
         if (!this.cur) this.cur = { st, s, idx: this.steps.indexOf(st) + 1 };
       }
       this.doneCount = doneCount; this.total = this.steps.length;
+      if (box) this.cur = { st: { title: 'Your delivery has arrived' }, s: { text: 'Open the box on the pallet outside the garage door (E) to unpack the parts.', targets: [{ kind: 'mark', pos: this.center(box), text: 'Open the delivery box', col: COL.grab }] }, idx: doneCount + 1 };
+      else if (!this.cur && doneCount < this.total) { const m = this.moneyStep(); if (m) this.cur = { ...m, idx: doneCount + 1 }; }
       this.render();
     }
     // keep markers pulsing

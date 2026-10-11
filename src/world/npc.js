@@ -29,14 +29,14 @@ function personModel(shirt, pants, hair, hat) {
 
 // role -> data. spot keys refer to game.npcSpots
 const CAST = [
-  { id: 'kalle', name: 'Kaasu-Kalle', role: 'kiosk', spot: 'kiosk', hours: [7, 21], shirt: 0xb01010, pants: 0x2a2a3a, hat: 0xb01010,
-    lines: ['Tankki täyteen? The pumps are self-service, I just take the money.', 'If your car sounds like that, I would carry a spare fan belt.', 'Coffee is fresh. Well. It was fresh this morning.'] },
+  { id: 'kalle', name: 'Kalle (gas station)', role: 'kiosk', spot: 'kiosk', hours: [7, 21], shirt: 0xb01010, pants: 0x2a2a3a, hat: 0xb01010,
+    lines: ['Fill her up? The pumps are self-service, I just take the money.', 'If your car sounds like that, I would carry a spare fan belt.', 'Coffee is fresh. Well. It was fresh this morning.'] },
   { id: 'teppo', name: 'Teppo (parts store)', role: 'parts', spot: 'parts', hours: [8, 18], shirt: 0x1a3a7a, pants: 0x3a3a3a,
-    lines: ['Rautaosa has everything for the Ruska. Mostly. If not, I can order it.', 'Head gaskets? Third shelf. And buy a torque wrench, for heaven\'s sake.', 'Rally parts are expensive. Win something first.'] },
+    lines: ['This store has every part for the Ruska. Mostly. If not, I can order it.', 'Head gaskets? Third shelf. And buy a torque wrench, for heaven\'s sake.', 'Rally parts are expensive. Win something first.'] },
   { id: 'helena', name: 'Helena (post office)', role: 'post', spot: 'post', hours: [8, 17], shirt: 0xd08a10, pants: 0x1a1a3a,
     lines: ['The post needs drivers. Parcels go to mailboxes all around the parish.', 'Please don\'t throw the parcels. I know you threw the last one.'] },
   { id: 'maija', name: 'Maija (shop)', role: 'grocery', spot: 'grocery', hours: [8, 20], shirt: 0x2a7a2a, pants: 0x4a3a2a,
-    lines: ['Makkara is on offer today.', 'You look like you live on coffee and engine oil.'] },
+    lines: ['Sausages are on offer today.', 'You look like you live on coffee and engine oil.'] },
   { id: 'esa', name: 'Esa (mechanic)', role: 'mechanic', spot: 'mechanic', hours: [8, 18], shirt: 0x3a4a5a, pants: 0x3a4a5a, hat: 0x2a2a2a,
     lines: ['Bent the suspension again? I have an alignment rig.', 'I sometimes have work for someone who knows which end of a ratchet is which.', 'A Ruska 1600. My father had one. It caught fire.'] },
   { id: 'tuula', name: 'Tuula (paint shop)', role: 'painter', spot: 'painter', hours: [9, 17], shirt: 0xe8e8e8, pants: 0x5a2a7a,
@@ -47,14 +47,14 @@ const CAST = [
     lines: ['The SM series is no joke. Start at the Ruskala Sprint and earn your reputation.', 'Liaison times are strict. Late to a stage start costs ten seconds a minute.'] },
   { id: 'ari', name: 'Ari (service crew)', role: 'service', spot: 'service', hours: [8, 21], shirt: 0x1a3a7a, pants: 0x1a3a7a, hat: 0xd0a020,
     lines: ['We can fix most things between stages. For a price.', 'Pull into the service park, we\'ll do the rest.'] },
-  { id: 'raimo', name: 'Romu-Raimo', role: 'scrap', spot: 'scrap', hours: [7, 19], voice: { pitch: 0.1, rate: 0.8 }, shirt: 0x5a4a1a, pants: 0x2a2a2a, hat: 0x7a2a1a,
+  { id: 'raimo', name: 'Raimo (scrapyard)', role: 'scrap', spot: 'scrap', hours: [7, 19], voice: { pitch: 0.1, rate: 0.8 }, shirt: 0x5a4a1a, pants: 0x2a2a2a, hat: 0x7a2a1a,
     lines: ['Used parts on the racks. You buy what you pick up. No refunds, no guarantees, no questions.', 'Bring me scrap metal, I pay by the kilo. Put it on the scale.', 'That one? Came out of a Ruska that went into the lake in \'79. Probably fine.'] },
-  { id: 'pertti', name: 'Naapuri-Pertti', role: 'pertti', spot: 'pertti', hours: [0, 24], voice: { pitch: 1.9, rate: 1.25 }, shirt: 0x6a8a3a, pants: 0x2a3a5a, hat: 0x2a5a2a, wander: 6,
+  { id: 'pertti', name: 'Pertti (neighbour)', role: 'pertti', spot: 'pertti', hours: [0, 24], voice: { pitch: 1.9, rate: 1.25 }, shirt: 0x6a8a3a, pants: 0x2a3a5a, hat: 0x2a5a2a, wander: 6,
     lines: ['Is that thing of yours ever going to run, JC?', 'My lawn needs mowing. Interested? Pays a bit.', 'I heard you revving at 3 am. Again.'] },
-  { id: 'makela', name: 'Isäntä Mäkelä', role: 'makela', spot: 'makela', hours: [0, 24], shirt: 0x7a5a3a, pants: 0x3a3a2a, wander: 5,
-    lines: ['There\'s scrap metal all over the forest. Raimo pays for it.', 'Drive slowly past my cows. I mean it.'] },
+  { id: 'makela', name: 'Farmer Mäkelä', role: 'makela', spot: 'makela', hours: [0, 24], shirt: 0x7a5a3a, pants: 0x3a3a2a, wander: 5,
+    lines: ['There\'s scrap metal all over the forest. Raimo at the scrapyard pays for it.', 'Drive slowly past my cows. I mean it.'] },
   { id: 'pekka', name: 'Pekka "Peltikatto" Mäki', role: 'rival', spot: 'service', offset: [3, 0, 2.5], hours: [10, 18], shirt: 0xffffff, pants: 0xa01818, hat: 0xa01818,
-    lines: ['You\'re the guy with the beige Ruska? Brave.', 'Hirvimäki hairpins: brake early, turn in late.', 'I took the Kalliojärvi jumps flat once. Once.'] },
+    lines: ['You\'re the guy with the beige Ruska? Brave.', 'Moose Hill hairpins: brake early, turn in late.', 'I took the Rock Lake jumps flat out once. Once.'] },
   { id: 'sirpa', name: 'Sirpa Ruuskanen', role: 'rival', spot: 'service', offset: [-3, 0, 2.5], hours: [10, 18], shirt: 0x1a3a7a, pants: 0x1a1a1a,
     lines: ['Your co-driver should call the crests earlier. Oh, it\'s a machine? Figures.', 'Tyre pressures matter more than horsepower on gravel.'] },
 ];
@@ -121,7 +121,7 @@ export class NPCs {
     if (car.chassis.obj.position.distanceTo(npc.pos) > 25 || Math.random() < 0.5) return null;
     const S = car.systems();
     const ch = car.chassis.kids;
-    if (!ch.muffler && car.pt.running) return 'Kuulostaa traktorilta! Your Ruska is louder than my combine harvester.';
+    if (!ch.muffler && car.pt.running) return 'Sounds like a tractor! Your Ruska is louder than my combine harvester.';
     if (ch.bumperF?.cond < 0.3) return 'Did you drive through a barn? That bumper has seen things.';
     if (car.chassis.props.paint && car.chassis.props.livery && car.chassis.props.livery !== 'none') return 'Now THAT looks like a rally car. Respect.';
     if (S.issues.filter((i) => i.sev >= 3).length > 5) return 'You know cars are supposed to have all their parts, right?';

@@ -27,9 +27,9 @@ P.panel = function (html, bind) {
 
 // ---------- over-the-counter stores ----------
 const STORE = {
-  parts: { title: 'Rautaosa — over the counter', filter: (d) => d.shop && d.cat !== 'Groceries', where: (g) => g.partsCounter },
-  grocery: { title: 'Kylän Kauppa', filter: (d) => d.cat === 'Groceries', where: (g) => g.groceryCounter },
-  kiosk: { title: 'Kaasu-Kalle kiosk', filter: (d) => ['sausage', 'coffee', 'milk', 'jerrycan', 'oil_jug', 'coolant_jug'].includes(d.id), where: (g) => g.kioskCounter, extra: [{ id: 'jerrycan_empty', name: 'Empty jerry can (10 L)', price: 45, make: 'jerrycan', amount: 0 }] },
+  parts: { title: 'Rautaosa car parts store — over the counter', filter: (d) => d.shop && d.cat !== 'Groceries', where: (g) => g.partsCounter },
+  grocery: { title: 'Village shop (groceries)', filter: (d) => d.cat === 'Groceries', where: (g) => g.groceryCounter },
+  kiosk: { title: 'Gas station kiosk', filter: (d) => ['sausage', 'coffee', 'milk', 'jerrycan', 'oil_jug', 'coolant_jug'].includes(d.id), where: (g) => g.kioskCounter, extra: [{ id: 'jerrycan_empty', name: 'Empty jerry can (10 L)', price: 45, make: 'jerrycan', amount: 0 }] },
 };
 P.openStore = function (kind) {
   const g = this.game, S = STORE[kind];
@@ -116,7 +116,7 @@ P.openPaint = function () {
   const sel = { paint: P0.paint || '#c4a25a', stripe: P0.stripe || '#ffffff', livery: P0.livery || 'none', number: P0.number || '', mudflaps: !!P0.mudflaps };
   const cost = () => (sel.paint !== (P0.paint || '#c4a25a') ? 900 : 0) + (sel.livery !== (P0.livery || 'none') || sel.stripe !== (P0.stripe || '#ffffff') ? 350 : 0) + (String(sel.number) !== String(P0.number || '') ? 60 : 0) + (sel.mudflaps !== !!P0.mudflaps ? 140 : 0);
   const render = () => {
-    this.panel(`<h2>Maalaamo — paint & livery</h2>
+    this.panel(`<h2>Paint shop — paint & livery</h2>
       <div>Body colour</div><div class="swatches">${COLORS.map((c2) => `<button data-c="${c2}" class="${sel.paint === c2 ? 'on' : ''}" style="background:${c2}"></button>`).join('')} <input type="color" id="pcCustom" value="${sel.paint}"></div>
       <div style="margin-top:8px">Stripe / decal colour</div><div class="swatches">${COLORS.map((c2) => `<button data-s="${c2}" class="${sel.stripe === c2 ? 'on' : ''}" style="background:${c2}"></button>`).join('')}</div>
       <label style="margin-top:8px">Livery <select id="pcLiv">${[['none', 'Plain'], ['stripes', 'Twin racing stripes'], ['side', 'Side stripes'], ['rally', 'Full rally livery + sponsors'], ['checker', 'Checkered roof']].map(([v, n]) => `<option value="${v}" ${sel.livery === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
@@ -184,7 +184,7 @@ P.openService = function (title = 'Service park — Ari\'s crew') {
 };
 P.openGarageServices = function () {
   const g = this.game;
-  this.panel(`<h2>Esan Korjaamo — services</h2>
+  this.panel(`<h2>Esa's garage — services</h2>
     <div class="svc"><span>Repairs & maintenance (car must be at the workshop)</span><button id="gsRep">Open</button></div>
     <div class="svc"><span>Tow my car to the workshop</span><span>${fmtMoney(200)} <button id="gsTowS">Call</button></span></div>
     <div class="svc"><span>Tow my car home</span><span>${fmtMoney(250)} <button id="gsTowH">Call</button></span></div>
@@ -199,15 +199,15 @@ P.openGarageServices = function () {
 // ---------- jobs board ----------
 P.openJobs = function () {
   const g = this.game;
-  this.panel(`<h2>Ilmoitustaulu — jobs</h2>${g.jobs.list().map((j) => `<div class="svc"><span><b>${j.title}</b><div class="muted">${j.status}</div></span><span>${j.pay}</span></div>`).join('')}
-    <div class="muted" style="margin-top:8px">Fuel is 7,90 mk/L at Kaasu-Kalle. Romu-Raimo sells used parts by the day — condition unknown until you inspect them.</div>`);
+  this.panel(`<h2>Notice board — jobs</h2>${g.jobs.list().map((j) => `<div class="svc"><span><b>${j.title}</b><div class="muted">${j.status}</div></span><span>${j.pay}</span></div>`).join('')}
+    <div class="muted" style="margin-top:8px">Fuel is 7,90 mk/L at Kaasu-Kalle. Raimo's scrapyard sells used parts that change every day — condition unknown until you inspect them.</div>`);
 };
 
 // ---------- rally (HQ) ----------
 P.openRally = function () {
   const g = this.game, R = g.rally;
   const act = R.active ? R.ev(R.active.evId) : null;
-  this.panel(`<h2>Ralli-HQ — events & SM championship</h2>
+  this.panel(`<h2>Rally HQ — events & championship</h2>
     <div>Reputation <b>${R.rep}</b> · Points <b>${R.points}</b> · Inspection: ${(g.car.chassis.props.inspected ?? -1) >= g.life.day ? `<span style="color:#9fe39a">valid until day ${g.car.chassis.props.inspected + 1}</span>` : '<span style="color:#ff9a8a">not valid</span>'}</div>
     ${act ? `<div class="svc"><span>Current: <b>${act.name}</b> — next SS${R.active.idx + 1} ${STAGES[R.nextStageId()].name}, due ${g.life.fmtTime(R.active.due)}. Times so far: ${R.active.times.map((t) => R.fmt(t)).join(', ') || '—'}</span><button id="rlRetire">Retire</button></div>` : ''}
     <table class="keys" style="width:100%">${EVENTS.map((ev) => { const bad = R.eligibility(ev); return `<tr><td><b>T${ev.tier} ${ev.name}</b><div class="muted">${ev.desc}<br>Stages: ${ev.stages.map((s) => STAGES[s].name).join(' → ')}</div>${bad.length ? `<div style="color:#ff9a8a;font-size:12px">${bad.join('<br>')}</div>` : ''}</td><td>${fmtMoney(ev.fee)}</td><td class="muted">${ev.prizes.map(fmtMoney).join(' / ')}</td><td>${!bad.length && !R.active ? `<button data-e="${ev.id}">Enter</button>` : ''}</td></tr>`; }).join('')}</table>

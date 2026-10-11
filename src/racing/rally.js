@@ -8,22 +8,22 @@ import { labelTex } from '../core/textures.js';
 import { mulberry32, fmtMoney } from '../core/util.js';
 
 export const STAGES = {
-  harju: { road: 'Harju', rev: false, name: 'Harju' },
-  harjuR: { road: 'Harju', rev: true, name: 'Harju (reverse)' },
-  hirvi: { road: 'Hirvimäki', rev: false, name: 'Hirvimäki' },
-  hirviR: { road: 'Hirvimäki', rev: true, name: 'Hirvimäki (reverse)' },
-  kallio: { road: 'Kalliojärvi', rev: false, name: 'Kalliojärvi' },
-  kallioR: { road: 'Kalliojärvi', rev: true, name: 'Kalliojärvi (reverse)' },
-  metsa: { road: 'Metsätie', rev: false, name: 'Metsätie' },
-  metsaR: { road: 'Metsätie', rev: true, name: 'Metsätie (reverse)' },
+  harju: { road: 'Harju', rev: false, name: 'Harju Ridge' },
+  harjuR: { road: 'Harju', rev: true, name: 'Harju Ridge (reverse)' },
+  hirvi: { road: 'Hirvimäki', rev: false, name: 'Moose Hill (Hirvimäki)' },
+  hirviR: { road: 'Hirvimäki', rev: true, name: 'Moose Hill (reverse)' },
+  kallio: { road: 'Kalliojärvi', rev: false, name: 'Rock Lake (Kalliojärvi)' },
+  kallioR: { road: 'Kalliojärvi', rev: true, name: 'Rock Lake (reverse)' },
+  metsa: { road: 'Metsätie', rev: false, name: 'Forest Road (Metsätie)' },
+  metsaR: { road: 'Metsätie', rev: true, name: 'Forest Road (reverse)' },
   ss: { road: 'Super Special', rev: false, name: 'Ruskala Super Special' },
 };
 export const EVENTS = [
   { id: 'sprint', name: 'Ruskala Sprint', tier: 1, stages: ['harju'], fee: 150, prizes: [900, 450, 200], pace: 10.5, rep: 0, insp: false, desc: 'One dirt stage for local amateurs. Muffler, lights, bumpers and a seat required.' },
-  { id: 'kesa', name: 'Kesäralli Ruskala', tier: 2, stages: ['harju', 'metsa'], fee: 350, prizes: [2200, 1100, 500], pace: 11.5, rep: 3, insp: true, desc: 'Two stages with a liaison in between. Valid inspection required.' },
-  { id: 'hirvi', name: 'Hirvimäki Rally', tier: 3, stages: ['hirvi', 'harjuR', 'kallio'], fee: 650, prizes: [4500, 2200, 1000], pace: 12.5, rep: 8, insp: true, desc: 'Hairpins up the mountain, the ridge backwards and the lake jumps.' },
-  { id: 'jarvi', name: 'Järviseutu Regional', tier: 4, stages: ['kallioR', 'metsaR', 'ss', 'hirviR'], fee: 1100, prizes: [8000, 4000, 2000], pace: 13.5, rep: 15, insp: true, desc: 'Four stages, every surface. Professional field.' },
-  { id: 'sm', name: 'Ralli-SM Final: Tuhannen Mäen Ralli', tier: 5, stages: ['hirvi', 'kallio', 'harju', 'metsa', 'ss'], fee: 2000, prizes: [20000, 9000, 4000], pace: 14.5, rep: 25, insp: true, desc: 'The championship decider. Five stages. Bring spare everything.' },
+  { id: 'kesa', name: 'Ruskala Summer Rally', tier: 2, stages: ['harju', 'metsa'], fee: 350, prizes: [2200, 1100, 500], pace: 11.5, rep: 3, insp: true, desc: 'Two stages with a liaison in between. Valid inspection required.' },
+  { id: 'hirvi', name: 'Moose Hill Rally', tier: 3, stages: ['hirvi', 'harjuR', 'kallio'], fee: 650, prizes: [4500, 2200, 1000], pace: 12.5, rep: 8, insp: true, desc: 'Hairpins up the mountain, the ridge backwards and the lake jumps.' },
+  { id: 'jarvi', name: 'Lake District Regional', tier: 4, stages: ['kallioR', 'metsaR', 'ss', 'hirviR'], fee: 1100, prizes: [8000, 4000, 2000], pace: 13.5, rep: 15, insp: true, desc: 'Four stages, every surface. Professional field.' },
+  { id: 'sm', name: 'National Championship Final', tier: 5, stages: ['hirvi', 'kallio', 'harju', 'metsa', 'ss'], fee: 2000, prizes: [20000, 9000, 4000], pace: 14.5, rep: 25, insp: true, desc: 'The championship decider. Five stages. Bring spare everything.' },
 ];
 const RIVALS = ['Pekka "Peltikatto" Mäki', 'Sirpa Ruuskanen', 'Jarmo Lahtinen', 'Teuvo Kärkkäinen', 'Aki Hirvonen', 'Mervi Laakso', 'Ossi Valtonen', 'Rane Ketola', 'Kimi Rämö', 'Hannele Vuori'];
 const NUM = ['', 'one', 'two', 'three', 'four', 'five', 'six'];
@@ -92,7 +92,7 @@ export class Rally {
       const g = new THREE.Group(); g.position.set(p.x, heightAt(p.x, p.z), p.z); g.rotation.y = ang;
       const w = st.road.w / 2 + 1.2;
       for (const sd of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 0.2), MAT.darkSteel); post.position.set(sd * w, 2, 0); post.castShadow = true; g.add(post); }
-      const text = 'START ' + st.def.road.toUpperCase() + (st.def.rev ? ' (REV)' : '');
+      const text = 'RALLY STAGE START: ' + st.def.name.replace(/\s*\(.*\)/, '').toUpperCase() + (st.def.rev ? ' (REVERSE)' : '');
       const ban = new THREE.Mesh(new THREE.PlaneGeometry(w * 2, 0.9), new THREE.MeshStandardMaterial({ map: labelTex(text, 512, 110, st.def.rev ? '#1a50a0' : '#a01818', '#fff', 'bold 54px Impact'), side: THREE.DoubleSide }));
       ban.position.y = 3.6; g.add(ban);
       this.group.add(g);

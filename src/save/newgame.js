@@ -150,6 +150,6 @@ export function setupNewGame(game) {
   inFridge('rye_bread', 0.1, 0.95, 0);
   inFridge('coffee', 0.0, 1.35, 0);
   car.park.pos.set(-1.2, 0, 0.3); car.park.yaw = 0;
-  game.money = 1400;
-  game.ledger = [{ when: 'Day 1', text: 'Opening balance', amount: 1400 }];
+  game.money = 400; // not enough for every part: build what you can, then earn the rest with jobs
+  game.ledger = [{ when: 'Day 1', text: 'Opening balance', amount: 400 }];
 }
