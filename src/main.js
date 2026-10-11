@@ -95,6 +95,7 @@ class Game {
     this.flashlight.position.set(0.15, -0.1, 0); this.flashlight.target.position.set(0, 0, -1);
     this.camera.add(this.flashlight, this.flashlight.target);
     this.audio.init();
+    this.audio.radio.onSong = (s) => this.toast(`📻 ${s.title} — ${s.artist}`, 4);
     let loaded = false;
     if (mode === 'continue') {
       try { const d = readSave(); if (d) { applySave(this, d); loaded = true; this.toast('Game loaded'); } }
@@ -326,6 +327,8 @@ class Game {
     }
     car.pt.autoClutchT = Math.max(0, (car.pt.autoClutchT || 0) - dt);
     if (i.hit('KeyL')) { car.lightsOn = !car.lightsOn; this.audio.click(0.4); }
+    if (i.hit('KeyN')) { if (car.S?.electric) { this.audio.radio.toggle('car'); this.audio.click(0.4); } else this.say('The radio is dead. No battery power.'); }
+    if (i.hit('KeyB') && this.audio.radio.on && this.audio.radio.where === 'car') this.audio.radio.next();
     if (i.hit('KeyE')) this.exitCar();
   }
 
@@ -603,6 +606,11 @@ class Game {
       engine: this.moped.riding && !pt.running ? { rpm: this.moped.rpm, running: true, load: 0.5, throttle: i.down('KeyW') ? 0.8 : 0.1, misfire: 0, loud: 1.7, starter: 0, knock: 0 } : { rpm: pt.rpm, running: pt.running, load: pt.load, throttle: pt.throttleEff || 0, misfire: pt.misfire || 0, loud: S?.loud || 1, starter: pt.cranking ? pt.starterSpin : 0, knock: pt.knock + (pt.detonation > 2 ? 0.3 : 0) },
       slip: this.car.speed > 1 ? slip : 0, gravel, speed: this.moped.riding ? Math.abs(this.moped.speed) : this.car.speed, rain: this.weather.rain, day: this.sky.dayLight, outdoors: !inside, indoors: inside,
     });
+    if (this.audio.ctx) {
+      const R = this.audio.radio;
+      if (R.on && R.where === 'car' && !this.car.S?.electric) R.toggle('car');
+      R.update(this.camera.position, R.where === 'car' ? this.car.chassis.obj.localToWorld(new THREE.Vector3(0, 0.95, 0.55)) : this.garageRadioPos);
+    }
     this.ui.hud(dt);
     if (this.settings.debug) {
       const c = this.car, b = c.body;

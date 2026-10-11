@@ -10,8 +10,10 @@ const P = UI.prototype;
 
 P.dialog = function (title, text, options) {
   const el = $('dialog');
+  const g = this.game;
+  g.audio.speak(text, g.npcs ? g.npcs.voiceProfile(title) : {});
   el.innerHTML = `<div class="panel"><h2>${title}</h2><div class="say">“${text}”</div>${options.map((o, i) => `<button data-i="${i}">› ${o.label}</button>`).join('')}</div>`;
-  el.querySelectorAll('[data-i]').forEach((b) => b.onclick = () => { const o = options[+b.dataset.i]; this.closeModal(); setTimeout(() => o.go(), 0); });
+  el.querySelectorAll('[data-i]').forEach((b) => b.onclick = () => { const o = options[+b.dataset.i]; if (/^(Bye|OK|Thanks|Not now|Not today|Maybe later)/.test(o.label)) g.audio.hush(); this.closeModal(); setTimeout(() => o.go(), 0); });
   this.openModal('dialog');
 };
 

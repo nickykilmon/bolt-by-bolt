@@ -41,15 +41,15 @@ const CAST = [
     lines: ['Bent the suspension again? I have an alignment rig.', 'I sometimes have work for someone who knows which end of a ratchet is which.', 'A Ruska 1600. My father had one. It caught fire.'] },
   { id: 'tuula', name: 'Tuula (paint shop)', role: 'painter', spot: 'painter', hours: [9, 17], shirt: 0xe8e8e8, pants: 0x5a2a7a,
     lines: ['Colour sells cars. And rally fans love stripes.', 'Bring it in clean and I\'ll make it shine.'] },
-  { id: 'kivela', name: 'Inspector Kivelä', role: 'inspector', spot: 'inspector', hours: [8, 16], shirt: 0x0a6a6a, pants: 0x1a1a1a, hat: 0x0a6a6a,
+  { id: 'kivela', name: 'Inspector Kivelä', role: 'inspector', spot: 'inspector', hours: [8, 16], voice: { pitch: 0.3, rate: 0.75 }, shirt: 0x0a6a6a, pants: 0x1a1a1a, hat: 0x0a6a6a,
     lines: ['Brakes, lights, exhaust, steering, tyres. In that order. No exceptions.', 'Rally organisers want a valid inspection for anything above amateur level.'] },
   { id: 'matti', name: 'Matti (rally organiser)', role: 'organizer', spot: 'organizer', hours: [9, 19], shirt: 0xa01818, pants: 0x222222,
     lines: ['The SM series is no joke. Start at the Ruskala Sprint and earn your reputation.', 'Liaison times are strict. Late to a stage start costs ten seconds a minute.'] },
   { id: 'ari', name: 'Ari (service crew)', role: 'service', spot: 'service', hours: [8, 21], shirt: 0x1a3a7a, pants: 0x1a3a7a, hat: 0xd0a020,
     lines: ['We can fix most things between stages. For a price.', 'Pull into the service park, we\'ll do the rest.'] },
-  { id: 'raimo', name: 'Romu-Raimo', role: 'scrap', spot: 'scrap', hours: [7, 19], shirt: 0x5a4a1a, pants: 0x2a2a2a, hat: 0x7a2a1a,
+  { id: 'raimo', name: 'Romu-Raimo', role: 'scrap', spot: 'scrap', hours: [7, 19], voice: { pitch: 0.1, rate: 0.8 }, shirt: 0x5a4a1a, pants: 0x2a2a2a, hat: 0x7a2a1a,
     lines: ['Used parts on the racks. You buy what you pick up. No refunds, no guarantees, no questions.', 'Bring me scrap metal, I pay by the kilo. Put it on the scale.', 'That one? Came out of a Ruska that went into the lake in \'79. Probably fine.'] },
-  { id: 'pertti', name: 'Naapuri-Pertti', role: 'pertti', spot: 'pertti', hours: [0, 24], shirt: 0x6a8a3a, pants: 0x2a3a5a, hat: 0x2a5a2a, wander: 6,
+  { id: 'pertti', name: 'Naapuri-Pertti', role: 'pertti', spot: 'pertti', hours: [0, 24], voice: { pitch: 1.9, rate: 1.25 }, shirt: 0x6a8a3a, pants: 0x2a3a5a, hat: 0x2a5a2a, wander: 6,
     lines: ['Is that thing of yours ever going to run, JC?', 'My lawn needs mowing. Interested? Pays a bit.', 'I heard you revving at 3 am. Again.'] },
   { id: 'makela', name: 'Isäntä Mäkelä', role: 'makela', spot: 'makela', hours: [0, 24], shirt: 0x7a5a3a, pants: 0x3a3a2a, wander: 5,
     lines: ['There\'s scrap metal all over the forest. Raimo pays for it.', 'Drive slowly past my cows. I mean it.'] },
@@ -92,6 +92,14 @@ export class NPCs {
     npc.g.position.copy(npc.target);
   }
   placeAll() { for (const n of this.list) this.placeNow(n); }
+  // a distinct (and usually silly) text-to-speech voice per character
+  voiceProfile(title) {
+    const n = this.list.find((x) => x.name === title) || this.list.find((x) => title.startsWith(x.name.split(' ')[0]));
+    const key = n ? n.id : title;
+    let h = 0; for (const ch of key) h = (h * 131 + ch.charCodeAt(0)) >>> 0;
+    const pitches = [0.1, 0.35, 0.55, 0.75, 1.35, 1.6, 1.9];
+    return { voice: key, pitch: n?.voice?.pitch ?? pitches[h % pitches.length], rate: n?.voice?.rate ?? 0.85 + ((h >> 4) % 5) * 0.09 };
+  }
   isWorking(npc) { const h = this.game.life.hours; return h >= npc.hours[0] && h < npc.hours[1]; }
   get(id) { return this.list.find((n) => n.id === id); }
   available(role) { const n = this.list.find((x) => x.role === role); return n && this.isWorking(n); }

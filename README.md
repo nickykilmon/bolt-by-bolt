@@ -31,6 +31,7 @@ npm run dev        # then open http://localhost:5173
 | Q / I | pocket small item / open pockets | |
 | T | | tap: ignition on/off, hold: crank |
 | L | | headlights |
+| N / B | | car radio on/off / next song |
 | Enter | | start a rally stage (at a START arch) |
 | (on the moped) W/S/A/D, E | ride / get off | |
 | Tab (hold) | mechanic's eye: diagnostics + colour-coded fasteners | |

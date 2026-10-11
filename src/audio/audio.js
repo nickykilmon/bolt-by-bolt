@@ -1,12 +1,13 @@
 // Procedural audio: engine synth driven by RPM/load, tyre & surface noise, workshop
 // one-shots (ratchets, clunks), footsteps, ambience. No sample files needed.
 import { clamp } from '../core/util.js';
+import { Radio } from './radio.js';
 
 export class Audio {
   constructor() {
     this.ctx = null;
     this.volume = 0.8;
-    this.radioOn = false;
+    this.radio = new Radio(this);
   }
   init() {
     if (this.ctx) return;
@@ -19,12 +20,22 @@ export class Audio {
     this.noiseBuf = c.createBuffer(1, len, c.sampleRate);
     const d = this.noiseBuf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    // pink noise (softer, more natural for rain and wind)
+    this.pinkBuf = c.createBuffer(1, len, c.sampleRate);
+    const pk = this.pinkBuf.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852;
+      b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898;
+      pk[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11; b6 = w * 0.115926;
+    }
     this.buildEngine();
     this.buildLoops();
     this.birdT = 3;
   }
   setVolume(v) { this.volume = v; if (this.master) this.master.gain.value = v; }
-  noise() { const s = this.ctx.createBufferSource(); s.buffer = this.noiseBuf; s.loop = true; return s; }
+  noise(pink = false) { const s = this.ctx.createBufferSource(); s.buffer = pink ? this.pinkBuf : this.noiseBuf; s.loop = true; s.loopStart = Math.random(); return s; }
 
   buildEngine() {
     const c = this.ctx;
@@ -56,7 +67,12 @@ export class Audio {
     this.skidG = mk('bandpass', 900, 2);
     this.gravelG = mk('bandpass', 2200, 0.7);
     this.windG = mk('lowpass', 400, 0.5);
-    this.rainG = mk('highpass', 3000, 0.3);
+    // rain: soft pink wash + sharper splash layer + individual droplets (scheduled in update)
+    const pk = (type, f, q) => { const n = this.noise(true); const flt = c.createBiquadFilter(); flt.type = type; flt.frequency.value = f; flt.Q.value = q; const g = c.createGain(); g.gain.value = 0; n.connect(flt).connect(g).connect(this.master); n.start(); return { g, flt }; };
+    this.rainWash = pk('lowpass', 1400, 0.4);
+    this.rainSplash = pk('bandpass', 4200, 0.6);
+    this.rainRoof = pk('lowpass', 380, 0.7);
+    this.dropAcc = 0;
     this.ambG = mk('lowpass', 250, 0.3);
   }
 
@@ -89,7 +105,14 @@ export class Audio {
     this.skidG.gain.setTargetAtTime(clamp(st.slip, 0, 1) * 0.18, t, 0.05);
     this.gravelG.gain.setTargetAtTime(clamp(st.speed / 25, 0, 1) * st.gravel * 0.1, t, 0.1);
     this.windG.gain.setTargetAtTime(clamp(st.speed / 40, 0, 1) * 0.12 + 0.012 * (st.outdoors ? 1 : 0.2), t, 0.2);
-    this.rainG.gain.setTargetAtTime(st.rain * 0.06, t, 0.5);
+    const rain = st.rain, inside = st.indoors;
+    this.rainWash.g.gain.setTargetAtTime(rain * (inside ? 0.05 : 0.16), t, 0.5);
+    this.rainWash.flt.frequency.setTargetAtTime(inside ? 500 : 1400, t, 0.3);
+    this.rainSplash.g.gain.setTargetAtTime(rain * (inside ? 0.0 : 0.035), t, 0.5);
+    this.rainRoof.g.gain.setTargetAtTime(rain * (inside ? 0.22 : 0.0), t, 0.5);
+    // individual drops: plinks outside, thuds on the roof inside
+    this.dropAcc += rain * dt * (inside ? 35 : 55);
+    while (this.dropAcc > 1) { this.dropAcc -= 1; inside ? this.roofDrop() : this.drop(); }
     this.ambG.gain.setTargetAtTime(st.indoors ? 0.01 : 0.004, t, 0.5);
     // birds in daytime outdoors
     if (st.day > 0.5 && st.outdoors && st.rain < 0.3) {
@@ -144,23 +167,38 @@ export class Audio {
   beep(hi) { this.tone(hi ? 1320 : 660, 'square', 0.12, hi ? 0.5 : 0.18); }
   cash() { this.tone(1200, 'triangle', 0.1, 0.1); setTimeout(() => this.tone(1800, 'triangle', 0.1, 0.25), 90); }
 
-  toggleRadio() {
-    if (!this.ctx) return;
-    this.radioOn = !this.radioOn;
-    if (this.radioOn) {
-      // a cheerful little humppa loop
-      const notes = [0, 4, 7, 4, 2, 5, 9, 5, 0, 4, 7, 12, 7, 4, 2, -1];
-      let i = 0;
-      this.radioTimer = setInterval(() => {
-        const n = notes[i++ % notes.length];
-        const base = 220 * Math.pow(2, n / 12);
-        this.tone(base, 'square', 0.025, 0.16);
-        if (i % 2) this.tone(110 * Math.pow(2, (i % 4 < 2 ? 0 : 7) / 12), 'triangle', 0.04, 0.12);
-        if (Math.random() < 0.3) this.burst(6000, 1, 0.01, 0.05);
-      }, 190);
-    } else clearInterval(this.radioTimer);
+  drop() {
+    const c = this.ctx, t = c.currentTime + Math.random() * 0.03;
+    const o = c.createOscillator(); o.type = 'sine';
+    const f = 1800 + Math.random() * 2600; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.6, t + 0.03);
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.004 + Math.random() * 0.01, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+    const p = c.createStereoPanner(); p.pan.value = Math.random() * 2 - 1;
+    o.connect(g).connect(p).connect(this.master); o.start(t); o.stop(t + 0.05);
   }
-  speak(text) {
-    try { const u = new SpeechSynthesisUtterance(text); u.rate = 1.15; u.pitch = 0.9; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { console.warn('speech unavailable', e); }
+  roofDrop() {
+    const c = this.ctx, t = c.currentTime + Math.random() * 0.03;
+    const n = this.noise(); const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 500 + Math.random() * 900; f.Q.value = 2;
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.01 + Math.random() * 0.02, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    const p = c.createStereoPanner(); p.pan.value = Math.random() * 1.6 - 0.8;
+    n.connect(f).connect(g).connect(p).connect(this.master); n.start(t); n.stop(t + 0.07);
   }
+  // Text to speech with the browser's built-in voices (free, offline). Profiles push pitch and
+  // rate to odd values for the flat, slightly robotic villager voices.
+  voiceFor(key) {
+    const vs = (this.voices = this.voices?.length ? this.voices : (window.speechSynthesis?.getVoices() || [])).filter((v) => /^en/i.test(v.lang));
+    if (!vs.length) return null;
+    let h = 0; for (const ch of String(key)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return vs[h % vs.length];
+  }
+  speak(text, opts = {}) {
+    try {
+      if (!window.speechSynthesis) return;
+      const u = new SpeechSynthesisUtterance(text.replace(/[“”"]/g, ''));
+      u.rate = opts.rate ?? 1.15; u.pitch = opts.pitch ?? 0.9; u.volume = Math.min(1, this.volume * 1.2);
+      const v = this.voiceFor(opts.voice || 'codriver'); if (v) u.voice = v;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    } catch (e) { console.warn('speech unavailable', e); }
+  }
+  hush() { try { window.speechSynthesis?.cancel(); } catch (e) { /* ignore */ } }
+
 }

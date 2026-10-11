@@ -134,7 +134,11 @@ export function buildPlace(game) {
   // radio on bench
   const radio = new THREE.Group(); radio.position.set(4.2, 0.93, -4.75); g.add(radio);
   box(radio, 0.3, 0.16, 0.1, MAT.blackPaint, 0, 0.08, 0); cyl(radio, 0.04, 0.01, MAT.chrome, -0.07, 0.08, 0.051, 'z');
-  interact(radio, { prompt: () => `<span class="k">E</span>Radio ${game.audio.radioOn ? 'off' : 'on'}`, use: () => game.audio.toggleRadio(radio) });
+  game.garageRadioPos = new THREE.Vector3(4.2, 1.0, -4.75);
+  interact(radio, {
+    prompt: () => { const R = game.audio.radio, on = R.on && R.where === 'garage'; return `<span class="k">E</span>Radio ${on ? 'off' : 'on'}${on ? `   <span class="k">LMB</span>Next song\n<span class="dim">📻 ${R.nowPlaying()}</span>` : ''}`; },
+    use: (b) => { const R = game.audio.radio; if (b === 'E') R.toggle('garage'); else if (b === 'LMB' && R.on && R.where === 'garage') R.next(); },
+  });
 
   // ---- engine stand (assembly root) ----
   const stand = asm.create('engine_stand', { uid: 'stand' });
