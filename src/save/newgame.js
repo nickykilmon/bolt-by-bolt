@@ -138,6 +138,7 @@ export function setupNewGame(game) {
   onSurface('wrench_13', 4.4, wbY, -4.4, -0.2);
   onSurface('lug_wrench', 0.3, 0, 2.6, 0.8);
   onSurface('axle_stands', -5.0, 0, 4.2, 0);
+  onSurface('axle_stands', -4.2, 0, 4.2, 0);
   // ---------------- fluids ----------------
   onSurface('oil_jug', -5.72, 0.45 + 0.017, -3.9, 0, { amount: 2.5 });
   onSurface('brake_fluid', -5.72, 0.45 + 0.017, -3.3, 0, { amount: 0.3 });

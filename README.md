@@ -34,6 +34,7 @@ npm run dev        # then open http://localhost:5173
 | Enter | | start a rally stage (at a START arch) |
 | (on the moped) W/S/A/D, E | ride / get off | |
 | Tab (hold) | mechanic's eye: diagnostics + colour-coded fasteners | |
+| H | show / hide the build guide (top left) | |
 | M | map | map |
 | P | phone: tow truck, taxi, jobs, rally status | phone |
 | Esc | pause menu (save / load / settings) | |

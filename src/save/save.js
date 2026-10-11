@@ -26,7 +26,7 @@ export function writeSave(game) {
     ctl: { ign: g.ctl.ign, gear: g.ctl.gear },
     weather: g.weather,
     rally: g.rally.serialize(),
-    jobs: g.jobs.serialize(), moped: g.moped.serialize(),
+    jobs: g.jobs.serialize(), moped: g.moped.serialize(), guide: g.guide.serialize(),
   };
   const json = JSON.stringify(data);
   const prev = localStorage.getItem(SAVE_KEY);
@@ -88,6 +88,7 @@ export function applySave(game, d) {
   game.rally.restore(d.rally);
   game.jobs.restore(d.jobs);
   game.moped.restore(d.moped);
+  game.guide.restore(d.guide);
   game.npcs.placeAll();
   if (d.held) { const h = asm.get(d.held); if (h) game.interaction.hold(h); }
   if (d.player.inCar) game.enterCar();

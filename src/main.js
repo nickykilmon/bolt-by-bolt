@@ -22,6 +22,7 @@ import { NPCs } from './world/npc.js';
 import { Jobs } from './economy/jobs.js';
 import { Moped } from './vehicles/moped.js';
 import './ui/screens.js';
+import { Guide } from './ui/guide.js';
 import { hasSave, writeSave, readSave, applySave } from './save/save.js';
 
 const $ = (id) => document.getElementById(id);
@@ -89,6 +90,7 @@ class Game {
     this.jobs = new Jobs(this);
     this.moped = new Moped(this);
     this.rally = new Rally(this);
+    this.guide = new Guide(this);
     this.flashlight = new THREE.SpotLight(0xfff4e0, 0, 18, 0.5, 0.5, 1.5);
     this.flashlight.position.set(0.15, -0.1, 0); this.flashlight.target.position.set(0, 0, -1);
     this.camera.add(this.flashlight, this.flashlight.target);
@@ -562,6 +564,8 @@ class Game {
       if (i.hit('KeyI')) this.ui.openInventory();
       if (i.hit('KeyM')) this.ui.openMap();
       if (i.hit('KeyP')) this.ui.openPhone();
+      if (i.hit('KeyH')) this.guide.toggle();
+      this.guide.update(dt);
       if (i.hit('F3')) { this.settings.debug = !this.settings.debug; }
       const tab = i.down('Tab');
       if (tab !== this.xray) { this.xray = tab; this.asm.setFastenerXray(tab); }
