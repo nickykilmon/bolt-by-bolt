@@ -18,8 +18,8 @@ npm run dev        # then open http://localhost:5173
 | Key | On foot | In the car |
 |---|---|---|
 | WASD / mouse | walk / look | throttle, brake, steer |
-| Shift | sprint | clutch (hold) |
-| Ctrl or C | crouch | |
+| Shift | sprint on/off (tap) | clutch (hold) |
+| Ctrl or C | crouch on/off (tap) | |
 | Z | lie on the creeper (slide under a raised car) | |
 | Space | jump | handbrake (hold) |
 | E | interact: pick up, remove part, open, get in | get out |

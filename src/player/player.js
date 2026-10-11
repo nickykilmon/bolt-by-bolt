@@ -44,10 +44,15 @@ export class Player {
     if (input.down('KeyD')) mx += 1; if (input.down('KeyA')) mx -= 1;
     if (input.hit('KeyZ')) { this.prone = !this.prone; if (this.prone) game.say('Lying on the creeper. Z to get up.', 2); }
     if (this.prone && (this.carryMass > 20)) this.prone = false;
-    this.crouch = this.prone || input.down('ControlLeft') || input.down('KeyC');
+    // crouch and sprint are toggles (holding Ctrl + W would close the browser tab)
+    if (input.hit('ControlLeft') || input.hit('ControlRight') || input.hit('KeyC')) { this.crouchOn = !this.crouchOn; if (this.crouchOn) this.sprintOn = false; }
+    if (input.hit('ShiftLeft') || input.hit('ShiftRight')) { this.sprintOn = !this.sprintOn; this.stillT = 0; if (this.sprintOn) this.crouchOn = false; }
+    this.crouch = this.prone || this.crouchOn;
     const heavy = this.carryMass > 20;
     const tired = game.life.fatigue > 85;
-    let speed = this.prone ? 0.8 : this.crouch ? 1.3 : input.down('ShiftLeft') && !heavy && !tired && game.life.canSprint() ? 5.2 : 2.7;
+    this.stillT = mx || mz ? 0 : (this.stillT || 0) + dt;
+    if (this.stillT > 0.5) this.sprintOn = false; // sprint switches off once you've stopped
+    let speed = this.prone ? 0.8 : this.crouch ? 1.3 : this.sprintOn && !heavy && !tired && game.life.canSprint() ? 5.2 : 2.7;
     if (heavy) speed *= 0.6;
     if (this.pushing) speed = Math.min(speed, 1.6);
     const wish = new THREE.Vector3().addScaledVector(fwd, mz).addScaledVector(right, mx);
@@ -55,7 +60,8 @@ export class Player {
     const acc = this.onGround ? 14 : 3;
     this.vel.x += (wish.x - this.vel.x) * Math.min(1, acc * dt);
     this.vel.z += (wish.z - this.vel.z) * Math.min(1, acc * dt);
-    if (input.hit('Space') && this.onGround && !heavy && !this.crouch) { this.vel.y = 4.4; this.onGround = false; game.life.exert(1.5); }
+    if (input.hit('Space') && this.crouchOn && !this.prone) this.crouchOn = false; // Space stands you up
+    else if (input.hit('Space') && this.onGround && !heavy && !this.crouch) { this.vel.y = 4.4; this.onGround = false; game.life.exert(1.5); }
     this.vel.y -= 13 * dt;
     const prev = this.pos.clone();
     this.pos.addScaledVector(this.vel, dt);
