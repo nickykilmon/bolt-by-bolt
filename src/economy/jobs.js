@@ -249,6 +249,30 @@ export class Jobs {
     this.focus = 'workshop';
     g.say('The job is on Esa\'s workbench. His tools are on the table next to it — the guide (top left) shows each step.');
   }
+  // where each customer part sits on Esa's bench (by item type, in order)
+  benchLayout(defId, n) {
+    const L = { head_16: [0, 0], rockers: [1.0, 0], valve_cover: [-1.1, 0.05], spark_plug: [1.4 + n * 0.12, -0.2], intake_manifold: [0, 0], carb_single: [1.2, -0.1], air_filter: [-1.1, 0.05] };
+    return L[defId] || [0.5 + n * 0.2, 0.2];
+  }
+  // put loose job parts back on the bench (fixes saves where they ended up inside the wall)
+  relayoutWorkshop() {
+    const g = this.game, asm = g.asm, w = this.workshop;
+    if (!w) return;
+    if (/gearbox/i.test(w.title)) { // the old gearbox job couldn't be finished — cancel it
+      for (const u of w.items) { const it = asm.get(u); if (it) asm.remove(it); }
+      this.workshop = null; if (this.focus === 'workshop') this.focus = null;
+      g.say('Esa: "Forget that gearbox, the customer took it elsewhere. Ask me for another job."', 7);
+      return;
+    }
+    const seen = {};
+    for (const u of w.items) {
+      const it = asm.get(u);
+      if (!it || it.slot || it.loc?.kind !== 'world' || it.loc.cont) continue;
+      const n = seen[it.defId] = (seen[it.defId] ?? -1) + 1;
+      const [dx, dz] = this.benchLayout(it.defId, n);
+      asm.dropAt(it, g.workshopAt(dx * 0.75, dz * 0.6), 0, null);
+    }
+  }
   taskHost(t) {
     const asm = this.game.asm;
     if (t.hostOf) { // a part that is itself fitted as part of the job (e.g. the carb's air filter)
@@ -330,5 +354,6 @@ export class Jobs {
     if (!d) return;
     Object.assign(this, { focus: d.focus || null, scrapActive: !!d.scrapActive, parcels: d.parcels, mowing: d.mowing, workshop: d.workshop, scrapKnown: d.scrapKnown, restockDay: d.restockDay ?? -1, scrapSeeded: d.scrapSeeded, lastMowWeek: d.lastMowWeek, lastWorkshopDay: d.lastWorkshopDay });
     if (d.cut) [...d.cut].forEach((c, i) => { if (i < this.tufts.length) this.setTuft(i, c === '1'); });
+    this.relayoutWorkshop();
   }
 }
