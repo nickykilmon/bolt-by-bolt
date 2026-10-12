@@ -22,8 +22,9 @@ export class Life {
   update(dt) {
     const gm = dt * MIN_PER_SEC;
     this.minutes += gm;
-    this.hunger = clamp(this.hunger - gm * 100 / (60 * 26), 0, 100);
-    this.thirst = clamp(this.thirst - gm * 100 / (60 * 18), 0, 100);
+    const nm = { relaxed: 0.6, harsh: 1.5 }[this.game.profile?.needs] || 1;
+    this.hunger = clamp(this.hunger - gm * nm * 100 / (60 * 26), 0, 100);
+    this.thirst = clamp(this.thirst - gm * nm * 100 / (60 * 18), 0, 100);
     this.fatigue = clamp(this.fatigue + gm * 100 / (60 * 20), 0, 100);
     // weekly bills every Monday 00:00
     const week = Math.floor(this.day / 7);

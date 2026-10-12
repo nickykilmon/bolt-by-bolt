@@ -50,11 +50,11 @@ const CAST = [
   { id: 'raimo', name: 'Raimo (scrapyard)', role: 'scrap', spot: 'scrap', hours: [7, 19], voice: { pitch: 0.1, rate: 0.8 }, shirt: 0x5a4a1a, pants: 0x2a2a2a, hat: 0x7a2a1a,
     lines: ['Used parts on the racks. You buy what you pick up. No refunds, no guarantees, no questions.', 'Bring me scrap metal, I pay by the kilo. Put it on the scale.', 'That one? Came out of a Ruska that went into the lake in \'79. Probably fine.'] },
   { id: 'pertti', name: 'Pertti (neighbour)', role: 'pertti', spot: 'pertti', hours: [0, 24], voice: { pitch: 1.9, rate: 1.25 }, shirt: 0x6a8a3a, pants: 0x2a3a5a, hat: 0x2a5a2a, wander: 6,
-    lines: ['Is that thing of yours ever going to run, JC?', 'My lawn needs mowing. Interested? Pays a bit.', 'I heard you revving at 3 am. Again.'] },
+    lines: ['Is that thing of yours ever going to run, {name}?', 'My lawn needs mowing. Interested? Pays a bit.', 'I heard you revving at 3 am. Again.'] },
   { id: 'makela', name: 'Farmer Mäkelä', role: 'makela', spot: 'makela', hours: [0, 24], shirt: 0x7a5a3a, pants: 0x3a3a2a, wander: 5,
     lines: ['There\'s scrap metal all over the forest. Raimo at the scrapyard pays for it.', 'Drive slowly past my cows. I mean it.'] },
   { id: 'pekka', name: 'Pekka "Peltikatto" Mäki', role: 'rival', spot: 'service', offset: [3, 0, 2.5], hours: [10, 18], shirt: 0xffffff, pants: 0xa01818, hat: 0xa01818,
-    lines: ['You\'re the guy with the beige Ruska? Brave.', 'Moose Hill hairpins: brake early, turn in late.', 'I took the Rock Lake jumps flat out once. Once.'] },
+    lines: ['You\'re {name}, with the beige Ruska? Brave.', 'Moose Hill hairpins: brake early, turn in late.', 'I took the Rock Lake jumps flat out once. Once.'] },
   { id: 'sirpa', name: 'Sirpa Ruuskanen', role: 'rival', spot: 'service', offset: [-3, 0, 2.5], hours: [10, 18], shirt: 0x1a3a7a, pants: 0x1a1a1a,
     lines: ['Your co-driver should call the crests earlier. Oh, it\'s a machine? Figures.', 'Tyre pressures matter more than horsepower on gravel.'] },
 ];
@@ -111,9 +111,11 @@ export class NPCs {
   talk(npc) {
     const g = this.game;
     if (!this.isWorking(npc) && npc.hours[1] < 24) { g.say(`${npc.name.split(' ')[0]} isn't working now. Open ${npc.hours[0]}–${npc.hours[1]}.`); return; }
-    const line = npc.lines[Math.floor(Math.random() * npc.lines.length)];
+    const name = g.profile?.name || 'JC';
+    const line = npc.lines[Math.floor(Math.random() * npc.lines.length)].replaceAll('{name}', name);
+    const hello = ['Hi, {name}.', 'Oh, {name}! ', 'Morning, {name}.', '{name}! Good to see you.', 'Ah, {name}.', 'Hey {name}.'][Math.floor(Math.random() * 6)].replaceAll('{name}', name);
     const opts = this.options(npc);
-    g.ui.dialog(npc.name, this.comment(npc) || line, opts);
+    g.ui.dialog(npc.name, `${hello} ${this.comment(npc) || line}`, opts);
   }
   // NPCs react to the state of your car if it's parked nearby
   comment(npc) {

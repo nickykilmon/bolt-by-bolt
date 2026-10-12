@@ -274,7 +274,7 @@ export class Rally {
       return { name, t };
     });
     const mine = a.times.reduce((s, x) => s + x, 0);
-    rows.push({ name: 'JC (you)', t: mine, me: true });
+    rows.push({ name: `${this.game.profile?.name || 'JC'} (you)`, t: mine, me: true });
     rows.sort((x, y) => x.t - y.t);
     const pos = rows.findIndex((r) => r.me) + 1;
     const prize = ev.prizes[pos - 1] || 0;
@@ -285,7 +285,7 @@ export class Rally {
     this.results.push({ day: g.life.day, ev: ev.name, pos, t: mine });
     this.active = null;
     let msg = `${ev.name} finished: P${pos} of ${rows.length}, total ${this.fmt(mine)}. ${prize ? 'Prize ' + fmtMoney(prize) + '. ' : ''}+${repGain} reputation.`;
-    if (ev.tier === 5 && pos === 1) msg += ' 🏆 JC IS THE FINNISH RALLY CHAMPION! From a pile of rusty parts to the top step.';
+    if (ev.tier === 5 && pos === 1) msg += ` 🏆 ${(this.game.profile?.name || 'JC').toUpperCase()} IS THE FINNISH RALLY CHAMPION! From a pile of rusty parts to the top step.`;
     g.say(msg, 12);
     g.ui.showResults({ ev: ev.name, rows });
   }
@@ -301,7 +301,7 @@ export class Rally {
   }
   standings() {
     const rows = Object.entries(this.rivalPts).map(([name, p]) => ({ name, p }));
-    rows.push({ name: 'JC (you)', p: this.points, me: true });
+    rows.push({ name: `${this.game.profile?.name || 'JC'} (you)`, p: this.points, me: true });
     return rows.sort((a, b) => b.p - a.p);
   }
   fmt(t) { const m = Math.floor(t / 60), s = (t % 60).toFixed(1); return `${m}:${s.padStart(4, '0')}`; }

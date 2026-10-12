@@ -259,7 +259,7 @@ export function buildTown(game) {
   const barn2 = new THREE.Group(); barn2.position.set(340, M, 136); root.add(barn2);
   solid(barn2, 8, 4.5, 6, mats.planks, 0, 2.25, 0);
   mailbox(game, root, 'mb_makela', 'Mäkelä', 336, 88, Math.PI);
-  mailbox(game, root, 'mb_jc', 'JC', 1.6, 42, 0);
+  mailbox(game, root, 'mb_jc', game.profile?.name || 'JC', 1.6, 42, 0);
   game.npcSpots.makela = new THREE.Vector3(326, M, 122);
 
   // big fields for the farms (fences)

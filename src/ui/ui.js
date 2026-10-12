@@ -190,7 +190,7 @@ export class UI {
         if (!g.orders.length) body += '<div class="muted">No pending deliveries.</div>';
         for (const o of g.orders) body += `<div>Order #${o.id}: ${o.items.map((i) => DEFS[i].name).join(', ')} — arrives ${g.life.fmtTime(o.eta)}</div>`;
       } else if (tab === 'bank') {
-        body += `<div class="cat">Bank — JC's account</div><div class="money">Balance: ${fmtMoney(g.money)}</div>`;
+        body += `<div class="cat">Bank — ${g.profile?.name || 'JC'}'s account</div><div class="money">Balance: ${fmtMoney(g.money)}</div>`;
         body += `<div class="muted">Weekly bills (rent, electricity, insurance) are due every Monday: ${fmtMoney(g.life.weeklyBill)}.</div>`;
         body += '<div class="cat">Recent transactions</div>' + g.ledger.slice(-14).reverse().map((l) => `<div>${l.when} — ${l.text}: <b>${l.amount > 0 ? '+' : ''}${fmtMoney(l.amount)}</b></div>`).join('');
       } else if (tab === 'sell') {
@@ -205,7 +205,7 @@ export class UI {
       } else if (tab === 'jobs') {
         body += '<div class="cat">Work around Ruskala</div>' + g.jobs.list().map((j) => `<div style="margin:6px 0"><b>${j.title}</b> — ${j.pay}<div class="muted">${j.status}</div></div>`).join('');
       } else if (tab === 'help') {
-        body += `<div class="cat">JC's notes</div><ol>
+        body += `<div class="cat">${g.profile?.name || 'JC'}'s notes</div><ol>
           <li>The engine is on the stand, half apart. The cylinder head is on the workbench.</li>
           <li>Hold <b>Tab</b> near the stand or the car to see what's missing. Fasteners light up: green tight, yellow loose, red missing.</li>
           <li>Ratchet + socket case are in the red toolbox (top drawer). With the ratchet in hand, press E on the socket case or use the mouse wheel near it to change sockets.</li>

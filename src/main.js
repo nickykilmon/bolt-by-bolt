@@ -24,7 +24,9 @@ import { Moped } from './vehicles/moped.js';
 import { Traffic } from './world/traffic.js';
 import './ui/screens.js';
 import { Guide } from './ui/guide.js';
-import { hasSave, writeSave, readSave, applySave } from './save/save.js';
+import { hasSave, writeSave, readSave, applySave, SAVE_KEY } from './save/save.js';
+import { renderProfileEditor, DEFAULT_PROFILE, MONEY } from './ui/profile.js';
+import { drawFace } from './ui/face.js';
 
 const $ = (id) => document.getElementById(id);
 const SETTINGS_KEY = 'jcscar.settings';
@@ -68,6 +70,9 @@ class Game {
   }
 
   build(mode) {
+    let saved = null;
+    if (mode === 'continue') { try { saved = readSave()?.profile; } catch { saved = null; } }
+    this.profile = structuredClone({ ...DEFAULT_PROFILE, ...(mode === 'continue' ? saved : this.pendingProfile) || {} });
     const q = this.settings.quality;
     initMaterials();
     this.renderer = createRenderer(this.canvas, q);
@@ -105,11 +110,28 @@ class Game {
     }
     if (!loaded) {
       setupNewGame(this);
+      this.money = MONEY[this.profile.money]?.v ?? 400;
       this.jobs.seedScrap();
       this.say('Home at last. The old Ruska is in the garage, its engine in pieces on the stand. Time to get to work. (Tab = what\'s missing, Esc = menu)', 9);
       setTimeout(() => this.say('Tip: the computer in the house orders parts. My notes are on it too.', 6), 10000);
     }
     this.asm.onChange = () => { this.dirty = true; };
+    this.refreshPortrait();
+  }
+  refreshPortrait() {
+    const c = $('hudFaceC'); if (c) drawFace(c, this.profile.face);
+    const n = $('hudFaceN'); if (n) n.textContent = this.profile.name + (this.profile.permadeath ? ' ☠' : '');
+  }
+  // profile editor from the phone (name + face; the game rules are fixed once started)
+  openProfile() {
+    this.ui.panel('<div id="pfHost"></div>', (el) => {
+      el.querySelector('#pnClose').style.display = 'none';
+      renderProfileEditor(el.querySelector('#pfHost'), {
+        profile: this.profile, isNew: false,
+        onDone: (p) => { this.profile.name = p.name; this.profile.face = p.face; this.refreshPortrait(); this.ui.closeModal(); this.toast('Profile updated'); },
+        onCancel: () => this.ui.closeModal(),
+      });
+    });
   }
 
   // ---------------- helpers used across systems ----------------
@@ -429,6 +451,14 @@ class Game {
     this.dead = true;
     const d = $('death'); d.querySelector('.why').textContent = reason; d.classList.add('on');
     this.audio.hush();
+    if (this.profile.permadeath) {
+      this.gameOver = true;
+      d.querySelector('.big').textContent = 'GAME OVER';
+      d.querySelector('.why').textContent = `${reason} Permadeath: ${this.profile.name}'s story ends here. The save has been deleted.`;
+      localStorage.removeItem(SAVE_KEY); localStorage.removeItem(SAVE_KEY + '.bak');
+      setTimeout(() => { this.started = false; location.reload(); }, 7000);
+      return;
+    }
     setTimeout(() => {
       if (this.player.inCar) this.exitCar();
       if (this.moped.riding) { this.moped.riding = false; this.player.onMoped = false; this.moped.speed = 0; this.moped.lean = 0; this.moped.place(); }
@@ -532,6 +562,7 @@ class Game {
 
   // ---------------- save / menus ----------------
   saveGame(silent) {
+    if (this.gameOver) return;
     try {
       const n = writeSave(this);
       if (!silent) this.toast(`Game saved (${Math.round(n / 1024)} KB)`);
@@ -540,7 +571,14 @@ class Game {
   bindMenus() {
     $('btnContinue').disabled = !hasSave();
     $('btnContinue').onclick = () => this.boot('continue');
-    $('btnNew').onclick = () => this.boot('new');
+    $('btnNew').onclick = () => {
+      const scr = $('newgame'); scr.classList.remove('hidden'); $('title').classList.add('hidden');
+      renderProfileEditor($('newgameHost'), {
+        profile: DEFAULT_PROFILE, isNew: true,
+        onDone: (p) => { scr.classList.add('hidden'); $('newgameHost').innerHTML = ''; this.pendingProfile = p; this.boot('new'); },
+        onCancel: () => { scr.classList.add('hidden'); $('title').classList.remove('hidden'); },
+      });
+    };
     $('btnSettingsT').onclick = () => this.openSettings();
     $('btnQuit').onclick = () => { document.querySelector('.title-inner').innerHTML = '<h1>JC\'S CAR</h1><div class="sub">Thanks for playing. You can close this tab.</div>'; };
     $('btnResume').onclick = () => this.resume();

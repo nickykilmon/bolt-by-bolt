@@ -27,6 +27,7 @@ export function writeSave(game) {
     weather: g.weather,
     rally: g.rally.serialize(),
     jobs: g.jobs.serialize(), moped: g.moped.serialize(), guide: g.guide.serialize(),
+    profile: g.profile,
   };
   const json = JSON.stringify(data);
   const prev = localStorage.getItem(SAVE_KEY);

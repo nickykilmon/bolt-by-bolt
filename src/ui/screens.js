@@ -232,12 +232,14 @@ P.openPhone = function () {
     <button id="phTaxi">Call taxi home (60 mk)</button>
     <button id="phShop">Order parts (delivery)</button>
     <button id="phRally">Rally events</button>
+    <button id="phProfile">My profile (name &amp; face)</button>
     <button id="phClose">Hang up</button></div>`;
   $('phTowH').onclick = () => g.towCar('home');
   $('phTowS').onclick = () => g.towCar('shop');
   $('phTaxi').onclick = () => g.taxiHome();
   $('phShop').onclick = () => this.openComputer('shop');
   $('phRally').onclick = () => this.openRally();
+  $('phProfile').onclick = () => g.openProfile();
   $('phClose').onclick = () => this.closeModal();
   this.openModal('panel');
 };

@@ -125,6 +125,7 @@ export class Traffic {
     const g = this.game;
     const night = 1 - clamp(((g.sky.dayLight ?? 1) - 0.15) / 0.3, 0, 1);
     this.lamps.emissiveIntensity = night * 2.5; this.tails.emissiveIntensity = 0.3 + night * 1.2;
+    if (g.profile?.traffic === false) { if (!this.off) { this.off = true; for (const c of this.cars) c.o.visible = false; } return; }
     const T = this.targets(), me = g.camera.position;
     let nearD = Infinity, nearV = 0, nearRally = false;
     const rallyOn = this.rallyDay();
