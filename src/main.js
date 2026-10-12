@@ -309,6 +309,12 @@ class Game {
     if (this.handOn === undefined) this.handOn = true;
     if (i.hit('Space')) { this.handOn = !this.handOn; this.audio.click(0.5); this.toast(this.handOn ? 'Handbrake ON' : 'Handbrake off', 1.2); }
     c.hand = this.handOn ? 1 : 0;
+    // trying to drive off with the handbrake on → loud reminder
+    this.handWarnT = Math.max(0, (this.handWarnT || 0) - dt);
+    if (this.handOn && c.gear !== 0 && c.throttle > 0.5 && c.clutch < 0.5 && car.pt.running && this.handWarnT <= 0) {
+      this.handWarnT = 3; this.audio.beep(false);
+      this.say('HANDBRAKE IS ON — tap Space to release it.', 2.5);
+    }
     // ignition: tap T toggles, hold T cranks
     if (i.hit('KeyT')) { this.tHeld = 0; if (!c.ign) { c.ign = 1; this.audio.click(0.6); } else this.tWasOn = true; }
     if (i.down('KeyT')) { this.tHeld += dt; if (this.tHeld > 0.25) c.crank = true; }
