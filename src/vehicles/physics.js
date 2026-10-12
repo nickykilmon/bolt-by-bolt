@@ -148,7 +148,17 @@ export class VehicleBody {
 
     // aero drag + downforce-free lift
     const sp = this.v.length();
-    F.addScaledVector(this.v, -0.42 * sp);
+    const aero = this.aero || { f: 0, r: 0 };
+    F.addScaledVector(this.v, -(0.42 + aero.r * 0.06 + aero.f * 0.03) * sp);
+    if (aero.f || aero.r) { // downforce from the splitter / wing, pushing on the front and rear axles
+      const q2 = sp * sp * 0.5 * 1.2 * 1.6;
+      for (const [cl, z] of [[aero.f, 1.25], [aero.r, -1.3]]) {
+        if (!cl) continue;
+        const fp = new THREE.Vector3(0, 0.4, z).sub(this.com).applyQuaternion(this.q).add(this.x);
+        const df = down.clone().multiplyScalar(q2 * cl);
+        F.add(df); T.add(new THREE.Vector3().subVectors(fp, this.x).cross(df));
+      }
+    }
     // integrate
     this.v.addScaledVector(F, h / m);
     this.w.add(T.applyMatrix3(Iinv).multiplyScalar(h));

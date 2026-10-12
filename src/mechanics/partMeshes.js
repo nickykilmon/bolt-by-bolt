@@ -325,9 +325,34 @@ B.kit = (g, def) => {
 B.food = (g, def) => {
   if (def.id === 'sausage') { const m = cyl(g, 0.025, 0.25, MAT.redPaint, 0, 0.025, 0, 'x', 10); m.material = new THREE.MeshStandardMaterial({ color: 0xb0583a, roughness: 0.6 }); }
   else if (def.id === 'rye_bread') { box(g, 0.2, 0.06, 0.2, MAT.wood, 0, 0.03, 0); }
+  else if (def.id === 'beer') { cyl(g, 0.033, 0.17, new THREE.MeshStandardMaterial({ color: 0x5a3010, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.9 }), 0, 0.085, 0, 'y', 12); cyl(g, 0.014, 0.07, new THREE.MeshStandardMaterial({ color: 0x5a3010, roughness: 0.15 }), 0, 0.2, 0, 'y', 10); cyl(g, 0.034, 0.06, MAT.paper, 0, 0.08, 0, 'y', 12); }
+  else if (def.id === 'cigarettes') { box(g, 0.055, 0.085, 0.022, MAT.whitePlastic, 0, 0.043, 0); box(g, 0.056, 0.03, 0.023, MAT.redPlastic, 0, 0.07, 0); }
+  else if (def.id === 'fish') { const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshStandardMaterial({ color: 0x7a8a60, roughness: 0.3, metalness: 0.4 })); m.scale.set(0.6, 0.9, 3); m.position.y = 0.05; g.add(m); const t = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.08, 4), m.material); t.rotation.x = Math.PI / 2; t.scale.set(0.3, 1, 1); t.position.set(0, 0.05, -0.2); g.add(t); }
   else if (def.id === 'pet_food') { cyl(g, 0.045, 0.07, MAT.chrome, 0, 0.035, 0, 'y', 14); cyl(g, 0.046, 0.05, MAT.yellowPlastic, 0, 0.035, 0, 'y', 14); }
   else if (def.id === 'milk') { box(g, 0.07, 0.2, 0.07, MAT.whitePlastic, 0, 0.1, 0); box(g, 0.071, 0.06, 0.071, MAT.bluePaint, 0, 0.12, 0); }
   else { cyl(g, 0.04, 0.26, MAT.chrome, 0, 0.13, 0, 'y', 12); cyl(g, 0.042, 0.04, MAT.redPlastic, 0, 0.28, 0, 'y', 12); }
+};
+B.turbo = (g) => {
+  const hot = new THREE.MeshStandardMaterial({ color: 0x6a5a4a, roughness: 0.6, metalness: 0.7 });
+  cyl(g, 0.075, 0.07, hot, -0.03, 0, 0.0, 'x', 18);                       // turbine housing
+  cyl(g, 0.08, 0.07, MAT.alu, -0.1, 0, 0.0, 'x', 18);                     // compressor housing
+  cyl(g, 0.035, 0.08, MAT.alu, -0.1, 0, 0.09, 'z', 12);                   // compressor outlet
+  cyl(g, 0.03, 0.06, MAT.darkSteel, -0.065, -0.07, 0, 'y', 10);           // oil drain
+  box(g, 0.012, 0.18, 0.16, MAT.darkSteel, 0.002, 0, 0);                  // flange
+};
+B.spoiler = (g, def) => {
+  const P = MAT.carPaint, BL = MAT.blackPaint;
+  if (def.id === 'ducktail') { const m = box(g, 1.3, 0.05, 0.16, P, 0, 0.03, -0.02); m.rotation.x = -0.35; box(g, 1.0, 0.012, 0.1, BL, 0, 0.006, 0); return; }
+  for (const x of [-0.45, 0.45]) { box(g, 0.03, 0.24, 0.12, BL, x, 0.12, 0); }
+  const blade = box(g, 1.5, 0.025, 0.3, BL, 0, 0.25, -0.03); blade.rotation.x = 0.12;
+  for (const x of [-0.76, 0.76]) box(g, 0.012, 0.12, 0.34, BL, x, 0.26, -0.03);
+};
+B.splitter = (g) => { box(g, 1.62, 0.02, 0.2, MAT.blackPaint, 0, 0, 0.02); box(g, 1.62, 0.06, 0.02, MAT.blackPaint, 0, 0.03, -0.07); };
+B.side_skirt = (g) => { box(g, 0.05, 0.1, 1.25, MAT.blackPaint, 0, 0, 0); box(g, 0.07, 0.025, 1.25, MAT.blackPaint, 0.01, -0.05, 0); };
+B.fishing_rod = (g) => {
+  const rod = cyl(g, 0.008, 1.5, MAT.blackPaint, 0, 0.0, -0.6, 'z', 6); rod.rotation.x = 0;
+  cyl(g, 0.015, 0.25, MAT.wood, 0, 0, 0.1, 'z', 8);
+  cyl(g, 0.035, 0.03, MAT.alu, 0.03, -0.04, 0.0, 'x', 12);
 };
 B.box = (g) => { box(g, 0.45, 0.32, 0.36, MAT.cardboard, 0, 0.16, 0); box(g, 0.46, 0.04, 0.06, new THREE.MeshStandardMaterial({ color: 0xd8c8a0 }), 0, 0.32, 0); };
 

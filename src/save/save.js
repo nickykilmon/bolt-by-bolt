@@ -29,6 +29,7 @@ export function writeSave(game) {
     jobs: g.jobs.serialize(), moped: g.moped.serialize(), guide: g.guide.serialize(),
     profile: g.profile,
     pets: g.pets.serialize(),
+    ach: g.ach.serialize(), stats: g.stats,
   };
   const json = JSON.stringify(data);
   const prev = localStorage.getItem(SAVE_KEY);
@@ -93,6 +94,8 @@ export function applySave(game, d) {
   game.guide.restore(d.guide);
   game.npcs.placeAll();
   game.pets.restore(d.pets);
+  game.ach.restore(d.ach); game.stats = d.stats || {};
+  game.car.reapplyShellDents();
   if (game.stand.props.flipped && game.stand.kids.engine) game.asm.anchor(game.stand, 'engine').rotation.z = Math.PI;
   if (d.held) { const h = asm.get(d.held); if (h) game.interaction.hold(h); }
   if (d.player.inCar) game.enterCar();

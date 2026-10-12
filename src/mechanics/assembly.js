@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { DEFS, HOSTS, slotById, fastenerList, fastenerCount, SIZE_LABEL, FILL_POINTS } from './partsdb.js';
 import { buildPartMesh } from './partMeshes.js';
 import { MAT, wornMat } from '../core/materials.js';
+import { applyDents } from '../vehicles/damage.js';
 import { newUid } from '../core/util.js';
 
 const _v = new THREE.Vector3(), _q = new THREE.Quaternion();
@@ -67,6 +68,7 @@ export class Assembly {
     }
     inst.vis = vis;
     inst.obj.add(vis);
+    if (inst.props.dents?.length) applyDents(inst.obj, inst.props.dents, inst);
     if (inst.def.type === 'cam_sprocket' || inst.def.type === 'crank_sprocket') this.updateSprocket(inst);
     this.computeBounds(inst);
     // small things (sockets, plugs, screwdrivers...) get an invisible, easier-to-hit grab zone

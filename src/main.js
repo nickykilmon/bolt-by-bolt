@@ -24,6 +24,9 @@ import { Jobs } from './economy/jobs.js';
 import { Moped } from './vehicles/moped.js';
 import { Traffic } from './world/traffic.js';
 import { Pets } from './world/pets.js';
+import { FX } from './vehicles/fx.js';
+import { Lake } from './world/lake.js';
+import { Achievements } from './economy/achievements.js';
 import './ui/screens.js';
 import { Guide } from './ui/guide.js';
 import { hasSave, writeSave, readSave, applySave, SAVE_KEY } from './save/save.js';
@@ -103,6 +106,10 @@ class Game {
     this.moped = new Moped(this);
     this.traffic = new Traffic(this);
     this.pets = new Pets(this);
+    this.fx = new FX(this.scene);
+    this.lake = new Lake(this);
+    this.ach = new Achievements(this);
+    this.stats = {};
     this.rally = new Rally(this);
     this.guide = new Guide(this);
     this.flashlight = new THREE.SpotLight(0xfff4e0, 0, 18, 0.5, 0.5, 1.5);
@@ -147,6 +154,7 @@ class Game {
   say(t, s) { this.ui?.say(t, s); }
   addMoney(amount, text) {
     this.money += amount;
+    if (amount > 0 && /parcel|mowed|workshop job|scrap|sold \d+ fish/i.test(text)) this.ach?.unlock('job');
     this.ledger.push({ when: `${this.life.dayName()} ${this.life.clock()}`, text, amount });
     this.toast(`${amount > 0 ? '+' : ''}${fmtMoney(amount)} — ${text}`);
     if (amount > 0) this.audio.cash();
@@ -454,9 +462,80 @@ class Game {
     this.toast(st.props.flipped ? 'Engine turned upside down — the bottom end faces up' : 'Engine turned back upright', 3);
     this.asm.changed();
   }
+  // pee: hold U on foot. Hit someone and they'll let you know about it.
+  updatePee(dt, i) {
+    const L = this.life;
+    const want = i.down('KeyU') && !this.player.inCar && !this.player.onMoped && !this.interaction.held && !this.pets.carried;
+    if (!want) { if (this.peeing) { this.peeing = false; if (this.peeStart > 60 && L.bladder < 15) { L.cheer(4); this.toast('Ahh… relief.', 2); } } return; }
+    if (L.bladder < 3) { if (i.hit('KeyU')) this.say('Nothing comes out.', 1.5); return; }
+    if (!this.peeing) { this.peeing = true; this.peeStart = L.bladder; this.peeHit = 0; this.ach.unlock('pee'); }
+    L.bladder = Math.max(0, L.bladder - dt * 16);
+    const cam = this.camera.position, f = new THREE.Vector3(); this.camera.getWorldDirection(f);
+    const hx = cam.x + f.x * 0.25, hy = cam.y - 0.72, hz = cam.z + f.z * 0.25;
+    for (let k = 0; k < 2; k++) this.fx.emit(hx, hy, hz, f.x * 2.6 + (Math.random() - 0.5) * 0.15, 1.1 + f.y * 2 + Math.random() * 0.2, f.z * 2.6 + (Math.random() - 0.5) * 0.15, 0.035, 0.7, 0.95, 0.85, 0.25, 0.85, 1, 9.8);
+    if (Math.random() < dt * 8) this.audio.burst(2600 + Math.random() * 800, 2, 0.03, 0.12);
+    // what are we hitting? (~1.5 m in front)
+    this.peeHit -= dt;
+    if (this.peeHit > 0) return;
+    this.peeHit = 0.3;
+    const tgt = new THREE.Vector3(cam.x + f.x * 1.5, 0, cam.z + f.z * 1.5);
+    const near = (p, r) => Math.hypot(p.x - tgt.x, p.z - tgt.z) < r;
+    const npc = this.npcs.list.find((n) => n.present && n.g.visible && near(n.g.position, 0.8));
+    if (npc && !this.peeAngry?.[npc.id]) {
+      this.peeAngry = { ...(this.peeAngry || {}), [npc.id]: true };
+      this.say(`${npc.name.split(' ')[0]}: "${['HEY! What is WRONG with you?!', 'Are you serious?! These are new boots!', 'I\'m calling your mother.', 'Disgusting! Absolutely disgusting!'][Math.floor(Math.random() * 4)]}"`, 4);
+      this.ach.unlock('pee_npc'); this.life.cheer(-5, true);
+      setTimeout(() => { if (this.peeAngry) delete this.peeAngry[npc.id]; }, 30000);
+    }
+    const pet = this.pets.list.find((p) => !p.dead && p.loc === 'world' && near(p.pos, 0.7));
+    if (pet) { pet.target.set(pet.pos.x + (pet.pos.x - cam.x) * 4, 0, pet.pos.z + (pet.pos.z - cam.z) * 4); pet.idle = 0; if (!this.peePet) { this.peePet = true; this.toast(`${pet.name || 'The ' + pet.kind} runs off in disgust.`, 2); this.pets.sound(pet); setTimeout(() => { this.peePet = false; }, 5000); } }
+    const cp = this.car.chassis.obj.position;
+    if (near(cp, 2.2) && !this.peeCar) { this.peeCar = true; this.ach.unlock('pee_car'); this.toast('On your own car? Classy.', 2); setTimeout(() => { this.peeCar = false; }, 20000); }
+  }
+  // achievements that watch numbers, drunk blur, money
+  updateMisc(dt) {
+    const car = this.car, L = this.life;
+    if (car.mode === 'physics' && this.player.inCar) {
+      this.stats.odo = (this.stats.odo || 0) + car.speed * dt;
+      if (this.stats.odo > 1000) this.ach.unlock('drive_1km');
+      if (car.speed * 3.6 > 100) this.ach.unlock('speed_100');
+      if (car.speed * 3.6 > 150) this.ach.unlock('speed_150');
+      const air = car.body.wheels.every((w) => !w.contact) && car.speed > 5;
+      this.airT = air ? (this.airT || 0) + dt : 0;
+      if (this.airT > 1) this.ach.unlock('airtime');
+      if (L.drunk > 0.4) this.ctl.steer += Math.sin(performance.now() * 0.0021) * L.drunk * 0.25 * dt;
+    }
+    if (car.lastImpact > 13) this.ach.unlock('crash');
+    if (this.money >= 10000) this.ach.unlock('rich');
+    const blur = L.drunk > 0.6 ? Math.min(3, (L.drunk - 0.6) * 2.2) : 0;
+    const f = blur ? `blur(${blur.toFixed(1)}px)` : '';
+    if (this.canvas.style.filter !== f) this.canvas.style.filter = f;
+  }
+  // tyre marks, gravel dust and wheelspin smoke from the player's car
+  carEffects(dt) {
+    const car = this.car;
+    if (car.mode !== 'physics') { this.fx.last.clear(); return; }
+    const o = car.chassis.obj, side = new THREE.Vector3(1, 0, 0).applyQuaternion(o.quaternion), v = car.body.v;
+    for (const w of car.body.wheels) {
+      if (!w.contact || !w.present) { this.fx.wheelMark(w.key, w.contactPoint, side, 0); continue; }
+      const surf = w.surface || {}, loose = !!surf.dust;
+      let skid = Math.max((Math.abs(w.slipV) - 2) / 6, (Math.abs(w.slipA) - 0.14) * 3);
+      if (loose && car.speed > 3) skid = Math.max(skid, 0.3); // ruts in gravel
+      const col = loose ? [0.3, 0.25, 0.18, 0.55] : surf.name === 'grass' ? [0.18, 0.22, 0.08, 0.5] : [0.04, 0.04, 0.04, 0.85];
+      this.fx.wheelMark(w.key, w.contactPoint, side, skid, col);
+      const cp = w.contactPoint;
+      if (loose && car.speed > 4 && w.key[0] === 'R' && Math.random() < Math.min(0.9, car.speed / 18) * dt * 40) {
+        const s = 0.6 + Math.random() * 0.8 + car.speed * 0.03;
+        this.fx.emit(cp.x, cp.y + 0.15, cp.z, -v.x * 0.15 + (Math.random() - 0.5), 0.5 + Math.random() * 0.8, -v.z * 0.15 + (Math.random() - 0.5), s, 2 + Math.random() * 1.5, 0.62, 0.56, 0.46, 0.32, 1.7);
+      } else if (!loose && Math.abs(w.slipV) > 5 && Math.random() < dt * 30) {
+        this.fx.emit(cp.x, cp.y + 0.15, cp.z, (Math.random() - 0.5) * 0.6, 0.6, (Math.random() - 0.5) * 0.6, 0.7, 2.2, 0.85, 0.85, 0.85, 0.4, 1.9);
+      }
+    }
+  }
   die(reason) {
     if (this.dead) return;
     this.dead = true;
+    this.ach.unlock('died');
     const d = $('death'); d.querySelector('.why').textContent = reason; d.classList.add('on');
     this.audio.hush();
     if (this.profile.permadeath) {
@@ -663,6 +742,9 @@ class Game {
       this.moped.update(dt, i);
       this.traffic.update(dt);
       this.pets.update(dt);
+      this.lake.update(dt);
+      this.updatePee(dt, i);
+      this.updateMisc(dt);
       if (this.player.inCar && this.car.speed > 4) this.life.cheer(dt * 0.05, true); // driving is fun
       this.driveControls(dt);
       this.npcs.update(dt);
@@ -693,14 +775,20 @@ class Game {
       this.car.messages.length = 0;
       for (const ev of this.car.pt.events) {
         if (ev === 'stall' && this.player.inCar) this.say('Stalled.', 2);
-        if (ev === 'start') this.life.cheer(8);
+        if (ev === 'start') { this.life.cheer(8); this.ach.unlock('start'); }
         if (ev === 'start') this.say(this.car.S.firing < 4 ? 'It runs! …roughly. Not all cylinders are firing.' : 'VROOM! It\'s alive!', 4);
         if (ev === 'nofuel') this.say('The engine sputters and dies. Out of fuel?');
       }
       this.car.pt.events.length = 0;
+      // turbo blow-off when you lift with boost
+      const pt0 = this.car.pt;
+      if ((pt0.boost || 0) > 0.15 && this.ctl.throttle < 0.2 && (this.lastThr || 0) > 0.6) this.audio.burst(3200, 0.8, 0.12 + pt0.boost * 0.2, 0.35);
+      this.lastThr = this.ctl.throttle;
       if (this.car.lastImpact > 6) { this.audio.crash(this.car.lastImpact); this.car.lastImpact = 0; }
       if (this.player.inCar) this.player.updateSeated(this);
+      this.carEffects(carDt);
     }
+    if (active) this.fx.update(dt);
     this.sky.update(this.life.hours, this.camera.position, dt);
     // audio
     const S = this.car.S, pt = this.car.pt;

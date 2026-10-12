@@ -109,7 +109,7 @@ export class UI {
     if (this.subT > 0) { this.subT -= dt; if (this.subT <= 0) this.el.sub.style.opacity = 0; }
     const bar = (n, v, inv) => `<div class="n ${(inv ? v > 75 : v < 25) ? 'low' : ''}">${n}<div class="b"><div style="width:${clamp(v, 0, 100)}%"></div></div></div>`;
     const pets = (g.pets?.hud || []).map((p) => bar(`${p.kind === 'cat' ? '🐱' : '🐶'} ${p.name}`, p.h)).join('');
-    this.el.needs.innerHTML = bar('Hunger', L.hunger) + bar('Thirst', L.thirst) + bar('Energy', 100 - L.fatigue) + bar(L.minutes < L.griefUntil ? 'Happy 💔' : 'Happy', L.happiness) + pets;
+    this.el.needs.innerHTML = bar('Hunger', L.hunger) + bar('Thirst', L.thirst) + bar('Energy', 100 - L.fatigue) + bar(L.minutes < L.griefUntil ? 'Happy 💔' : 'Happy', L.happiness) + (L.bladder > 40 ? bar('Bladder', L.bladder, true) : '') + (L.drunk > 0.15 ? `<div class="n" style="color:#f2c14e">${L.drunk > 1 ? 'Drunk 🥴' : 'Tipsy 🍺'}</div>` : '') + pets;
     this.el.clock.innerHTML = `${L.dayName()} ${L.clock()}<br><b>${fmtMoney(g.money)}</b>`;
     const h = g.interaction.held;
     this.el.held.innerHTML = h ? `${h.def.name}${(h.def.type === 'ratchet' || h.def.type === 'torque_wrench') ? ` · ${h.props.socket ? h.props.socket + ' mm socket' : 'no socket'}` : ''}${h.def.type === 'fluid' ? ` · ${h.props.amount.toFixed(1)} L` : ''}<br><span style="opacity:.7">G put down · Q pocket</span>` : '';
@@ -118,7 +118,7 @@ export class UI {
       const pt = g.car.pt;
       this.el.drive.classList.remove('hidden');
       const gear = (pt.gear === -1 ? 'R' : pt.gear === 0 ? 'N' : pt.gear) + (g.handOn ? ' · <b style="color:#ff7060">HANDBRAKE</b>' : '');
-      this.el.drive.innerHTML = `${Math.round(g.car.speed * 3.6)} km/h · ${Math.round(pt.rpm)} rpm · ${gear}<br>` +
+      this.el.drive.innerHTML = `${Math.round(g.car.speed * 3.6)} km/h · ${Math.round(pt.rpm)} rpm · ${gear}${g.car.S?.boost ? ` · boost ${(pt.boost || 0).toFixed(2)} bar` : ''}<br>` +
         `<span style="opacity:.7">T ignition (hold: start) · hold Shift + 1-4 gears, 5 reverse · Space handbrake on/off · L lights · E exit</span>` +
         (pt.ign ? '' : '<br><span style="opacity:.8">Ignition OFF</span>') + (g.rally.hud() ? `<br><b style="color:#ffd070;font-size:16px">${g.rally.hud()}</b>` : '');
     } else this.el.drive.classList.add('hidden');
@@ -282,6 +282,7 @@ export class UI {
       }
       // active job markers
       for (const m of g.jobs.markers()) { x.fillStyle = m.c; x.beginPath(); x.arc(tx(m.x), tz(m.z), m.t ? 6 : 3, 0, 7); x.fill(); if (m.t && !detail) { x.font = '12px Arial'; x.fillText(m.t, tx(m.x) + 8, tz(m.z) - 6); } }
+      if (g.saunaPos) { x.fillStyle = '#ff9a40'; x.beginPath(); x.arc(tx(g.saunaPos.x), tz(g.saunaPos.z), detail ? 7 : 5, 0, 7); x.fill(); x.font = 'bold 12px Arial'; x.fillText('Sauna & fishing', tx(g.saunaPos.x) + 8, tz(g.saunaPos.z) + 4); }
       // you / car / moped
       const dot = (p, col, r) => { x.fillStyle = '#000'; x.beginPath(); x.arc(tx(p.x), tz(p.z), r + 2, 0, 7); x.fill(); x.fillStyle = col; x.beginPath(); x.arc(tx(p.x), tz(p.z), r, 0, 7); x.fill(); };
       dot(g.moped.pos, '#9fe39a', 4); dot(g.car.chassis.obj.position, '#40a0ff', 5); dot(g.player.pos, '#ff3030', 6);

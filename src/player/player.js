@@ -96,7 +96,12 @@ export class Player {
     }
     const bob = Math.sin(this.headBob * Math.PI) * 0.025 * (this.onGround ? 1 : 0);
     this.camera.position.set(this.pos.x, this.pos.y + this.eye + bob, this.pos.z);
-    this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+    const dr = game.life.drunk;
+    if (dr > 0.2) { // the world won't hold still
+      const t = performance.now() * 0.001;
+      this.camera.rotation.set(this.pitch + Math.sin(t * 0.9) * 0.03 * dr, this.yaw + Math.sin(t * 0.6) * 0.04 * dr, Math.sin(t * 1.3) * 0.05 * dr, 'YXZ');
+      if (dr > 1 && (mx || mz)) { this.vel.x += Math.sin(t * 1.7) * dr * 0.6 * dt * 10; this.vel.z += Math.cos(t * 1.1) * dr * 0.6 * dt * 10; }
+    } else this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
   }
 
   updateSeated(game) {

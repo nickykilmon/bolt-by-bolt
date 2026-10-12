@@ -269,6 +269,11 @@ export class Traffic {
     }
     this.place(c);
     c.wheels.forEach((w) => { w.rotation.x += c.v * dt / 0.32; });
+    const fx = this.game.fx;
+    if (fx && c.R.road.type !== 'asphalt' && c.v > 8 && Math.random() < dt * 25 && c.pos.distanceToSquared(this.game.camera.position) < 200 * 200) {
+      const bx = c.pos.x - c.fwd.x * 2, bz = c.pos.z - c.fwd.z * 2;
+      fx.emit(bx + (Math.random() - 0.5) * 1.4, c.pos.y + 0.3, bz + (Math.random() - 0.5) * 1.4, (Math.random() - 0.5), 0.6 + Math.random() * 0.6, (Math.random() - 0.5), 1 + Math.random(), 2.5, 0.62, 0.56, 0.46, 0.3, 1.8);
+    }
     return this.hits(c, T);
   }
   // engine/tyre hum of the nearest car, so you can hear traffic coming

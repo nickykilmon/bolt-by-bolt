@@ -85,14 +85,15 @@ export class Pets {
     const h = this.hungerPct(p);
     const mood = h < 25 ? '<span class="bad">starving!</span>' : h < 60 ? 'hungry' : 'happy';
     let s = `${p.name} the ${p.kind} <span class="dim">(${mood})</span>\n`;
-    if (held?.def.kind === 'food') s += `${K('LMB')}Feed ${p.name} the ${held.def.name.toLowerCase()}\n`;
+    const petFood = held?.def.kind === 'food' && !held.def.props?.cig && !held.def.props?.beer;
+    if (petFood) s += `${K('LMB')}Feed ${p.name} the ${held.def.name.toLowerCase()}\n`;
     s += `${K('E')}Pet ${p.name}` + (held ? '' : `\n${K('F')}Pick up ${p.name}`);
     return s;
   }
   use(p, b) {
     const g = this.game, held = g.interaction.held;
     if (!p.owned) { if (b === 'E' && !held) this.pickUp(p); return; }
-    if (b === 'LMB' && held?.def.kind === 'food') return this.feed(p, g.interaction.release());
+    if (b === 'LMB' && held?.def.kind === 'food' && !held.def.props?.cig && !held.def.props?.beer) return this.feed(p, g.interaction.release());
     if (b === 'E') return this.pet(p);
     if (b === 'F' && !held) this.pickUp(p);
   }
@@ -158,6 +159,7 @@ export class Pets {
       el.querySelector('#petOk').onclick = () => {
         p.name = inp.value.trim().slice(0, 20) || (p.kind === 'cat' ? 'Mittens' : 'Rex');
         p.owned = true; p.lastFed = g.life.minutes; p.home = { x: YARD.x + 3, z: YARD.z + 8 };
+        g.ach?.unlock('pet'); if (this.list.filter((q) => q.owned && !q.dead).length >= 3) g.ach?.unlock('pets_3');
         if (p.loc === 'moped' || p.loc === 'car') { const w = p.g.getWorldPosition(new THREE.Vector3()); p.g.scale.setScalar(1); this.dropAt(p, w.x + 1, w.z + 0.5); }
         this.taming = false;
         g.ui.closeModal();
@@ -224,6 +226,7 @@ export class Pets {
 
   die(p) {
     const g = this.game;
+    g.ach?.unlock('pet_died');
     p.dead = true;
     if (this.carried === p) this.carried = null;
     p.g.parent?.remove(p.g);

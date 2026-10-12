@@ -133,6 +133,9 @@ export function analyze(asm, car) {
   let pm = 1;
   for (const pp of [head?.kids.camshaft, carb, head?.kids.exManifold, ch.kids.muffler, ...[1, 2, 3, 4].map((i) => k('piston' + i))]) if (pp?.props.power) pm *= (pp.props.power - 1) / (pp.def.type === 'piston' ? 4 : 1) + 1;
   S.idleRough = head?.kids.camshaft?.props.idle ? 1 - head.kids.camshaft.props.idle : 0;
+  const turbo = head?.kids.turbo;
+  S.boost = turbo ? (turbo.props.boost || 0.45) * (0.4 + 0.6 * turbo.cond) * (1 - asm.looseness(turbo) * 0.8) : 0;
+  if (turbo && asm.looseness(turbo) > 0.3) issue(2, 'Turbo flange nuts loose — boost leak', 'engine');
 
   // --- exhaust ---
   const exm = head?.kids.exManifold;
@@ -225,7 +228,8 @@ export function analyze(asm, car) {
   S.gearOil = gb ? gb.props.oil || 0 : 0;
   S.clutchCap = 0;
   if (k('flywheel') && k('clutchDisc') && k('pressurePlate')) {
-    S.clutchCap = 300 * (0.35 + 0.65 * k('clutchDisc').cond) * (1 - asm.looseness(k('pressurePlate')) * 0.8);
+    S.clutchCap = 300 * (k('clutchDisc').props.cap || 1) * (0.35 + 0.65 * k('clutchDisc').cond) * (1 - asm.looseness(k('pressurePlate')) * 0.8);
+    S.lightFly = !!k('flywheel').props.light;
   }
   S.clutchCable = !!(ch.kids.clutchCable);
   const prop = ch.kids.propshaft, diff = ch.kids.diff;
@@ -270,6 +274,7 @@ export function analyze(asm, car) {
     C.pressure = wheel ? wheel.props.pressure ?? 2.1 : 0;
     C.wheelLoose = wheel ? asm.looseness(wheel) : 0;
     const pads = ch.kids['pads' + c], cal = ch.kids['caliper' + c], disc = ch.kids['disc' + c];
+    C.bite = pads?.props.bite || 1;
     C.brake = hydraulic && pads && cal && disc ? (0.25 + 0.75 * Math.min(pads.cond * 1.4, 1)) * (1 - asm.looseness(cal) * 0.7) : 0;
     const shock = ch.kids['shock' + c], spring = ch.kids['spring' + c];
     C.k = spring ? 32000 * (spring.props.k || 1) * (0.7 + 0.3 * spring.cond) : 9000;
@@ -310,8 +315,8 @@ export function newPowertrain() {
     load: 0, misfire: 0, starterSpin: 0, stallMsg: null, events: [], autoClutchT: 0, wearAcc: 0, knock: 0 };
 }
 
-const TQ_PEAK = 128;
-function torqueShape(rpm) {
+export const TQ_PEAK = 128;
+export function torqueShape(rpm) {
   if (rpm < 1000) return 0.62 + (rpm / 1000) * 0.08;
   if (rpm < 3800) return lerp(0.7, 1.0, (rpm - 1000) / 2800);
   if (rpm < 6200) return lerp(1.0, 0.8, (rpm - 3800) / 2400);
@@ -320,7 +325,7 @@ function torqueShape(rpm) {
 
 // Engine + clutch + gearbox for one sub-step. Sets wheel.driveT and wheel.brakeT on wheels.
 export function stepPowertrain(pt, S, h, wheels, ctl, settings, env) {
-  const Ie = 0.13;
+  const Ie = S.lightFly ? 0.085 : 0.13;
   let we = pt.rpm * Math.PI / 30;
   const thrIn = S.throttleOk ? ctl.throttle : 0;
   // --- engine torque ---
@@ -333,6 +338,11 @@ export function stepPowertrain(pt, S, h, wheels, ctl, settings, env) {
     const idleTh = clamp(0.07 + (idleTarget - pt.rpm) * 0.0002, 0.02, 0.3);
     th = Math.max(thrIn, idleTh);
     let comb = TQ_PEAK * torqueShape(pt.rpm) * Math.pow(th, 0.6) * S.powerMult * (S.quality / 0.82) * (1 - S.vacuumLeak * 0.4);
+    if (S.boost) { // turbo: spools up with rpm and throttle
+      const target = S.boost * clamp((pt.rpm - 2400) / 1600, 0, 1) * th;
+      pt.boost = (pt.boost || 0) + (target - (pt.boost || 0)) * Math.min(1, h * 2.5);
+      comb *= 1 + pt.boost * 1.6;
+    } else pt.boost = 0;
     if (pt.rpm > 6300) comb *= clamp((6700 - pt.rpm) / 400, 0, 1); // soft rev limiter
     // misfire roughness
     const miss = 4 - S.firing;
@@ -397,7 +407,7 @@ export function stepPowertrain(pt, S, h, wheels, ctl, settings, env) {
   wheels.forEach((w, i) => {
     const C = S.corners[w.key];
     const front = i < 2;
-    w.brakeT = brakeIn * 2650 * (front ? S.bias : 1 - S.bias) * (C ? C.brake : 0);
+    w.brakeT = brakeIn * 2650 * (front ? S.bias : 1 - S.bias) * (C ? C.brake * (C.bite || 1) : 0);
     if (!front) w.brakeT += ctl.hand * 2200;
   });
 }

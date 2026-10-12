@@ -207,7 +207,14 @@ export class NPCs {
     switch (npc.role) {
       case 'kiosk': o.push({ label: 'Buy snacks & a jerry can', go: () => ui.openStore('kiosk') }); break;
       case 'parts': o.push({ label: 'Buy parts over the counter (no delivery wait)', go: () => ui.openStore('parts') }); break;
-      case 'grocery': o.push({ label: 'Buy groceries', go: () => ui.openStore('grocery') }); break;
+      case 'grocery': o.push({ label: 'Buy groceries', go: () => ui.openStore('grocery') }, { label: 'Sell the fish I caught', go: () => {
+        const fish = [...g.asm.items.values()].filter((it) => it.def.id === 'fish' && (it.loc?.kind === 'inv' || g.interaction.held === it));
+        if (!fish.length) { g.say('Maija: "Fish? I don\'t see any fish. Bring them in your pockets."'); return; }
+        const kg = fish.reduce((s, f) => s + (f.props.kg || 0.3), 0), pay = Math.round(kg * 14);
+        for (const f of fish) { if (g.interaction.held === f) g.interaction.release(); g.inventory = g.inventory.filter((u) => u !== f.uid); g.asm.remove(f); }
+        g.addMoney(pay, `Sold ${fish.length} fish (${kg.toFixed(1)} kg) to Maija`);
+        g.say(`Maija: "${kg > 4 ? 'Now THAT is a catch!' : 'Fresh fish, lovely.'}" (${pay} mk)`);
+      } }); break;
       case 'post': o.push({ label: 'Parcel delivery work', go: () => g.jobs.offerParcels() }); break;
       case 'mechanic': o.push({ label: 'Services: alignment, body repair, towing', go: () => ui.openGarageServices() }, { label: 'Ask for work', go: () => g.jobs.offerWorkshop() }); break;
       case 'painter': o.push({ label: 'Paint & livery', go: () => ui.openPaint() }); break;

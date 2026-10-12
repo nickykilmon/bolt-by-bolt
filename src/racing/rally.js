@@ -249,6 +249,7 @@ export class Rally {
   }
   recordEventStage(time) {
     const g = this.game, a = this.active, ev = this.ev(a.evId);
+    g.ach?.unlock('rally_stage');
     a.times.push(time);
     a.idx++;
     if (a.idx < ev.stages.length) {
@@ -286,6 +287,8 @@ export class Rally {
     this.results.push({ day: g.life.day, ev: ev.name, pos, t: mine });
     this.active = null;
     let msg = `${ev.name} finished: P${pos} of ${rows.length}, total ${this.fmt(mine)}. ${prize ? 'Prize ' + fmtMoney(prize) + '. ' : ''}+${repGain} reputation.`;
+    if (pos === 1) this.game.ach?.unlock('rally_win');
+    if (ev.tier === 5 && pos === 1) this.game.ach?.unlock('champion');
     if (ev.tier === 5 && pos === 1) msg += ` 🏆 ${(this.game.profile?.name || 'JC').toUpperCase()} IS THE FINNISH RALLY CHAMPION! From a pile of rusty parts to the top step.`;
     g.say(msg, 12);
     g.ui.showResults({ ev: ev.name, rows });

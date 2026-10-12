@@ -3,6 +3,8 @@ import { UI } from './ui.js';
 import { DEFS } from '../mechanics/partsdb.js';
 import { EVENTS, STAGES } from '../racing/rally.js';
 import { fmtMoney, clamp } from '../core/util.js';
+import { TQ_PEAK, torqueShape } from '../vehicles/systems.js';
+import { ACH } from '../economy/achievements.js';
 import * as THREE from 'three';
 
 const $ = (id) => document.getElementById(id);
@@ -27,9 +29,9 @@ P.panel = function (html, bind) {
 
 // ---------- over-the-counter stores ----------
 const STORE = {
-  parts: { title: 'Rautaosa car parts store — over the counter', filter: (d) => d.shop && d.cat !== 'Groceries', where: (g) => g.partsCounter },
-  grocery: { title: 'Village shop (groceries)', filter: (d) => d.cat === 'Groceries', where: (g) => g.groceryCounter },
-  kiosk: { title: 'Gas station kiosk', filter: (d) => ['sausage', 'coffee', 'milk', 'jerrycan', 'oil_jug', 'coolant_jug'].includes(d.id), where: (g) => g.kioskCounter, extra: [{ id: 'jerrycan_empty', name: 'Empty jerry can (10 L)', price: 45, make: 'jerrycan', amount: 0 }] },
+  parts: { title: 'Rautaosa car parts store — over the counter', filter: (d) => d.shop && d.cat !== 'Groceries' && d.cat !== 'Leisure', where: (g) => g.partsCounter },
+  grocery: { title: 'Village shop (groceries)', filter: (d) => (d.cat === 'Groceries' && d.shop) || d.id === 'fishing_rod', where: (g) => g.groceryCounter },
+  kiosk: { title: 'Gas station kiosk', filter: (d) => ['sausage', 'coffee', 'milk', 'beer', 'cigarettes', 'fishing_rod', 'jerrycan', 'oil_jug', 'coolant_jug'].includes(d.id), where: (g) => g.kioskCounter, extra: [{ id: 'jerrycan_empty', name: 'Empty jerry can (10 L)', price: 45, make: 'jerrycan', amount: 0 }] },
 };
 P.openStore = function (kind) {
   const g = this.game, S = STORE[kind];
@@ -147,8 +149,10 @@ P.openPaint = function () {
 // ---------- service (service park crew / Esa) ----------
 P.serviceItems = function () {
   const g = this.game, ch = g.car.chassis.kids, asm = g.asm, out = [];
-  const body = ['hood', 'doorL', 'doorR', 'trunk', 'bumperF', 'bumperR', 'headlightL', 'headlightR', 'taillightL', 'taillightR', 'lightPod'].map((k) => ch[k]).filter((p) => p && p.cond < 0.85);
-  if (body.length) out.push({ label: `Repair body panels & lights (${body.length})`, cost: Math.round(body.reduce((s, p) => s + (1 - p.cond) * p.def.price * 0.5, 0)), min: 30, go: () => body.forEach((p) => { p.cond = 1; asm.buildVisual(p); asm.applyOpen(p); }) });
+  const body = ['hood', 'doorL', 'doorR', 'trunk', 'bumperF', 'bumperR', 'headlightL', 'headlightR', 'taillightL', 'taillightR', 'lightPod', 'splitter', 'skirtL', 'skirtR'].map((k) => ch[k]).filter((p) => p && (p.cond < 0.85 || p.props.dents?.length));
+  if (body.length) out.push({ label: `Repair body panels & lights (${body.length})`, cost: Math.round(body.reduce((s, p) => s + (1 - p.cond) * p.def.price * 0.5, 0)), min: 30, go: () => body.forEach((p) => { p.cond = 1; p.props.dents = []; asm.buildVisual(p); asm.applyOpen(p); }) });
+  const sd = g.car.chassis.props.shellDents?.length || 0;
+  if (sd) out.push({ label: `Panel-beat the dented body shell (${sd} dent${sd > 1 ? 's' : ''})`, cost: 70 + sd * 45, min: 20 + sd * 10, go: () => g.car.repairShell() });
   const bent = ['controlArmFL', 'controlArmFR', 'tieRodFL', 'tieRodFR'].map((k) => ch[k]).filter((p) => p && Math.abs(p.props.bent || 0) > 0.003);
   if (bent.length) out.push({ label: 'Straighten suspension & alignment', cost: 220, min: 30, go: () => bent.forEach((p) => { p.props.bent = 0; }) });
   const tyres = ['FL', 'FR', 'RL', 'RR'].map((k) => ch['wheel' + k]).filter((p) => p && p.cond < 0.6);
@@ -182,13 +186,49 @@ P.openService = function (title = 'Service park — Ari\'s crew') {
   };
   render();
 };
+// ---------- dyno ----------
+P.openDyno = function () {
+  const g = this.game, c = g.car.chassis.obj.position;
+  if (Math.hypot(c.x - 596, c.z - 112) > 20) { g.say('Esa: "Bring the car to the workshop first. The dyno doesn\'t do house calls."'); return; }
+  const S = g.car.systems();
+  if (!S.canRotate || !S.fuelOk || S.quality < 0.18 || !S.drive) { g.say('Esa: "It has to run and drive before I strap it to the rollers."'); return; }
+  if (g.money < 60) { this.toast('Not enough money'); return; }
+  g.addMoney(-60, 'Dyno run at Esa\'s');
+  const pts = [];
+  let peakHp = 0, peakHpRpm = 0, peakTq = 0, peakTqRpm = 0;
+  for (let rpm = 1000; rpm <= 6600; rpm += 100) {
+    const boost = S.boost * clamp((rpm - 2400) / 1600, 0, 1);
+    const tq = TQ_PEAK * torqueShape(rpm) * S.powerMult * (S.quality / 0.82) * (1 - S.vacuumLeak * 0.4) * (1 + boost * 1.6) * 0.85; // at the wheels
+    const hp = tq * rpm / 7022;
+    pts.push({ rpm, tq, hp });
+    if (hp > peakHp) { peakHp = hp; peakHpRpm = rpm; } if (tq > peakTq) { peakTq = tq; peakTqRpm = rpm; }
+  }
+  g.stats = g.stats || {}; g.stats.bestHp = Math.max(g.stats.bestHp || 0, peakHp);
+  g.ach?.check('dyno', peakHp);
+  this.panel(`<h2>Dyno sheet — Ruska 1600</h2>
+    <div>Peak <b style="color:#f2c14e">${Math.round(peakHp)} hp</b> @ ${peakHpRpm} rpm · <b style="color:#6ab0ff">${Math.round(peakTq)} Nm</b> @ ${peakTqRpm} rpm <span class="muted">(at the wheels)</span></div>
+    <canvas id="dynoC" width="640" height="300" style="background:#111;margin-top:8px;border:1px solid #444"></canvas>
+    <div class="muted">${S.boost ? `Turbo: up to ${(S.boost).toFixed(2)} bar boost above ~4000 rpm. ` : ''}${S.firing < 4 ? `Only ${S.firing} of 4 cylinders firing! ` : ''}${S.vacuumLeak > 0.1 ? 'Vacuum leak is costing power. ' : ''}Esa: "${peakHp > 150 ? 'That\'s a proper rally engine.' : peakHp > 100 ? 'Not bad for a Ruska.' : 'My lawnmower has more. Get some parts on it.'}"</div>`, (el) => {
+    const cv = el.querySelector('#dynoC'), x = cv.getContext('2d'), W = cv.width, H = cv.height, L = 46, B = 30;
+    const maxV = Math.max(peakHp, peakTq) * 1.15;
+    x.strokeStyle = '#333'; x.fillStyle = '#888'; x.font = '12px Arial';
+    for (let r = 1000; r <= 6600; r += 1000) { const px = L + (r - 1000) / 5600 * (W - L - 10); x.beginPath(); x.moveTo(px, 10); x.lineTo(px, H - B); x.stroke(); x.fillText(r, px - 14, H - 10); }
+    for (let v = 0; v <= maxV; v += 25) { const py = H - B - v / maxV * (H - B - 10); x.beginPath(); x.moveTo(L, py); x.lineTo(W - 10, py); x.stroke(); x.fillText(v, 8, py + 4); }
+    const line = (key, col) => { x.strokeStyle = col; x.lineWidth = 3; x.beginPath(); pts.forEach((p, i) => { const px = L + (p.rpm - 1000) / 5600 * (W - L - 10), py = H - B - p[key] / maxV * (H - B - 10); i ? x.lineTo(px, py) : x.moveTo(px, py); }); x.stroke(); };
+    line('tq', '#6ab0ff'); line('hp', '#f2c14e');
+    x.fillStyle = '#f2c14e'; x.fillText('hp', W - 40, 24); x.fillStyle = '#6ab0ff'; x.fillText('Nm', W - 40, 40);
+  });
+  g.audio.ratchet('ratchet');
+};
 P.openGarageServices = function () {
   const g = this.game;
   this.panel(`<h2>Esa's garage — services</h2>
     <div class="svc"><span>Repairs & maintenance (car must be at the workshop)</span><button id="gsRep">Open</button></div>
     <div class="svc"><span>Tow my car to the workshop</span><span>${fmtMoney(200)} <button id="gsTowS">Call</button></span></div>
     <div class="svc"><span>Tow my car home</span><span>${fmtMoney(250)} <button id="gsTowH">Call</button></span></div>
-    <div class="svc"><span>Setup / tuning (car at the workshop)</span><button id="gsTune">Open</button></div>`, () => {
+    <div class="svc"><span>Setup / tuning (car at the workshop)</span><button id="gsTune">Open</button></div>
+    <div class="svc"><span>Dyno run — measure your horsepower (car at the workshop)</span><span>${fmtMoney(60)} <button id="gsDyno">Run</button></span></div>`, () => {
+    $('gsDyno').onclick = () => this.openDyno();
     $('gsRep').onclick = () => this.openService('Esa\'s repairs');
     $('gsTowS').onclick = () => g.towCar('shop');
     $('gsTowH').onclick = () => g.towCar('home');
@@ -234,6 +274,7 @@ P.openPhone = function () {
     <button id="phShop">Order parts (delivery)</button>
     <button id="phRally">Rally events</button>
     <button id="phProfile">My profile (name &amp; face)</button>
+    <button id="phAch">🏆 Achievements (${g.ach.count()} / ${ACH.length})</button>
     <button id="phClose">Hang up</button></div>`;
   $('phTowH').onclick = () => g.towCar('home');
   $('phTowS').onclick = () => g.towCar('shop');
@@ -241,6 +282,7 @@ P.openPhone = function () {
   $('phShop').onclick = () => this.openComputer('shop');
   $('phRally').onclick = () => this.openRally();
   $('phProfile').onclick = () => g.openProfile();
+  $('phAch').onclick = () => this.panel(`<h2>🏆 Achievements — ${g.ach.count()} / ${ACH.length}</h2><div class="ach-list">${ACH.map((a) => `<div class="ach-row ${g.ach.got[a.id] !== undefined ? 'got' : ''}"><span class="ach-i">${g.ach.got[a.id] !== undefined ? a.icon : '🔒'}</span><div><b>${a.title}</b><div class="muted">${a.desc}</div></div></div>`).join('')}</div>`);
   $('phClose').onclick = () => this.closeModal();
   el.querySelectorAll('[data-cancel]').forEach((b) => b.onclick = () => {
     const key = b.dataset.cancel, j = g.jobs.active().find((x) => x.key === key);

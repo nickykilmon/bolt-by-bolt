@@ -1,6 +1,7 @@
 // The player's car: ties together the assembly (chassis root), physics body, powertrain,
 // support state (jack / axle stands), damage, leaks and the cockpit.
 import * as THREE from 'three';
+import { dentAt, applyDents, undent } from './damage.js';
 import { VehicleBody } from './physics.js';
 import { analyze, newPowertrain, stepPowertrain, slowUpdate } from './systems.js';
 import { buildShell, drawGauges } from './carBody.js';
@@ -116,6 +117,8 @@ export class Car {
     mass += fuel * 0.75;
     this.mass = mass;
     this.body.setMass(mass, 0.48);
+    const ch = this.chassis.kids;
+    this.body.aero = { f: ch.splitter?.props.aero || 0, r: ch.trunk?.kids.spoiler?.props.aero || 0 }; // downforce coefficients
     this.body.wheels.forEach((w) => {
       const C = S.corners[w.key];
       w.present = C.wheel;
@@ -272,12 +275,31 @@ export class Car {
     this.chassis.obj.quaternion.copy(q);
   }
 
+  // crumple the panels near a hit (visual only)
+  dent(local, speed) {
+    const now = performance.now(); if (now - (this.lastDentT || 0) < 250) return; this.lastDentT = now;
+    const ch = this.chassis.kids, o = this.chassis.obj;
+    const wp = o.localToWorld(local.clone());
+    const dl = new THREE.Vector3(-local.x * 0.6, -0.15, -local.z).normalize();       // towards the middle of the car
+    const wd = dl.applyQuaternion(o.quaternion);
+    const r = 0.25 + speed * 0.028, depth = Math.min(0.2, (speed - 3) * 0.022);
+    for (const k of ['bumperF', 'bumperR', 'hood', 'trunk', 'doorL', 'doorR', 'headlightL', 'headlightR', 'taillightL', 'taillightR', 'splitter', 'skirtL', 'skirtR', 'lightPod']) {
+      const inst = ch[k]; if (!inst) continue;
+      inst.props.dents = inst.props.dents || [];
+      dentAt(inst.obj, inst.props.dents, wp, wd, r, depth, inst);
+    }
+    this.chassis.props.shellDents = this.chassis.props.shellDents || [];
+    dentAt(this.shell.group, this.chassis.props.shellDents, wp, wd, r * 0.9, depth * 0.8, 'shell');
+  }
+  reapplyShellDents() { applyDents(this.shell.group, this.chassis.props.shellDents, 'shell'); }
+  repairShell() { undent(this.shell.group); this.chassis.props.shellDents = []; }
   handleImpacts() {
     const imp = this.body.impacts;
     if (!imp.length) return;
     let worst = 0;
     for (const { local, speed } of imp) {
       worst = Math.max(worst, speed);
+      if (speed > 3.5) this.dent(local, speed);
       const dmg = (speed - 2.5) * 0.04;
       const ch = this.chassis.kids;
       const hit = (inst, k = 1) => { if (inst) { inst.cond = Math.max(0, inst.cond - dmg * k); } };

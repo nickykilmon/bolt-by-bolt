@@ -242,10 +242,27 @@ export class Interaction {
       default: prompt = this.held ? `${K('G')}Put down` : '';
     }
     // things you can do anywhere
+    if (this.held?.def.type === 'fishing_rod') { prompt = g.lake.rodPrompt(input, dt) + (prompt ? '\n' + prompt : ''); g.ui.prompt(prompt, true); return; }
+    if (this.held?.def.props?.cig) {
+      const left = this.held.props.left ?? 20;
+      prompt = `${K('LMB')}Smoke a cigarette <span class="dim">(${left} left)</span>\n` + prompt;
+      if (input.mouse.lDown && (this.smokeT || 0) <= 0) {
+        this.smokeT = 6; g.life.smoked++; g.life.lastSmoke = g.life.minutes; g.life.cheer(3);
+        const cam = g.camera.position, f = g.camera.getWorldDirection(new THREE.Vector3());
+        for (let i = 0; i < 8; i++) setTimeout(() => g.fx.emit(cam.x + f.x * 0.35, cam.y - 0.05, cam.z + f.z * 0.35, f.x * 0.4 + (Math.random() - 0.5) * 0.2, 0.25, f.z * 0.4 + (Math.random() - 0.5) * 0.2, 0.18, 2.5, 0.85, 0.85, 0.85, 0.45, 2.2), i * 350);
+        g.audio.burst(500, 0.8, 0.05, 0.6, 'lowpass');
+        if (g.life.smoked >= 20) g.ach.unlock('smoke_20');
+        this.held.props.left = left - 1;
+        if (this.held.props.left <= 0) { const it = this.release(); g.asm.remove(it); g.toast('Pack finished.', 2); }
+        else g.toast(g.life.smoked === 5 ? 'Careful — you\'re getting hooked. Without smokes you\'ll get cravings.' : 'Ahh…', 2);
+      }
+      this.smokeT = (this.smokeT || 0) - dt;
+      g.ui.prompt(prompt, true); return;
+    }
     if (this.held && kind === 'food' && this.held.def.props?.pet) { if (!(t?.type === 'interact' && t.def?.pet)) prompt = `<span class="dim">Pet food — aim at your pet and press LMB to feed it</span>\n` + prompt; }
     else if (this.held && kind === 'food' && t?.type !== 'fill' && !(t?.type === 'interact' && t.def?.pet)) {
       prompt = `${K('LMB')}Eat / drink ${this.held.def.name}\n` + prompt;
-      if (input.mouse.lDown) { g.life.consume(this.held.def.props); g.audio.eat(); const it = this.release(); g.asm.remove(it); g.toast(`Consumed ${it.def.name}`); }
+      if (input.mouse.lDown) { g.life.consume(this.held.def.props); g.audio.eat(); const it = this.release(); g.asm.remove(it); g.toast(it.def.id === 'fish' ? `Ate a raw ${it.props.species || 'fish'}. Sushi!` : it.def.id === 'beer' ? 'Kippis! 🍺' : `Consumed ${it.def.name}`); }
     }
     if (this.held && this.held.def.type === 'axle_stands') {
       const a = g.standAxleNear();
@@ -312,7 +329,7 @@ export class Interaction {
         let nq = f.q + rate * dt;
         if (toolType === 'torque_wrench' && nq >= 1) { nq = 1; if (before < 1) g.audio.torqueClick(); }
         if (toolType !== 'torque_wrench' && before < 1 && nq >= 1) g.audio.snug();
-        if (before < 1 && nq >= 1) g.life.cheer(0.6, true);
+        if (before < 1 && nq >= 1) { g.life.cheer(0.6, true); g.stats.bolts = (g.stats.bolts || 0) + 1; if (g.stats.bolts >= 100) g.ach.unlock('bolts_100'); if (g.stats.bolts >= 1000) g.ach.unlock('bolts_1000'); }
         f.q = nq;
         if (f.q > STRIP_AT && grp.kind === 'bolt') { f.s = true; f.q = 0; g.audio.snap(); g.say('*SNAP* — I stripped the thread. Overdid that one.'); }
         if (f.q > STRIP_AT && grp.kind !== 'bolt') f.q = STRIP_AT;
@@ -386,6 +403,7 @@ export class Interaction {
       const inst = this.release();
       asm.install(inst, t.host, t.slot);
       g.life.cheer(2, true);
+      if (inst.def.type === 'turbo') g.ach.unlock('turbo'); if (inst.def.type === 'spoiler') g.ach.unlock('aero');
       if (inst.def.type === 'timing_belt') {
         const cam = asm.at(t.host, 'head/camSprocket'), crank = t.host.kids.crankSprocket;
         inst.props.offset = (cam?.props.tooth || 0) - (crank?.props.tooth || 0);
@@ -497,7 +515,7 @@ export class Interaction {
   handleSurface(t, input) {
     if (!this.held) return '';
     const kind = this.heldKind();
-    if (this.held.def.type === 'axle_stands') return '';
+    if (this.held.def.type === 'axle_stands' || this.held.def.type === 'fishing_rod') return '';
     let p = `${K('LMB')}Place ${this.held.def.name}   ${K('G')}Drop`;
     if (kind === 'part') p = `${K('LMB')}Place   ${K('R')}Rotate   ${K('RMB')}Inspect`;
     if (kind === 'fasten' || kind === 'food') p = `${K('G')}Put down`;
