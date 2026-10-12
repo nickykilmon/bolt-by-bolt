@@ -246,8 +246,8 @@ export class Guide {
         return { text: 'Look at piston #4 on the workbench and press LMB to fit the rings.', targets: [{ kind: 'mark', pos: this.center(p), text: 'Piston #4', col: COL.go }] };
       },
     });
-    steps.push(this.fit('Fit piston #4 into the block', B, 'piston4', 'piston', { tip: 'Press R until the ARROW on the piston top points to the front (pulley end) — the ghost turns green. Then tighten the rod nuts from underneath (crouch: Ctrl).' }));
-    steps.push(this.fit('Fit the oil pan', B, 'oilPan', 'oil_pan', { tip: 'Bolts and the drain plug are underneath — crouch (Ctrl) and look up.' }));
+    steps.push(this.fit('Fit piston #4 into the block', B, 'piston4', 'piston', { tip: 'Press R until the ARROW on the piston top points to the front (pulley end) — the ghost turns green. Then turn the engine upside down (E on the engine stand) and tighten the 2 rod nuts, which are then on top.' }));
+    steps.push(this.fit('Fit the oil pan', B, 'oilPan', 'oil_pan', { tip: 'Easiest with the engine turned upside down (E on the engine stand): the bolts and drain plug then face up. Turn it back upright afterwards.' }));
     steps.push(this.fit('Fit a new oil filter', B, 'oilFilter', 'oil_filter', { tip: 'It screws on by hand: LMB with empty hands.' }));
     steps.push(this.fit('Fit the new head gasket', B, 'headGasket', 'head_gasket', { minCond: 0.3 }));
     steps.push(this.fit('Fit the cylinder head', B, 'head', 'cylinder_head', {}));

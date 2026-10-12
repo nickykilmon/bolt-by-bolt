@@ -306,6 +306,8 @@ export class Assembly {
     this.changed();
   }
   setHoist(inst) {
+    const h = this.hostOf(inst);
+    if (h?.def.type === 'stand') { h.props.flipped = false; if (h.anchors.engine) h.anchors.engine.rotation.z = 0; }
     if (inst.slot) this.uninstall(inst, { silent: true });
     this.detachFromWorld(inst);
     inst.loc = { kind: 'hoist' };

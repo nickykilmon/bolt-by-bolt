@@ -361,8 +361,9 @@ export class Interaction {
     let orientOk = true;
     if ((h.def.orient || 1) > 1) {
       const m = asm.slotWorldMatrix(t.host, t.slot);
-      const sy = new THREE.Euler().setFromRotationMatrix(m, 'YXZ').y;
-      const hy = new THREE.Euler().setFromQuaternion(h.obj.getWorldQuaternion(new THREE.Quaternion()), 'YXZ').y;
+      const sf = new THREE.Vector3(0, 0, 1).transformDirection(m);
+      const hf = new THREE.Vector3(0, 0, 1).applyQuaternion(h.obj.getWorldQuaternion(new THREE.Quaternion()));
+      const sy = Math.atan2(sf.x, sf.z), hy = Math.atan2(hf.x, hf.z);
       let d = Math.abs(Math.atan2(Math.sin(hy - sy), Math.cos(hy - sy)));
       if (h.def.orient === 2) d = Math.min(d, Math.PI - d);
       orientOk = d < Math.PI / 4;

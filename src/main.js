@@ -386,6 +386,16 @@ class Game {
     this.addMoney(p, `Sold ${it.def.name}`);
   }
 
+  flipStand() {
+    const st = this.stand;
+    if (!st.kids.engine) { this.say('There\'s nothing on the stand.'); return; }
+    if (this.interaction.held) { this.say('I need both hands to turn the engine over.'); return; }
+    st.props.flipped = !st.props.flipped;
+    this.asm.anchor(st, 'engine'); // make sure the swivel exists
+    this.audio.thunk(1); this.audio.ratchet('ratchet');
+    this.toast(st.props.flipped ? 'Engine turned upside down — the bottom end faces up' : 'Engine turned back upright', 3);
+    this.asm.changed();
+  }
   timeSkipped() { this.checkDeliveries(); this.npcs?.placeAll(); }
 
   // ---------------- gas station ----------------

@@ -148,6 +148,21 @@ export function buildPlace(game) {
   scene.add(stand.obj);
   game.stand = stand;
   addBoxCollider(3.3, 0.3, -2.0, 0.85, 0.6, 0.15, { car: true });
+  const standDef = {
+    prompt: () => {
+      if (!stand.kids.engine) return 'Engine stand <span class="dim">(empty)</span>';
+      return `<span class="k">E</span>${stand.props.flipped ? 'Turn the engine back upright' : 'Turn the engine upside down'} <span class="dim">(to reach the bottom: rod nuts, main caps, oil pan)</span>`;
+    },
+    use: (b) => { if (b === 'E') game.flipStand(); },
+  };
+  stand.vis.traverse((o) => { if (o.isMesh) o.userData.interact = standDef; });
+  // smooth rotation of the engine on the stand's swivel
+  game.animated.push((dt) => {
+    const a = stand.anchors.engine; if (!a) return;
+    const target = stand.props.flipped ? Math.PI : 0;
+    const d = target - a.rotation.z;
+    if (Math.abs(d) > 0.001) { a.rotation.z += Math.sign(d) * Math.min(Math.abs(d), dt * 2.5); }
+  });
 
   // ---- floor jack ----
   game.jack = buildJack(game, g);

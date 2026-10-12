@@ -90,6 +90,7 @@ export function applySave(game, d) {
   game.moped.restore(d.moped);
   game.guide.restore(d.guide);
   game.npcs.placeAll();
+  if (game.stand.props.flipped && game.stand.kids.engine) game.asm.anchor(game.stand, 'engine').rotation.z = Math.PI;
   if (d.held) { const h = asm.get(d.held); if (h) game.interaction.hold(h); }
   if (d.player.inCar) game.enterCar();
   asm.changed();
