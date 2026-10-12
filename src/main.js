@@ -321,8 +321,8 @@ class Game {
     let shift = 0;
     if (i.hit('KeyR') || i.mouse.wheel < 0) shift = 1;
     if (i.hit('KeyF') || i.mouse.wheel > 0) shift = -1;
-    // direct gear keys (hold Shift = clutch while you press them): 1 2 3 = gears, 4 = reverse, 5 = 4th, same key again = neutral
-    const direct = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: -1, Digit5: 4 };
+    // direct gear keys (hold Shift = clutch while you press them): 1 2 3 4 = gears, 5 = reverse, same key again = neutral
+    const direct = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit5: -1 };
     let pick = null;
     for (const [k, gr] of Object.entries(direct)) if (i.hit(k)) pick = c.gear === gr ? 0 : gr;
     if (pick !== null) {
