@@ -619,6 +619,19 @@ export class Interaction {
   // ---------- in the car ----------
   updateInCar(dt, input) {
     this.clearGhosts();
+    // look at a door from inside: E opens / closes it (handled in driveControls, which owns E in the car)
+    const g = this.game;
+    this.carDoor = null;
+    if (g.player.inCar) {
+      const doors = ['doorL', 'doorR'].map((k) => g.car.chassis.kids[k]).filter(Boolean);
+      if (doors.length) {
+        g.camera.updateMatrixWorld();
+        this.ray.setFromCamera(new THREE.Vector2(0, 0), g.camera);
+        const hit = this.ray.intersectObjects(doors.map((d) => d.obj), true).find((h) => h.distance < 1.8);
+        if (hit) this.carDoor = doors.find((d) => { let o = hit.object; while (o) { if (o === d.obj) return true; o = o.parent; } return false; });
+      }
+    }
+    if (this.carDoor) { g.ui.prompt(`${K('E')}${this.carDoor.props.open ? 'Close' : 'Open'} the door <span class="dim">(look away from the door and press E to get out)</span>`, true); g.ui.torque(null); return; }
     this.game.ui.prompt('', false);
     this.game.ui.torque(null);
   }

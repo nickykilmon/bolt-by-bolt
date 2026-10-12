@@ -353,7 +353,11 @@ class Game {
     if (i.hit('KeyL')) { car.lightsOn = !car.lightsOn; this.audio.click(0.4); }
     if (i.hit('KeyN')) { if (car.S?.electric) { this.audio.radio.toggle('car'); this.audio.click(0.4); } else this.say('The radio is dead. No battery power.'); }
     if (i.hit('KeyB') && this.audio.radio.on && this.audio.radio.where === 'car') this.audio.radio.next();
-    if (i.hit('KeyE')) this.exitCar();
+    if (i.hit('KeyE')) {
+      const d = this.interaction.carDoor;
+      if (d) { d.props.open = !d.props.open; d.props.openT = d.props.openT ?? (d.props.open ? 0 : 1); this.audio.door(d.props.open, d.def.type); }
+      else this.exitCar();
+    }
   }
 
   // ---------------- economy ----------------
