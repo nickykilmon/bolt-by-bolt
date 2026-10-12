@@ -24,7 +24,13 @@ export class Moped {
     cyl(o, 0.03, 0.75, MAT.chrome, 0, 0.75, 0.55, 'y', 6).rotation.x = -0.25;
     cyl(o, 0.015, 0.6, MAT.chrome, 0, 1.12, 0.48, 'x', 6);
     const lamp = cyl(o, 0.07, 0.08, MAT.chrome, 0, 1.0, 0.62, 'z', 12);
-    cyl(o, 0.06, 0.01, MAT.lens, 0, 1.0, 0.665, 'z', 12);
+    this.lensMat = new THREE.MeshStandardMaterial({ color: 0xfff6e0, emissive: 0xfff0c8, emissiveIntensity: 0, roughness: 0.1 });
+    cyl(o, 0.06, 0.01, this.lensMat, 0, 1.0, 0.665, 'z', 12);
+    // headlight: on whenever you ride (L toggles it)
+    this.light = new THREE.SpotLight(0xfff2d8, 0, 60, 0.42, 0.5, 1.2);
+    this.light.position.set(0, 1.0, 0.7); this.light.target.position.set(0, -0.6, 14);
+    o.add(this.light, this.light.target);
+    this.lightOn = true;
     cyl(o, 0.03, 0.4, MAT.chrome, 0.12, 0.3, -0.5, 'z', 8);
     // rear parcel box (holds 2 parcels), open at the top so you can see what's in it
     const rack = new THREE.Group(); rack.position.set(0, 0.86, -0.72); o.add(rack);
@@ -76,7 +82,7 @@ export class Moped {
     if (g.interaction.held) { g.say('I need both hands for the handlebars.'); return; }
     this.riding = true; g.player.onMoped = true; g.player.yaw = 0; g.player.pitch = -0.1;
     g.audio.click(0.6);
-    g.say('Pärinä 50. W/S throttle & brake, A/D steer, E to get off.', 3);
+    g.say('Pärinä 50. W throttle, S brake / reverse, A/D steer, L headlight, E to get off.', 3);
   }
   dismount() {
     const g = this.game;
@@ -88,20 +94,28 @@ export class Moped {
     this.lean = 0; this.place();
   }
   update(dt, input) {
-    if (!this.riding) { this.rpm = 0; return; }
+    if (!this.riding) { this.rpm = 0; this.light.intensity = 0; this.lensMat.emissiveIntensity = 0; return; }
     const g = this.game;
     if (input.hit('KeyE')) { this.dismount(); return; }
+    if (input.hit('KeyL')) { this.lightOn = !this.lightOn; g.audio.click(0.4); g.toast(`Moped headlight ${this.lightOn ? 'on' : 'off'}`, 1.5); }
+    this.light.intensity = this.lightOn ? 30 : 0; this.lensMat.emissiveIntensity = this.lightOn ? 2 : 0;
     const thr = input.down('KeyW') ? 1 : 0, brk = input.down('KeyS') ? 1 : 0;
     const st = (input.down('KeyA') ? 1 : 0) - (input.down('KeyD') ? 1 : 0);
     const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
     const ahead = this.pos.clone().addScaledVector(fwd, 0.6), behind = this.pos.clone().addScaledVector(fwd, -0.6);
     const slope = (ENV.groundY(ahead.x, ahead.z) - ENV.groundY(behind.x, behind.z)) / 1.2;
     const surf = ENV.surface(this.pos.x, this.pos.z);
-    let a = thr * 2.6 * (1 - this.speed / 14) - brk * 6 * Math.sign(this.speed) - slope * 9.81 - this.speed * 0.05 - (1 - surf.grip) * this.speed * 0.2;
+    let a = -slope * 9.81 - this.speed * 0.05 - (1 - surf.grip) * this.speed * 0.2;
+    if (thr) a += this.speed < -0.05 ? 6 : 2.6 * (1 - this.speed / 14);   // W while rolling back = brake
+    if (brk) {
+      if (this.speed > 0.3) a -= 6;                                       // S = brake…
+      else { if (this.speed > 0) this.speed = 0; a -= 1.4 * (1 + this.speed / 3); } // …then reverse
+    }
     if (!thr && !brk) a -= Math.sign(this.speed) * 0.4;
+    const before = this.speed;
     this.speed += a * dt;
-    if (brk && this.speed < 0.3 && this.speed > -0.3) this.speed = 0;
-    this.speed = clamp(this.speed, -1.5, 15);
+    if (!thr && !brk && Math.sign(before) !== Math.sign(this.speed)) this.speed = 0;
+    this.speed = clamp(this.speed, -3, 15);
     this.yaw += st * dt * clamp(Math.abs(this.speed) / 4, 0, 1) * 1.4 * Math.sign(this.speed || 1);
     this.lean += (-st * clamp(this.speed / 10, 0, 1) * 0.35 - this.lean) * Math.min(1, dt * 5);
     const next = this.pos.clone().addScaledVector(fwd, this.speed * dt);

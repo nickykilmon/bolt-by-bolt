@@ -85,6 +85,10 @@ table.keys th { color: #f2c14e; padding-top: 10px; }
 .maphint { color: #aaa; margin-top: 6px; font-size: 12px; }
 #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .6s; z-index: 20; }
 #fade.on { opacity: 1; }
+#death { position: fixed; inset: 0; background: radial-gradient(ellipse at center, rgba(90,0,0,.55), rgba(0,0,0,.92)); opacity: 0; pointer-events: none; transition: opacity .8s; z-index: 21; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-family: Impact, sans-serif; }
+#death.on { opacity: 1; }
+#death .big { font-size: 96px; color: #e02020; letter-spacing: 6px; text-shadow: 0 4px 20px #000; }
+#death .why { font-size: 26px; margin-top: 12px; font-family: sans-serif; }
 #loading { background: #000; z-index: 30; font-size: 20px; }
 #debug { position: fixed; left: 8px; top: 120px; font-family: Consolas, monospace; font-size: 11px; background: rgba(0,0,0,.6); padding: 6px; white-space: pre; z-index: 5; pointer-events: none; }
 

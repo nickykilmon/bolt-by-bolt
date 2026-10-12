@@ -21,6 +21,7 @@ import { buildTown } from './world/town.js';
 import { NPCs } from './world/npc.js';
 import { Jobs } from './economy/jobs.js';
 import { Moped } from './vehicles/moped.js';
+import { Traffic } from './world/traffic.js';
 import './ui/screens.js';
 import { Guide } from './ui/guide.js';
 import { hasSave, writeSave, readSave, applySave } from './save/save.js';
@@ -89,6 +90,7 @@ class Game {
     this.npcs = new NPCs(this);
     this.jobs = new Jobs(this);
     this.moped = new Moped(this);
+    this.traffic = new Traffic(this);
     this.rally = new Rally(this);
     this.guide = new Guide(this);
     this.flashlight = new THREE.SpotLight(0xfff4e0, 0, 18, 0.5, 0.5, 1.5);
@@ -396,6 +398,25 @@ class Game {
     this.toast(st.props.flipped ? 'Engine turned upside down — the bottom end faces up' : 'Engine turned back upright', 3);
     this.asm.changed();
   }
+  die(reason) {
+    if (this.dead) return;
+    this.dead = true;
+    const d = $('death'); d.querySelector('.why').textContent = reason; d.classList.add('on');
+    this.audio.hush();
+    setTimeout(() => {
+      if (this.player.inCar) this.exitCar();
+      if (this.moped.riding) { this.moped.riding = false; this.player.onMoped = false; this.moped.speed = 0; this.moped.lean = 0; this.moped.place(); }
+      if (this.interaction.held) this.interaction.putDown(null);
+      this.traffic.clearNear(this.player.pos.x, this.player.pos.z);
+      this.player.pos.set(2, 0, 9); this.player.yaw = 0; this.player.pitch = 0; this.player.vel?.set(0, 0, 0);
+      this.life.skip(12 * 60);
+      this.life.hunger = Math.max(this.life.hunger, 40); this.life.thirst = Math.max(this.life.thirst, 40); this.life.fatigue = 10;
+      this.addMoney(-300, 'Hospital bill');
+      d.classList.remove('on');
+      this.dead = false;
+      this.say('You woke up at home after a night in hospital. The bill was 300 mk. Watch out for traffic on Route 54!', 7);
+    }, 3500);
+  }
   timeSkipped() { this.checkDeliveries(); this.npcs?.placeAll(); }
 
   // ---------------- gas station ----------------
@@ -563,11 +584,12 @@ class Game {
 
   tick(dt) {
     const i = this.input;
-    const active = !this.paused && !this.ui.modal;
+    const active = !this.paused && !this.ui.modal && !this.dead;
     if (active) {
       this.life.update(dt);
       this.player.update(dt, i, this);
       this.moped.update(dt, i);
+      this.traffic.update(dt);
       this.driveControls(dt);
       this.npcs.update(dt);
       this.jobs.update(dt);
