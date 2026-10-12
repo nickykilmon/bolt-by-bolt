@@ -9,7 +9,7 @@ const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vect
 const _m3 = new THREE.Matrix3(), _m3t = new THREE.Matrix3(), _mI = new THREE.Matrix3();
 const UPL = new THREE.Vector3(0, 1, 0);
 
-const pacLong = (s) => Math.sin(1.65 * Math.atan(9 * s));
+const pacLong = (s) => Math.sin(1.35 * Math.atan(9 * s)); // keeps ~85% of peak grip when spinning
 const pacLat = (a) => Math.sin(1.45 * Math.atan(9 * a));
 
 export class VehicleBody {

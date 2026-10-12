@@ -333,7 +333,7 @@ export function stepPowertrain(pt, S, h, wheels, ctl, settings, env) {
     const idleTh = clamp(0.07 + (idleTarget - pt.rpm) * 0.0002, 0.02, 0.3);
     th = Math.max(thrIn, idleTh);
     let comb = TQ_PEAK * torqueShape(pt.rpm) * Math.pow(th, 0.6) * S.powerMult * (S.quality / 0.82) * (1 - S.vacuumLeak * 0.4);
-    if (pt.rpm > 6600) comb = 0; // rev limiter (ignition cut)
+    if (pt.rpm > 6300) comb *= clamp((6700 - pt.rpm) / 400, 0, 1); // soft rev limiter
     // misfire roughness
     const miss = 4 - S.firing;
     if (miss > 0 && Math.random() < 0.3) comb *= 0.5;
@@ -383,7 +383,8 @@ export function stepPowertrain(pt, S, h, wheels, ctl, settings, env) {
     if (Math.abs(tc) >= cap * 0.98 && Math.abs(we - win) > 20) pt.clutchSlip = (pt.clutchSlip || 0) + Math.abs(we - win) * cap * h * 1e-7;
   }
   const wheelT = tc * ratio * (1 - S.propLoose * 0.1);
-  const lock = S.diffLock * clamp((RL.omega - RR.omega) * 40, -Math.abs(wheelT) * 0.5 - 200, Math.abs(wheelT) * 0.5 + 200);
+  // open diffs still have some internal friction (0.3), so one spinning wheel doesn't take all the drive
+  const lock = Math.max(S.diffLock, 0.3) * clamp((RL.omega - RR.omega) * 40, -Math.abs(wheelT) * 0.5 - 200, Math.abs(wheelT) * 0.5 + 200);
   for (const w of wheels) w.driveT = 0;
   RL.driveT = wheelT * 0.5 - lock; RR.driveT = wheelT * 0.5 + lock;
   pt.rpm = Math.max(0, we * 30 / Math.PI);
