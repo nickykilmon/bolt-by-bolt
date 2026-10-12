@@ -33,10 +33,10 @@ function sign(g, text, w, h, x, y, z, bg = '#1a3a7a', fg = '#fff', ry = 0) {
 }
 
 // A shop-type building. Local frame: front (door) faces +z. rot = multiples of 90°.
-function building(parent, { x, z, rot = 0, w = 10, d = 8, h = 3.4, wallMat, roofMat, title, signBg, door = 2.2, garageDoor = 0, y }) {
+function building(parent, { x, z, rot = 0, w = 10, d = 8, h = 3.4, wallMat, roofMat, title, signBg, door = 2.2, garageDoor = 0, y, floor }) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot; parent.add(g);
   const t = 0.2, W = wallMat || mats.planks;
-  solid(g, w, 0.1, d, mats.woodFloor, 0, -0.04, 0, { collide: false, surface: true });
+  solid(g, w, 0.1, d, floor || mats.woodFloor, 0, -0.04, 0, { collide: false, surface: true });
   solid(g, w, h, t, W, 0, h / 2, -d / 2);                       // back
   solid(g, t, h, d, W, -w / 2, h / 2, 0); solid(g, t, h, d, W, w / 2, h / 2, 0); // sides
   // front with door (and optional garage door)
@@ -54,7 +54,7 @@ function building(parent, { x, z, rot = 0, w = 10, d = 8, h = 3.4, wallMat, roof
   for (const s of [1, -1]) { const r = box(g, w + 0.8, 0.08, d / 2 + 0.6, R, 0, h + 0.75, s * d / 4); r.rotation.x = s * 0.33; r.castShadow = true; }
   box(g, w, 1.1, 0.12, W, 0, h + 0.55, d / 2 - 0.05); box(g, w, 1.1, 0.12, W, 0, h + 0.55, -d / 2 + 0.05);
   if (title) sign(g, title, Math.min(w - 1, 6), title.includes('\n') ? 1.1 : 0.8, 0, h - 0.6, d / 2 + 0.13, signBg);
-  const lamp = new THREE.PointLight(0xffe8c0, 6, 12, 1.6); lamp.position.set(0, h - 0.4, 0); g.add(lamp);
+  const lamp = new THREE.PointLight(0xffe8c0, 16, 14, 1.4); lamp.position.set(0, h - 0.4, 0); g.add(lamp);
   return g;
 }
 function counter(g, x, z, w = 2.6) { return solid(g, w, 1.0, 0.6, MAT.wood, x, 0.5, z, { surface: true }); }
@@ -139,13 +139,30 @@ export function buildTown(game) {
   game.npcSpots.grocery = groc.localToWorld(new THREE.Vector3(-3, 0, -2.4));
   game.groceryCounter = groc.localToWorld(new THREE.Vector3(-3, 1.02, -1.6));
   // east side, fronts face -x
-  const shop = building(root, { x: 596, z: 112, rot: -Math.PI / 2, w: 14, d: 11, h: 4.4, title: 'ESA\'S GARAGE\nREPAIRS · PAINT · JOBS', signBg: '#5a2a7a', garageDoor: 4.2, y: T });
-  solid(shop, 3, 0.9, 0.7, MAT.wood, -4.5, 0.45, -4.6, { surface: true });
-  game.npcSpots.mechanic = shop.localToWorld(new THREE.Vector3(-4.5, 0, -3.6));
+  const shop = building(root, { x: 596, z: 112, rot: -Math.PI / 2, w: 14, d: 11, h: 4.4, title: 'ESA\'S GARAGE\nREPAIRS · PAINT · JOBS', signBg: '#5a2a7a', garageDoor: 4.2, y: T, floor: mats.floor });
+  // workbench for customer jobs, with a pegboard behind it
+  solid(shop, 3.4, 0.9, 0.8, MAT.wood, -4.3, 0.45, -4.65, { surface: true });
+  box(shop, 3.4, 1.1, 0.03, mats.peg, -4.3, 1.75, -5.32);
+  sign(shop, 'CUSTOMER JOBS', 1.6, 0.3, -4.3, 2.45, -5.29, '#3a2a1a', '#ffd070');
+  // tool table + red tool chest: Esa's tools live here
+  solid(shop, 2.8, 0.9, 0.8, MAT.wood, -0.2, 0.45, -4.65, { surface: true });
+  sign(shop, 'ESA\'S TOOLS — use them here', 2.2, 0.3, -0.2, 2.0, -5.29, '#a01818', '#fff');
+  solid(shop, 0.9, 1.0, 0.6, MAT.redPaint, 1.9, 0.5, -4.85);
+  for (let i = 0; i < 4; i++) box(shop, 0.85, 0.02, 0.02, MAT.chrome, 1.9, 0.25 + i * 0.22, -4.54);
+  // bright workshop lights
+  for (const lx of [-3.5, 0.5, 3.5]) { box(shop, 1.3, 0.06, 0.16, mats.fluoro, lx, 4.3, -1.5); const pl = new THREE.PointLight(0xf0f4ff, 14, 12, 1.5); pl.position.set(lx, 4.0, -1.5); shop.add(pl); }
+  // dressing: tyres, oil drum, a two-post lift
+  for (let i = 0; i < 4; i++) cyl(shop, 0.3, 0.17, MAT.tire, 5.6, 0.09 + i * 0.18, -4.6, 'y', 14);
+  cyl(shop, 0.3, 0.9, MAT.bluePaint, 4.6, 0.45, -4.7, 'y', 14);
+  for (const sx of [-1.6, 1.6]) solid(shop, 0.25, 3.2, 0.25, MAT.yellowPaint, sx, 1.6, 1.5);
+  game.npcSpots.mechanic = shop.localToWorld(new THREE.Vector3(-2.0, 0, -3.4));
   game.npcSpots.painter = shop.localToWorld(new THREE.Vector3(4.6, 0, -3.8));
   const booth = box(shop, 4.6, 3.4, 0.1, new THREE.MeshStandardMaterial({ color: 0xe8e8f0, transparent: true, opacity: 0.35 }), 4.4, 1.7, -1.5);
   sign(shop, 'PAINT SHOP', 2, 0.4, 4.4, 3.6, -1.44, '#5a2a7a');
-  game.workshopBench = shop.localToWorld(new THREE.Vector3(-4.5, 0.92, -4.6));
+  game.workshopBench = shop.localToWorld(new THREE.Vector3(-4.6, 0.92, -4.65));
+  game.workshopAt = (dx, dz) => shop.localToWorld(new THREE.Vector3(-4.3 + dx, 0.92, -4.6 + dz)); // dx along the bench, dz towards the room
+  game.esaToolSpot = (i, n) => shop.localToWorld(new THREE.Vector3(-1.4 + (i / Math.max(1, n - 1)) * 2.4, 0.92, -4.6 + (i % 2) * 0.18));
+  game.esaShopPos = shop.localToWorld(new THREE.Vector3(0, 0, 0));
   game.workshopStandPos = shop.localToWorld(new THREE.Vector3(-1.5, 0, -3.5));
   const insp = building(root, { x: 603, z: 152, rot: -Math.PI / 2, w: 12, d: 8, h: 4.2, title: 'CAR INSPECTION\n(needed for rallies)', signBg: '#0a6a6a', garageDoor: 4, y: T });
   for (const s of [-1, 1]) box(insp, 0.15, 0.02, 7, MAT.yellowPaint, s * 1.3, 0.02, 0);

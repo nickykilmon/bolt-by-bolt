@@ -43,6 +43,7 @@ export class Jobs {
     g.ui.dialog('Helena (post office)', `I have ${n} parcels: ${list.map((p) => `${p.name} (${p.pay} mk)`).join(', ')}. That's ${total} mk if you deliver them within 4 hours. Late parcels pay half.`, [
       { label: 'Take the parcels', go: () => {
         this.parcels = { list: [], deadline: g.life.minutes + 240 };
+        this.focus = 'parcels';
         list.forEach((p, i) => {
           const it = g.asm.create('parcel', { props: { dest: p.dest, destName: p.name, pay: p.pay } });
           const at = g.postCounter.clone().add(new THREE.Vector3((i - (n - 1) / 2) * 0.3, 0, 0));
@@ -68,7 +69,7 @@ export class Jobs {
     g.asm.remove(g.interaction.release());
     g.audio.thunk(0.4);
     g.addMoney(pay, `Parcel delivered to ${mb.name}${late ? ' (late)' : ''}`);
-    if (this.parcels) { this.parcels.list = this.parcels.list.filter((p) => g.asm.get(p.uid)); if (!this.parcels.list.length) { this.parcels = null; g.say('All parcels delivered. Helena will be pleased.'); } }
+    if (this.parcels) { this.parcels.list = this.parcels.list.filter((p) => g.asm.get(p.uid)); if (!this.parcels.list.length) { this.parcels = null; if (this.focus === 'parcels') this.focus = null; g.say('All parcels delivered. Helena will be pleased.'); } }
   }
 
   // ---------------- lawn mowing ----------------
@@ -121,7 +122,7 @@ export class Jobs {
     const g = this.game;
     if (this.mowing && this.mowProgress() >= 0.9) {
       const pay = 180;
-      this.mowing = null;
+      this.mowing = null; if (this.focus === 'mowing') this.focus = null;
       g.addMoney(pay, 'Mowed Pertti\'s lawn');
       g.ui.dialog('Pertti (neighbour)', 'Hmm. Not bad. Not bad at all. Here. Same again next week?', [{ label: 'Thanks', go: () => {} }]);
       this.lastMowWeek = Math.floor(g.life.day / 7);
@@ -130,7 +131,7 @@ export class Jobs {
     if (this.mowing) { g.ui.dialog('Pertti (neighbour)', `You've done ${Math.round(this.mowProgress() * 100)}%. I said the WHOLE lawn. The mower is by the lawn.`, [{ label: 'OK', go: () => {} }]); return; }
     if (this.lastMowWeek === Math.floor(g.life.day / 7)) { g.ui.dialog('Pertti (neighbour)', 'The grass hasn\'t grown back yet. Come back next week.', [{ label: 'OK', go: () => {} }]); return; }
     g.ui.dialog('Pertti (neighbour)', 'My knees are no good. Mow the lawn by the house and I\'ll pay you 180 mk. The mower is the red thing.', [
-      { label: 'Deal', go: () => { this.mowing = { active: true }; for (let i = 0; i < this.tufts.length; i++) this.setTuft(i, false); g.say('Push the mower over the lawn (E to grab it).'); } },
+      { label: 'Deal', go: () => { this.mowing = { active: true }; this.focus = 'mowing'; for (let i = 0; i < this.tufts.length; i++) this.setTuft(i, false); g.say('Push the mower over the lawn (E to grab it).'); } },
       { label: 'Maybe later', go: () => {} },
     ]);
   }
@@ -154,12 +155,12 @@ export class Jobs {
   }
   offerScrap() {
     const g = this.game;
-    this.scrapKnown = true;
+    this.scrapKnown = true; this.scrapActive = true; this.focus = 'scrap';
     g.ui.dialog('Scrap metal', `Old junk lies in ditches and forest edges all over the parish. Raimo at the scrapyard (far west) pays ${SCRAP_PRICE} mk/kg on his scale. Heavy pieces need the car — put them in the boot. Spots are now marked on your map (M).`, [{ label: 'Got it', go: () => {} }]);
   }
   scaleItems() {
     const s = this.game.scrapScale;
-    return [...this.game.asm.items.values()].filter((it) => it.loc?.kind === 'world' && !it.loc.cont && it.def.kind !== 'root' && Math.abs(it.loc.pos[0] - s.center.x) < s.half[0] && Math.abs(it.loc.pos[2] - s.center.z) < s.half[1]);
+    return [...this.game.asm.items.values()].filter((it) => it.loc?.kind === 'world' && !it.loc.cont && it.def.kind !== 'root' && it.props.owner !== 'esa' && Math.abs(it.loc.pos[0] - s.center.x) < s.half[0] && Math.abs(it.loc.pos[2] - s.center.z) < s.half[1]);
   }
   sellScale() {
     const g = this.game;
@@ -173,6 +174,7 @@ export class Jobs {
     }
     pay = Math.round(pay);
     g.addMoney(pay, `Scrap sold to Raimo (${Math.round(kg)} kg)`);
+    this.scrapActive = false; if (this.focus === 'scrap') this.focus = null;
     g.ui.dialog('Raimo (scrapyard)', `${Math.round(kg)} kilos. ${pay} mk. Pleasure doing business.`, [{ label: 'Thanks', go: () => {} }]);
   }
   restockScrapyard() {
@@ -204,7 +206,7 @@ export class Jobs {
       const left = w.tasks.filter((t) => !this.taskDone(t));
       if (!left.length) {
         for (const u of w.items) { const it = asm.get(u); if (it) asm.remove(it); }
-        this.workshop = null;
+        this.workshop = null; if (this.focus === 'workshop') this.focus = null;
         g.addMoney(w.pay, `Workshop job for Esa: ${w.title}`);
         g.ui.dialog('Esa (mechanic)', `Let me check… torque is right, everything's there. Good work. ${w.pay} mk. Come back tomorrow, there's always something.`, [{ label: 'Thanks', go: () => {} }]);
         this.lastWorkshopDay = g.life.day;
@@ -215,7 +217,7 @@ export class Jobs {
     }
     if (this.lastWorkshopDay === g.life.day) { g.ui.dialog('Esa (mechanic)', 'Nothing more today. Come back tomorrow.', [{ label: 'OK', go: () => {} }]); return; }
     const variant = g.life.day % 2;
-    const title = variant === 0 ? 'Finish rebuilding a customer\'s cylinder head' : 'Put a customer\'s gearbox back together';
+    const title = variant === 0 ? 'Finish rebuilding a customer\'s cylinder head' : 'Fit a carburettor to a customer\'s intake manifold';
     const pay = variant === 0 ? 380 : 240;
     g.ui.dialog('Esa (mechanic)', `I've got a job: ${title.toLowerCase()}. Bring your own tools or use mine on the bench. Pays ${pay} mk. Torque everything to spec.`, [
       { label: 'I\'ll do it', go: () => this.startWorkshop(variant, title, pay) },
@@ -224,7 +226,7 @@ export class Jobs {
   }
   startWorkshop(variant, title, pay) {
     const g = this.game, asm = g.asm;
-    const at = (dx, dz) => g.workshopBench.clone().add(new THREE.Vector3(dx, 0, dz));
+    const at = (dx, dz) => g.workshopAt(dx * 0.75, dz * 0.6); // along the workbench
     const items = [];
     const drop = (id, dx, dz, o) => { const it = asm.create(id, o); asm.dropAt(it, at(dx, dz), 0, null); items.push(it.uid); return it; };
     let tasks;
@@ -233,21 +235,30 @@ export class Jobs {
       for (const [s, id] of [['valvesIn', 'valves_in'], ['valvesEx', 'valves_ex'], ['valveSprings', 'valve_springs'], ['retainers', 'valve_retainers'], ['camBearings', 'cam_bearings']]) asm.install(asm.create(id, { cond: 0.9 }), head, s, { fastened: true });
       const cam = asm.create('camshaft_std', { cond: 0.9 }); asm.install(cam, head, 'camshaft', { fastened: true, q: 0.2 });
       drop('rockers', 1.0, 0, { cond: 0.9 }); drop('valve_cover', -1.1, 0.05, { cond: 0.9 });
-      for (let i = 0; i < 4; i++) drop('spark_plug', 0.7 + i * 0.12, 0.25);
+      for (let i = 0; i < 4; i++) drop('spark_plug', 1.4 + i * 0.12, -0.2);
       tasks = [{ host: head.uid, slot: 'camshaft', label: 'torque the cam cap bolts' }, { host: head.uid, slot: 'rockers', label: 'fit & torque the rockers' },
         ...[1, 2, 3, 4].map((i) => ({ host: head.uid, slot: 'plug' + i, label: `spark plug #${i}` })), { host: head.uid, slot: 'valveCover', label: 'valve cover' }];
     } else {
-      const gb = drop('gearbox_4sp', 0, 0, { cond: 0.85, props: { oil: 0 } });
-      asm.install(asm.create('gearset_std', { cond: 0.85 }), gb, 'gearset', { fastened: true });
-      drop('gearbox_cover', 1.1, 0.1, { cond: 0.9 });
-      drop('gear_oil', -1.1, 0.1, {});
-      tasks = [{ host: gb.uid, slot: 'gbCover', label: 'fit & torque the bottom cover' }, { host: gb.uid, fluid: 'oil', min: 1.4, label: 'fill with 1.4 L gear oil' }];
+      // customer's intake manifold: fit and torque the carburettor, then the air filter
+      const im = drop('intake_manifold', 0, 0, { cond: 0.9 });
+      drop('carb_single', 1.2, -0.1, { cond: 0.9 });
+      drop('air_filter', -1.1, 0.05, { cond: 1 });
+      tasks = [{ host: im.uid, slot: 'carb', label: 'fit & torque the carburettor' }, { host: '', hostOf: 'carb', slot: 'airFilter', label: 'fit the air filter' }];
     }
     this.workshop = { variant, title, pay, tasks, items };
-    g.say('The job is on Esa\'s bench. Tab shows what\'s loose.');
+    this.focus = 'workshop';
+    g.say('The job is on Esa\'s workbench. His tools are on the table next to it — the guide (top left) shows each step.');
+  }
+  taskHost(t) {
+    const asm = this.game.asm;
+    if (t.hostOf) { // a part that is itself fitted as part of the job (e.g. the carb's air filter)
+      const first = this.workshop?.tasks.find((x) => x.slot === t.hostOf);
+      return first ? asm.get(first.host)?.kids[first.slot] || null : null;
+    }
+    return asm.get(t.host);
   }
   taskDone(t) {
-    const asm = this.game.asm, host = asm.get(t.host);
+    const asm = this.game.asm, host = this.taskHost(t);
     if (!host) return false;
     if (t.fluid) return (host.props[t.fluid] || 0) >= t.min;
     const k = host.kids[t.slot];
@@ -255,9 +266,36 @@ export class Jobs {
   }
 
   // ---------------- per frame ----------------
+  // Esa's own tool set lives on his tool table; it walks back there if you take it away
+  ensureEsaTools() {
+    const g = this.game;
+    if ([...g.asm.items.values()].some((i) => i.props.owner === 'esa')) return;
+    const ids = ['ratchet', 'socket_case', 'torque_wrench', 'plug_socket', 'screwdriver_flat', 'screwdriver_ph', 'wrench_10', 'wrench_13', 'wrench_17', 'lug_wrench', 'bolt_kit'];
+    ids.forEach((id, i) => {
+      const it = g.asm.create(id, { props: { owner: 'esa', ...(id === 'socket_case' ? { sockets: [8, 10, 12, 13, 14, 17, 19] } : {}), ...(id === 'ratchet' ? { socket: 10 } : {}) } });
+      g.asm.dropAt(it, g.esaToolSpot(i, ids.length), Math.PI / 2, null);
+    });
+  }
+  returnEsaTools() {
+    const g = this.game, home = g.esaShopPos;
+    const tools = [...g.asm.items.values()].filter((i) => i.props.owner === 'esa');
+    tools.forEach((it, i) => {
+      if (it.slot) return;
+      const p = it.loc?.kind === 'held' || it.loc?.kind === 'inv' ? g.player.pos : it.obj.getWorldPosition(new THREE.Vector3());
+      if (Math.hypot(p.x - home.x, p.z - home.z) < 45) return;
+      if (g.interaction.held === it) g.interaction.release();
+      g.inventory = g.inventory.filter((u) => u !== it.uid);
+      g.asm.dropAt(it, g.esaToolSpot(i, tools.length), Math.PI / 2, null);
+      g.say(`Esa's ${it.def.name.toLowerCase()} went back to his tool table — those stay at the garage.`);
+    });
+  }
+
   update(dt) {
     const g = this.game;
     this.restockScrapyard();
+    if (!this.esaChecked) { this.esaChecked = true; this.ensureEsaTools(); }
+    this.toolT = (this.toolT || 0) - dt;
+    if (this.toolT <= 0) { this.toolT = 2; this.returnEsaTools(); }
     // mowing
     if (g.player.pushing === this.mower) {
       const p = this.mower.obj.position;
@@ -287,10 +325,10 @@ export class Jobs {
     L.push({ title: 'Workshop jobs at Esa\'s garage', status: this.workshop ? `${this.workshop.title}: ${this.workshop.tasks.filter((t) => !this.taskDone(t)).length} tasks left` : 'Ask Esa, 8–18 (one job per day)', pay: '240–380 mk' });
     return L;
   }
-  serialize() { return { parcels: this.parcels, mowing: this.mowing, cut: Array.from(this.mowCut).join(''), workshop: this.workshop, scrapKnown: this.scrapKnown, restockDay: this.restockDay, scrapSeeded: this.scrapSeeded, lastMowWeek: this.lastMowWeek, lastWorkshopDay: this.lastWorkshopDay }; }
+  serialize() { return { focus: this.focus, scrapActive: this.scrapActive, parcels: this.parcels, mowing: this.mowing, cut: Array.from(this.mowCut).join(''), workshop: this.workshop, scrapKnown: this.scrapKnown, restockDay: this.restockDay, scrapSeeded: this.scrapSeeded, lastMowWeek: this.lastMowWeek, lastWorkshopDay: this.lastWorkshopDay }; }
   restore(d) {
     if (!d) return;
-    Object.assign(this, { parcels: d.parcels, mowing: d.mowing, workshop: d.workshop, scrapKnown: d.scrapKnown, restockDay: d.restockDay ?? -1, scrapSeeded: d.scrapSeeded, lastMowWeek: d.lastMowWeek, lastWorkshopDay: d.lastWorkshopDay });
+    Object.assign(this, { focus: d.focus || null, scrapActive: !!d.scrapActive, parcels: d.parcels, mowing: d.mowing, workshop: d.workshop, scrapKnown: d.scrapKnown, restockDay: d.restockDay ?? -1, scrapSeeded: d.scrapSeeded, lastMowWeek: d.lastMowWeek, lastWorkshopDay: d.lastWorkshopDay });
     if (d.cut) [...d.cut].forEach((c, i) => { if (i < this.tufts.length) this.setTuft(i, c === '1'); });
   }
 }

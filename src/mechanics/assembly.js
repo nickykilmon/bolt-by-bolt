@@ -69,6 +69,15 @@ export class Assembly {
     inst.obj.add(vis);
     if (inst.def.type === 'cam_sprocket' || inst.def.type === 'crank_sprocket') this.updateSprocket(inst);
     this.computeBounds(inst);
+    // small things (sockets, plugs, screwdrivers...) get an invisible, easier-to-hit grab zone
+    const sz = inst.bounds.getSize(new THREE.Vector3());
+    if (Math.max(sz.x, sz.y, sz.z) < 0.25) {
+      const r = Math.max(0.05, Math.max(sz.x, sz.y, sz.z) * 0.6);
+      const hit = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6), MAT.hit);
+      inst.bounds.getCenter(hit.position);
+      hit.userData.inst = inst; hit.userData.grabProxy = true;
+      vis.add(hit);
+    }
   }
 
   computeBounds(inst) {

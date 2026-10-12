@@ -177,7 +177,8 @@ export class Interaction {
     for (const h of hits) {
       const u = h.object.userData;
       if (u.glass || u.fastener || u.ghost) continue;
-      if (h.object.material === MAT.hit && !u.action && !u.interact && !(u.fill && includeFill)) continue;
+      if (h.object.material === MAT.hit && !u.action && !u.interact && !u.grabProxy && !(u.fill && includeFill)) continue;
+      if (u.grabProxy && h.object.userData.inst?.slot) continue; // only for loose items
       if (!h.object.visible) continue;
       return h;
     }

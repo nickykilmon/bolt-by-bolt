@@ -63,7 +63,9 @@ export class Guide {
       if (it.def.type !== type || it.slot || it.props.forSale || this.isJobItem(it)) continue;
       if (it.loc?.kind === 'hoist') continue;
       if (it.cond < minCond) continue;
-      if (!best || it.cond > best.cond) best = it;
+      const p = it.loc?.kind === 'inv' ? this.game.player.pos : it.obj.getWorldPosition(new THREE.Vector3());
+      it._score = it.cond - p.distanceTo(this.game.player.pos) / 150;
+      if (!best || it._score > best._score) best = it;
     }
     return best;
   }
@@ -92,12 +94,16 @@ export class Guide {
         return { text: `Fit the ${size} mm socket: look at the socket case and press E (or scroll near it)`, targets: kase ? [{ ...this.itemTarget(kase, 'Socket case'), col: COL.tool, text: `${size} mm socket` }] : [] };
       }
       const r = this.pick('ratchet') || this.pick('torque_wrench');
-      return { text: `Get the ratchet${r?.loc?.cont === 'drawer1' ? ' (red toolbox, top drawer)' : ' (marked)'} for the ${size} mm bolts${held ? ' — put down what you\'re holding first (G)' : ''}`, targets: r ? [{ ...this.itemTarget(r), col: COL.tool }] : [] };
+      return { text: `Get the ratchet${r?.loc?.cont === 'drawer1' ? ' (red toolbox, top drawer)' : r?.props.owner === 'esa' ? " (Esa's tool table)" : ' (marked)'} for the ${size} mm bolts${held ? ' — put down what you\'re holding first (G)' : ''}`, targets: r ? [{ ...this.itemTarget(r), col: COL.tool }] : [] };
     }
     const type = size === 'flat' || size === 'ph' ? 'screwdriver' : size === 'plug' ? 'plug_socket' : null;
-    let tool = null;
-    for (const x of this.asm.items.values()) if (x.def.type === type && (x.def.size === size) && !x.slot) tool = tool || x;
-    return { text: `Get the ${SIZE_LABEL(size)}${tool?.loc?.cont === 'drawer2' ? ' (red toolbox, drawer 2)' : ' (marked)'}${held ? ' — put down what you\'re holding first (G)' : ''}`, targets: tool ? [{ ...this.itemTarget(tool), col: COL.tool }] : [] };
+    let tool = null, bd = Infinity;
+    for (const x of this.asm.items.values()) {
+      if (x.def.type !== type || x.def.size !== size || x.slot) continue;
+      const d = (x.loc?.kind === 'inv' ? this.game.player.pos : x.obj.getWorldPosition(new THREE.Vector3())).distanceTo(this.game.player.pos);
+      if (d < bd) { bd = d; tool = x; }
+    }
+    return { text: `Get the ${SIZE_LABEL(size)}${tool?.loc?.cont === 'drawer2' ? ' (red toolbox, drawer 2)' : tool?.props.owner === 'esa' ? " (Esa's tool table)" : ' (marked)'}${held ? ' — put down what you\'re holding first (G)' : ''}`, targets: tool ? [{ ...this.itemTarget(tool), col: COL.tool }] : [] };
   }
   // fasteners still to tighten (or loosen) on an installed part
   fastenerJob(inst, loosen = false) {
@@ -120,7 +126,10 @@ export class Guide {
     const total = sameSize, done = sameSize - cur.length;
     const thenText = later.length ? ` Then ${later.length} × ${SIZE_LABEL(later[0].g.size)}${later[0].g.name ? ' (' + later[0].g.name + ')' : ''}.` : '';
     const stripped = cur.some((t) => t.f?.s);
-    const tool = stripped ? { text: 'A thread is stripped (brown ring) — get the bolt kit (drawer 3) and press LMB on it', targets: [] } : this.toolFor(g0.size);
+    let kit = null;
+    if (stripped) { let bd = 1e9; for (const it of this.asm.items.values()) if (it.def.id === 'bolt_kit' && !it.slot) { const d = it.obj.getWorldPosition(new THREE.Vector3()).distanceTo(this.game.player.pos); if (d < bd) { bd = d; kit = it; } } }
+    const holdingKit = this.game.interaction.held?.def.id === 'bolt_kit';
+    const tool = stripped ? (holdingKit ? { text: 'A thread is stripped (brown ring): press LMB on it with the bolt kit to fit a new bolt', targets: [] } : { text: 'A thread is stripped (brown ring) — grab a bolt kit (marked) and press LMB on the stripped bolt', targets: kit ? [this.itemTarget(kit)] : [] }) : this.toolFor(g0.size);
     const verb = loosen ? 'Undo' : g0.size === 'hand' ? 'Connect' : g0.size === 'flat' ? 'Tighten the clamps on' : 'Tighten';
     return { verb, g0, dots, done, total, tool, sizeText: SIZE_LABEL(g0.size), thenText };
   }
@@ -408,6 +417,86 @@ export class Guide {
     return null;
   }
 
+  // ---------------- active job objective ----------------
+  jobObjective() {
+    const g = this.game, J = g.jobs, asm = this.asm;
+    const here = g.camera.position;
+    const dist = (p) => Math.round(Math.hypot(p.x - here.x, p.z - here.z));
+    const mark = (pos, text, col = COL.go, up = 0) => ({ kind: 'mark', pos: pos.clone().add(new THREE.Vector3(0, up, 0)), text, col });
+    const npcMark = (id, text) => { const n = g.npcs.get(id); return n ? mark(n.g.position, text, COL.go, 1.9) : null; };
+    const focus = J.focus || (J.workshop ? 'workshop' : J.parcels ? 'parcels' : J.mowing ? 'mowing' : J.scrapActive ? 'scrap' : null);
+    if (!focus) return null;
+    const others = ['workshop', 'parcels', 'mowing', 'scrap'].filter((k) => k !== focus && (k === 'workshop' ? J.workshop : k === 'parcels' ? J.parcels : k === 'mowing' ? J.mowing : J.scrapActive));
+    const also = others.length ? ` (Also on the go: ${others.join(', ')}.)` : '';
+    const held = g.interaction.held;
+
+    if (focus === 'workshop' && J.workshop) {
+      const w = J.workshop;
+      const shop = g.esaShopPos;
+      const title = `Esa's job: ${w.title.toLowerCase()}`;
+      if (dist(shop) > 30) return { job: 'WORKSHOP JOB', st: { title }, s: { text: `Go to Esa's garage in Ruskala village (east along Route 54). The job and Esa's tools are on the benches at the back.${also}`, targets: [mark(shop, "Esa's garage", COL.go, 3)] } };
+      for (const t of w.tasks) {
+        if (J.taskDone(t)) continue;
+        const host = J.taskHost(t); if (!host) continue;
+        if (t.fluid) {
+          const oil = w.items.map((u) => asm.get(u)).find((i) => i && i.def.type === 'fluid' && i.props.amount > 0.05) || this.pick('fluid');
+          if (held?.def.type === 'fluid') return { job: 'WORKSHOP JOB', st: { title }, s: { text: `${t.label}: hold LMB on the filler plug on the side of the gearbox (${(host.props.oil || 0).toFixed(1)} / ${t.min} L).`, targets: [mark(this.fillPos(host), 'Pour here', COL.go)] } };
+          return { job: 'WORKSHOP JOB', st: { title }, s: { text: `${t.label}: ${held ? 'put down what you\'re holding (G) and ' : ''}grab the gear oil from the workbench.`, targets: oil ? [this.itemTarget(oil)] : [] } };
+        }
+        const inst = host.kids[t.slot];
+        if (!inst) {
+          const accepts = slotById(host.def.host, t.slot).accepts;
+          const item = w.items.map((u) => asm.get(u)).find((i) => i && i.def.type === accepts && !i.slot);
+          if (!item) continue;
+          if (held !== item) return { job: 'WORKSHOP JOB', st: { title }, s: { text: `Next: ${t.label}. ${held ? 'Put down what you\'re holding (G), then g' : 'G'}rab the ${short(item.def.name)} from the workbench.`, targets: [this.itemTarget(item)] } };
+          return { job: 'WORKSHOP JOB', st: { title }, s: { text: `Fit it: look at the green ghost on the customer's part and press LMB.`, targets: [mark(this.slotPos(host, t.slot), `Fit ${short(item.def.name)} here`)] } };
+        }
+        const fj = this.fastenerJob(inst);
+        if (!fj) continue;
+        const how = fj.g0.size === 'hand' ? `with empty hands, hold LMB on each marked spot to do it up by hand (${fj.done}/${fj.total})` : fj.g0.size === 'flat' ? `tighten each marked clamp with the flat screwdriver (${fj.done}/${fj.total})` : `tighten ${fj.total - fj.done} × ${fj.sizeText} — hold LMB on each marked bolt until the bar is green (${fj.done}/${fj.total}).${fj.thenText}`;
+        const text = fj.tool ? `${t.label}: ${fj.tool.text}` : `${t.label}: ${how}`;
+        return { job: 'WORKSHOP JOB', st: { title }, s: { text, targets: fj.tool ? fj.tool.targets : [], dots: fj.dots } };
+      }
+      return { job: 'WORKSHOP JOB', st: { title: 'Job finished — get paid' }, s: { text: `Everything's done. Talk to Esa (E) to get your ${w.pay} mk.${also}`, targets: [npcMark('esa', 'Talk to Esa')].filter(Boolean) } };
+    }
+
+    if (focus === 'parcels' && J.parcels) {
+      const left = J.parcels.list.map((p) => ({ ...p, it: asm.get(p.uid) })).filter((p) => p.it);
+      const due = g.life.fmtTime(J.parcels.deadline);
+      const late = g.life.minutes > J.parcels.deadline ? ' You\'re late — they now pay half.' : '';
+      if (held?.def.type === 'parcel') {
+        const mb = g.mailboxes.find((m) => m.id === held.props.dest);
+        return { job: 'PARCEL DELIVERY', st: { title: `Deliver the parcel to ${held.props.destName}` }, s: { text: `Take it to ${held.props.destName}'s mailbox (${dist(mb.pos)} m) and press E on the mailbox. Deliver all ${left.length} by ${due}.${late} Heavy loads? Put parcels in the car's boot or ride the moped.${also}`, targets: [mark(mb.pos, `${held.props.destName}'s mailbox — ${dist(mb.pos)} m`, COL.go, 1.5)] } };
+      }
+      const next = left.sort((a, b) => dist(a.it.obj.getWorldPosition(new THREE.Vector3())) - dist(b.it.obj.getWorldPosition(new THREE.Vector3())))[0];
+      if (!next) return null;
+      const inCar = next.it.loc?.cont === 'car';
+      return { job: 'PARCEL DELIVERY', st: { title: `Parcels: ${left.length} left, due ${due}` }, s: { text: `${held ? 'Put down what you\'re holding (G), then p' : 'P'}ick up the parcel for ${next.name}${inCar ? ' (it\'s in your car)' : next.it.loc?.kind === 'inv' ? ' (it\'s in your pockets — press I)' : ' from the post office counter'}. Destinations: ${left.map((p) => p.name).join(', ')}.${late}${also}`, targets: [{ ...this.itemTarget(next.it, 'Parcel for ' + next.name) }] } };
+    }
+
+    if (focus === 'mowing' && J.mowing) {
+      const pct = Math.round(J.mowProgress() * 100);
+      if (pct >= 90) return { job: 'MOWING JOB', st: { title: 'Lawn mowed — get paid' }, s: { text: `Talk to Pertti (E) to get your 180 mk.${also}`, targets: [npcMark('pertti', 'Talk to Pertti')].filter(Boolean) } };
+      const L = g.lawn;
+      if (g.player.pushing !== J.mower) return { job: 'MOWING JOB', st: { title: `Mow Pertti's lawn (${pct}%)` }, s: { text: `Pertti's farm is just west of your place along Route 54. Grab the red push mower (E) and push it over every patch of tall grass.${also}`, targets: [mark(J.mower.obj.position, 'Lawn mower', COL.grab, 1.2), mark(new THREE.Vector3(L.x, L.y, L.z), `Lawn — ${pct}% done`, COL.go, 0.6)] } };
+      // point at the nearest uncut grass
+      let best = null, bd = 1e9; J.tufts.forEach((t, i) => { if (J.mowCut[i]) return; const d = (t.x - J.mower.obj.position.x) ** 2 + (t.z - J.mower.obj.position.z) ** 2; if (d < bd) { bd = d; best = t; } });
+      return { job: 'MOWING JOB', st: { title: `Mow Pertti's lawn (${pct}%)` }, s: { text: `Walk the mower over the tall grass until the lawn is at least 90% done. E lets go.${also}`, targets: best ? [mark(new THREE.Vector3(best.x, L.y, best.z), 'Uncut grass', COL.go, 0.5)] : [] } };
+    }
+
+    if (focus === 'scrap' && J.scrapActive) {
+      const scale = g.scrapScale.center;
+      const onScale = J.scaleItems().length;
+      if (held?.def.kind === 'scrap') return { job: 'SCRAP COLLECTING', st: { title: 'Take the scrap to the scale' }, s: { text: `Carry it to the scrap scale at Raimo's scrapyard (far west, ${dist(scale)} m) and put it down on the steel plate (G or LMB). Heavy? Put it in the car's boot instead.${also}`, targets: [mark(scale, `Scrap scale — ${dist(scale)} m`, COL.go, 0.8)] } };
+      if (onScale) return { job: 'SCRAP COLLECTING', st: { title: `Sell the scrap (${onScale} on the scale)` }, s: { text: `Talk to Raimo (E) and choose "Sell what's on the scale". You can also bring more first.${also}`, targets: [npcMark('raimo', 'Talk to Raimo')].filter(Boolean) } };
+      let best = null, bd = 1e9;
+      for (const it of asm.items.values()) { if (it.def.kind !== 'scrap' || it.slot) continue; const p = it.obj.getWorldPosition(new THREE.Vector3()); const d = dist(p); if (d < bd) { bd = d; best = it; } }
+      if (!best) return { job: 'SCRAP COLLECTING', st: { title: 'No more scrap around' }, s: { text: 'You\'ve collected all the scrap out there. More turns up later.', targets: [] } };
+      return { job: 'SCRAP COLLECTING', st: { title: 'Find scrap metal' }, s: { text: `Nearest piece: ${short(best.def.name)}, ${bd} m away (brown dots on the map, M). Pick it up and bring it to the scale at Raimo's scrapyard. Raimo pays 1.4 mk per kilo.${also}`, targets: [mark(best.obj.getWorldPosition(new THREE.Vector3()), `Scrap — ${bd} m`, COL.grab, 0.6)] } };
+    }
+    return null;
+  }
+
   // ---------------- per frame ----------------
   update(dt) {
     const g = this.game;
@@ -430,6 +519,10 @@ export class Guide {
       this.doneCount = doneCount; this.total = this.steps.length;
       if (box) this.cur = { st: { title: 'Your delivery has arrived' }, s: { text: 'Open the box on the pallet outside the garage door (E) to unpack the parts.', targets: [{ kind: 'mark', pos: this.center(box), text: 'Open the delivery box', col: COL.grab }] }, idx: doneCount + 1 };
       else if (!this.cur && doneCount < this.total) { const m = this.moneyStep(); if (m) this.cur = { ...m, idx: doneCount + 1 }; }
+      // a job you've taken takes over the objective until it's finished
+      let jo = null;
+      try { jo = this.jobObjective(); } catch (e) { console.error('job objective failed', e); }
+      if (jo) this.cur = { ...jo, idx: 0 };
       this.render();
     }
     // keep markers pulsing
@@ -456,7 +549,7 @@ export class Guide {
     let dist = '';
     const main = (s.targets || []).find((t) => t.kind === 'mark') || (s.dots?.length ? { pos: s.dots[0].pos } : null);
     if (main) { const d = main.pos.distanceTo(g.camera.position); if (d > 4) dist = ` <span class="gd">${Math.round(d)} m</span>`; }
-    this.el.innerHTML = `<div class="gp">BUILD THE RUSKA · STEP ${this.cur.idx} OF ${this.total}</div><div class="gt">${st.title}${dist}</div><div class="gs">${s.text || ''}</div><div class="gk2"><span class="gk">H</span> hide guide</div>`;
+    this.el.innerHTML = `<div class="gp">${this.cur.job ? 'JOB · ' + this.cur.job + ' · the car build continues after' : `BUILD THE RUSKA · STEP ${this.cur.idx} OF ${this.total}`}</div><div class="gt">${st.title}${dist}</div><div class="gs">${s.text || ''}</div><div class="gk2"><span class="gk">H</span> hide guide</div>`;
     if (!show) return;
     for (const t of s.targets || []) {
       if (t.kind !== 'mark') continue;
