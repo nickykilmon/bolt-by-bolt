@@ -68,7 +68,7 @@ export function buildPlace(game) {
   }
   const bulb = new THREE.PointLight(0xffe0b0, 3, 6, 1.8); bulb.position.set(3.2, 2.2, -4.2); g.add(bulb);
   // sign
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.5), new THREE.MeshStandardMaterial({ map: labelTex("JC'S GARAGE", 512, 106, '#2a2620', '#f2c14e', 'bold 64px Impact') }));
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.5), new THREE.MeshStandardMaterial({ map: labelTex(`${(game.profile?.name || 'JC').toUpperCase().slice(0, 14)}'S GARAGE`, 512, 106, '#2a2620', '#f2c14e', 'bold 64px Impact') }));
   sign.position.set(-1, 3.0, 5.21); g.add(sign);
 
   // ---- workbench ----

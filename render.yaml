@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: jcs-car
+    name: bolt-by-bolt
     runtime: static
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist

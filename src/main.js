@@ -1,4 +1,4 @@
-// JC'S CAR — entry point and game orchestration.
+// Bolt by Bolt — entry point and game orchestration.
 import * as THREE from 'three';
 import { Input } from './core/input.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -588,7 +588,7 @@ class Game {
       });
     };
     $('btnSettingsT').onclick = () => this.openSettings();
-    $('btnQuit').onclick = () => { document.querySelector('.title-inner').innerHTML = '<h1>JC\'S CAR</h1><div class="sub">Thanks for playing. You can close this tab.</div>'; };
+    $('btnQuit').onclick = () => { document.querySelector('.title-inner').innerHTML = '<h1>BOLT BY BOLT</h1><div class="sub">Thanks for playing. You can close this tab.</div>'; };
     $('btnResume').onclick = () => this.resume();
     $('btnSave').onclick = () => { this.saveGame(); };
     $('btnLoad').onclick = () => { sessionStorage.setItem('jcscar.boot', 'continue'); location.reload(); };

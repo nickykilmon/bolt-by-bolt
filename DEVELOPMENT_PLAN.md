@@ -1,4 +1,4 @@
-# JC'S CAR — development plan & status
+# Bolt by Bolt — development plan & status
 
 Last updated: 2026-10-11 (second pass: world, life, jobs, rally)
 

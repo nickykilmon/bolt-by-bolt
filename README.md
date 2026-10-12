@@ -1,4 +1,4 @@
-# JC'S CAR
+# Bolt by Bolt
 
 A first-person car-building, life-sim and rally game for the desktop browser.
 Three.js + Vite. No API keys, servers or downloads needed; all models, textures and sounds are procedural.
@@ -6,7 +6,7 @@ Three.js + Vite. No API keys, servers or downloads needed; all models, textures 
 ## Run it
 
 ```
-cd jcs-car
+cd bolt-by-bolt
 npm install
 npm run dev        # then open http://localhost:5173
 ```
