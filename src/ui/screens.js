@@ -208,6 +208,7 @@ P.openRally = function () {
   const g = this.game, R = g.rally;
   const act = R.active ? R.ev(R.active.evId) : null;
   this.panel(`<h2>Rally HQ — events & championship</h2>
+    <div style="font-size:16px;margin-bottom:6px">🏁 Rally day is every <b>Saturday</b>. Next rally: <b style="color:#f2c14e">${R.rallyDayText()}</b>. Enter any day before then; on rally day the stages are open from 10:00 and rally cars race on every road.</div>
     <div>Reputation <b>${R.rep}</b> · Points <b>${R.points}</b> · Inspection: ${(g.car.chassis.props.inspected ?? -1) >= g.life.day ? `<span style="color:#9fe39a">valid until day ${g.car.chassis.props.inspected + 1}</span>` : '<span style="color:#ff9a8a">not valid</span>'}</div>
     ${act ? `<div class="svc"><span>Current: <b>${act.name}</b> — next SS${R.active.idx + 1} ${STAGES[R.nextStageId()].name}, due ${g.life.fmtTime(R.active.due)}. Times so far: ${R.active.times.map((t) => R.fmt(t)).join(', ') || '—'}</span><button id="rlRetire">Retire</button></div>` : ''}
     <table class="keys" style="width:100%">${EVENTS.map((ev) => { const bad = R.eligibility(ev); return `<tr><td><b>T${ev.tier} ${ev.name}</b><div class="muted">${ev.desc}<br>Stages: ${ev.stages.map((s) => STAGES[s].name).join(' → ')}</div>${bad.length ? `<div style="color:#ff9a8a;font-size:12px">${bad.join('<br>')}</div>` : ''}</td><td>${fmtMoney(ev.fee)}</td><td class="muted">${ev.prizes.map(fmtMoney).join(' / ')}</td><td>${!bad.length && !R.active ? `<button data-e="${ev.id}">Enter</button>` : ''}</td></tr>`; }).join('')}</table>
@@ -225,7 +226,7 @@ P.openPhone = function () {
   el.innerHTML = `<div class="phone"><h2>📱 Nokla 2110</h2>
     <div>${g.life.dayName()} ${g.life.clock()} · ${fmtMoney(g.money)}</div>
     <div><b>Jobs</b>${g.jobs.list().map((j) => `<div class="muted">• ${j.title}: ${j.status}</div>`).join('')}</div>
-    <div><b>Rally</b><div class="muted">${R.active ? R.hud() : 'No event entered.'}</div></div>
+    <div><b>Rally</b><div class="muted">${R.active ? R.hud() : 'No event entered.'}<br>Next rally day: ${R.rallyDayText()}</div></div>
     <button id="phTowH">Call tow truck → home (250 mk)</button>
     <button id="phTowS">Call tow truck → Esa's workshop (200 mk)</button>
     <button id="phTaxi">Call taxi home (60 mk)</button>

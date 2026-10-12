@@ -99,6 +99,13 @@ export class Rally {
     }
   }
   stage(id) { return this.stages[id]; }
+  // rally day: every Saturday (day 5 of the week), stages run 08:00-20:00
+  isRallyDay(day = this.game.life.day) { return day % 7 === 5; }
+  nextRallyDay() { const d = this.game.life.day; const late = this.isRallyDay(d) && this.game.life.hours >= 15; return d + ((5 - d % 7 + 7) % 7 || (late ? 7 : 0)); }
+  rallyDayText() {
+    const L = this.game.life, d = this.nextRallyDay();
+    return d === L.day ? 'TODAY (Saturday) — first stages from 10:00' : `Saturday, day ${d + 1} (${d - L.day === 1 ? 'tomorrow' : `in ${d - L.day} days`})`;
+  }
   ev(id) { return EVENTS.find((e) => e.id === id); }
 
   // -------- entry --------
@@ -111,6 +118,7 @@ export class Rally {
     if (!ch.bumperF || !ch.bumperR) out.push('Bumpers required');
     if (ev.insp && !((g.car.chassis.props.inspected ?? -1) >= g.life.day)) out.push('Valid inspection (Katsastus) required');
     if (this.active && this.active.evId !== ev.id) out.push('Finish or retire from your current event first');
+    if (this.isRallyDay() && g.life.hours >= 15 && !this.active) out.push('Entries for today\'s rally are closed — next rally is next Saturday');
     return out;
   }
   enter(evId) {
@@ -120,8 +128,10 @@ export class Rally {
     if (this.active) { g.toast('Already entered'); return false; }
     if (g.money < ev.fee) { g.toast('Not enough money for the entry fee'); return false; }
     g.addMoney(-ev.fee, `Entry fee: ${ev.name}`);
-    this.active = { evId, idx: 0, times: [], due: g.life.minutes + 180 };
-    g.say(`Entered ${ev.name}. SS1 ${STAGES[ev.stages[0]].name} — be at the start by ${g.life.fmtTime(this.active.due)}.`, 6);
+    const sat = this.nextRallyDay();
+    const due = sat === g.life.day ? Math.max(g.life.minutes + 120, sat * 1440 + 600) : sat * 1440 + 600;
+    this.active = { evId, idx: 0, times: [], due, sat };
+    g.say(`Entered ${ev.name}. The rally runs on Saturday (day ${sat + 1}). SS1 ${STAGES[ev.stages[0]].name} — be at the start by ${sat === g.life.day ? g.life.clock(due) : 'Sat ' + g.life.clock(due)}.`, 8);
     return true;
   }
   retire() {
@@ -142,6 +152,15 @@ export class Rally {
   }
   update(dt) {
     const g = this.game, car = g.car;
+    if (this.active) {
+      if (this.active.sat === undefined) this.active.sat = this.nextRallyDay();
+      if (g.life.day > this.active.sat && this.state !== 'running' && this.state !== 'countdown') {
+        const ev = this.ev(this.active.evId);
+        this.results.push({ day: g.life.day, ev: ev.name, pos: 'DNF', t: 0 });
+        this.active = null;
+        g.say(`You missed Saturday's ${ev.name} — DNF. The next rally is next Saturday.`, 7);
+      }
+    }
     const p = car.chassis.obj.position;
     if (!g.player.inCar) {
       if (this.state === 'armed') this.state = 'idle';
@@ -196,7 +215,8 @@ export class Rally {
   }
   startCountdown(st) {
     const g = this.game;
-    this.st = st; this.forEvent = !!this.active && st.id === this.nextStageId();
+    this.st = st; this.forEvent = !!this.active && st.id === this.nextStageId() && this.isRallyDay();
+    if (this.active && st.id === this.nextStageId() && !this.isRallyDay()) g.say('The rally is on Saturday — this run is just practice.', 3);
     this.state = 'countdown'; this.cd = 4.99; this.penalty = 0; this.cp = 0; this.prog = 0; this.note = 0; this.t = 0;
     if (this.forEvent) {
       const late = Math.max(0, Math.floor(g.life.minutes - this.active.due));
@@ -275,6 +295,7 @@ export class Rally {
     if (this.state === 'armed') return `At the start of ${this.armed.def.name}${this.armed.id === this.nextStageId() ? ` — SS${this.active.idx + 1} of your event` : ' (practice)'} — press Enter`;
     if (this.state === 'countdown') return `Get ready… ${Math.max(0, Math.ceil(this.cd))}`;
     if (this.state === 'running') return `${this.forEvent ? `SS${this.active.idx + 1} ` : ''}${this.fmt(this.t)}${this.penalty ? ` +${this.penalty}s` : ''} · split ${this.cp}/${this.st.cps.length - 1} · ${Math.round(this.prog / (this.st.samples.length - 1) * 100)}%`;
+    if (this.active && !this.isRallyDay()) return `${this.ev(this.active.evId).name}: Saturday (day ${this.active.sat + 1}) — SS1 starts at ${g.life.clock(this.active.due)}`;
     if (this.active) { const left = Math.round(this.active.due - g.life.minutes); return `Next: SS${this.active.idx + 1} ${STAGES[this.nextStageId()].name} — ${left >= 0 ? left + ' min to the start' : -left + ' min LATE'}`; }
     return '';
   }

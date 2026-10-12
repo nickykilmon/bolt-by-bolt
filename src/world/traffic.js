@@ -1,10 +1,12 @@
 // Road traffic on Route 54: cars drive in the right-hand lane, slow for curves and town,
 // brake for things in their lane, overtake parked obstacles, and kill you if they hit you.
+// On rally day (Saturday) rally cars also tear along every road and stage, flat out.
 import * as THREE from 'three';
 import { MAT } from '../core/materials.js';
 import { box, cyl } from '../mechanics/partMeshes.js';
 import { ROADS, groundY, zoneAt } from './terrain.js';
 import { clamp } from '../core/util.js';
+import { labelTex } from '../core/textures.js';
 
 const COLORS = [0xb02020, 0x2050a0, 0xd8d8d0, 0x303438, 0x2a6a3a, 0xc8a030, 0x6a2a6a, 0x8a8f96];
 const LANE = 1.8;
@@ -29,16 +31,33 @@ function carModel(color, lamps, tails) {
   o.traverse((m) => { if (m.isMesh) m.castShadow = true; });
   return { o, wheels };
 }
+// rally car: same shell with stripes, a roof scoop, a wing and door numbers
+function rallyModel(color, num, lamps, tails) {
+  const r = carModel(color, lamps, tails), o = r.o;
+  const stripe = new THREE.MeshStandardMaterial({ color: num % 2 ? 0x1060d0 : 0xe8c020, roughness: 0.5 });
+  box(o, 0.45, 0.02, 4.32, stripe, 0, 0.885, 0);
+  box(o, 0.45, 0.02, 2.12, stripe, 0, 1.36, -0.25);
+  box(o, 0.3, 0.12, 0.4, MAT.darkSteel, 0, 1.42, 0.3);
+  box(o, 1.6, 0.05, 0.35, MAT.darkSteel, 0, 1.45, -2.0);
+  for (const sx of [-0.55, 0.55]) box(o, 0.05, 0.3, 0.05, MAT.darkSteel, sx, 1.28, -2.0);
+  const tex = labelTex(String(num), 128, 128, '#ffffff', '#111', 'bold 90px Impact');
+  for (const sd of [-1, 1]) {
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshStandardMaterial({ map: tex }));
+    pl.position.set(sd * 0.856, 0.62, 0.2); pl.rotation.y = sd * Math.PI / 2; o.add(pl);
+  }
+  return r;
+}
 
 export class Traffic {
   constructor(game) {
     this.game = game;
-    this.road = ROADS.find((r) => r.name === 'Route 54');
-    const s = this.road.samples;
-    // cumulative distance along the road
-    this.dist = [0];
-    for (let i = 1; i < s.length; i++) this.dist.push(this.dist[i - 1] + Math.hypot(s[i].x - s[i - 1].x, s[i].z - s[i - 1].z));
-    this.len = this.dist[this.dist.length - 1];
+    // routes: a road plus the cumulative distance along its samples
+    this.routes = ROADS.filter((r) => r.name !== 'Driveway').map((road) => {
+      const s = road.samples, dist = [0];
+      for (let i = 1; i < s.length; i++) dist.push(dist[i - 1] + Math.hypot(s[i].x - s[i - 1].x, s[i].z - s[i - 1].z));
+      return { road, dist, len: dist[dist.length - 1] };
+    }).filter((R) => R.len > 150);
+    this.main = this.routes.find((R) => R.road.name === 'Route 54');
     this.lamps = new THREE.MeshStandardMaterial({ color: 0xfff6e0, emissive: 0xfff2c0, emissiveIntensity: 0, roughness: 0.2 });
     this.tails = new THREE.MeshStandardMaterial({ color: 0x801010, emissive: 0xff1010, emissiveIntensity: 0, roughness: 0.3 });
     this.cars = [];
@@ -47,15 +66,23 @@ export class Traffic {
       const { o, wheels } = carModel(COLORS[k % COLORS.length], this.lamps, this.tails);
       game.scene.add(o);
       const dir = k % 2 ? 1 : -1;
-      const c = { o, wheels, dir, d: (k + 0.5) / n * this.len, v: 15, ot: 0, cruise: 16 + (k * 7 % 5) * 1.3, off: 0, offT: 0, stuck: 0, hidden: 0, pos: new THREE.Vector3(), fwd: new THREE.Vector3(), yaw: 0 };
+      const c = { o, wheels, R: this.main, dir, d: (k + 0.5) / n * this.main.len, v: 15, ot: 0, cruise: 16 + (k * 7 % 5) * 1.3, off: 0, offT: 0, stuck: 0, hidden: 0, pos: new THREE.Vector3(), fwd: new THREE.Vector3(), yaw: 0 };
       this.cars.push(c);
       this.place(c);
     }
+    // rally cars (only out on Saturdays): spread over every road and stage
+    const rallyRoutes = [this.main, this.main, this.main, ...this.routes.filter((R) => R !== this.main), ...this.routes.filter((R) => R.road.stage)];
+    rallyRoutes.forEach((R, k) => {
+      const { o, wheels } = rallyModel([0xf0f0f0, 0xd02020, 0x1a1a1a, 0x2050c0, 0xe07010][k % 5], 11 + k * 3, this.lamps, this.tails);
+      o.visible = false; game.scene.add(o);
+      this.cars.push({ o, wheels, R, home: R, rally: true, dir: k % 2 ? 1 : -1, d: 0, v: 20, cruise: 27 + Math.random() * 10, ph: Math.random() * 9, off: 0, ot: 0, hidden: 0, out: true, pos: new THREE.Vector3(), fwd: new THREE.Vector3(), yaw: 0, slip: 0 });
+    });
   }
-  // position and heading on the road at distance d (along sample order)
-  at(d, out) {
-    const s = this.road.samples, D = this.dist;
-    d = clamp(d, 0, this.len - 0.01);
+  rallyDay() { const L = this.game.life; return L.day % 7 === 5 && L.hours >= 8 && L.hours < 20; }
+  // position and heading on route R at distance d (along sample order)
+  at(R, d, out) {
+    const s = R.road.samples, D = R.dist;
+    d = clamp(d, 0, R.len - 0.01);
     let lo = 0, hi = D.length - 1;
     while (hi - lo > 1) { const m = (lo + hi) >> 1; if (D[m] <= d) lo = m; else hi = m; }
     const a = s[lo], b = s[hi], t = (d - D[lo]) / Math.max(1e-6, D[hi] - D[lo]);
@@ -65,23 +92,24 @@ export class Traffic {
     return out;
   }
   place(c) {
-    const p = this.at(c.d, {});
+    const p = this.at(c.R, c.d, {});
     const fx = p.dx * c.dir, fz = p.dz * c.dir;
-    const lat = LANE + c.off; // right-hand traffic; negative offset = overtaking lane
+    const lat = (c.rally ? 0 : LANE) + c.off; // right-hand lane; negative offset = overtaking lane. Rally cars use the whole road
     const x = p.x - fz * lat, z = p.z + fx * lat;
     c.fwd.set(fx, 0, fz);
     c.yaw = Math.atan2(fx, fz);
     const yF = groundY(x + fx * 1.4, z + fz * 1.4), yR = groundY(x - fx * 1.4, z - fz * 1.4);
     c.pos.set(x, (yF + yR) / 2, z);
     c.o.position.copy(c.pos);
-    c.o.rotation.set(0, c.yaw, 0, 'YXZ');
+    c.o.rotation.set(0, c.yaw + (c.slip || 0), 0, 'YXZ');
     c.o.rotateX(-Math.atan2(yF - yR, 2.8));
   }
   // curvature ahead → safe speed
   curveSpeed(c) {
-    const a = this.at(c.d, {}), b = this.at(c.d + c.dir * 30, {});
-    const turn = Math.abs(Math.atan2(a.dx * b.dz - a.dz * b.dx, a.dx * b.dx + a.dz * b.dz));
-    return clamp(22 - turn * 30, 8, 22);
+    const a = this.at(c.R, c.d, {}), b = this.at(c.R, c.d + c.dir * 30, {});
+    const turn = Math.atan2(a.dx * b.dz - a.dz * b.dx, a.dx * b.dx + a.dz * b.dz);
+    c.turn = turn * c.dir;
+    return c.rally ? clamp(36 - Math.abs(turn) * 20, 14, 38) : clamp(22 - Math.abs(turn) * 30, 8, 22);
   }
   // things the cars can hit / brake for: [{pos, r, kind}]
   targets() {
@@ -98,8 +126,22 @@ export class Traffic {
     const night = 1 - clamp(((g.sky.dayLight ?? 1) - 0.15) / 0.3, 0, 1);
     this.lamps.emissiveIntensity = night * 2.5; this.tails.emissiveIntensity = 0.3 + night * 1.2;
     const T = this.targets(), me = g.camera.position;
-    let nearD = Infinity, nearV = 0;
+    let nearD = Infinity, nearV = 0, nearRally = false;
+    const rallyOn = this.rallyDay();
+    if (rallyOn !== this.rallyWas) {
+      if (rallyOn && this.rallyWas !== undefined) g.say('It\'s rally day! Rally cars are out on every road and stage — watch yourself.', 6);
+      this.rallyWas = rallyOn;
+    }
     for (const c of this.cars) {
+      if (c.rally) {
+        if (!rallyOn) { if (!c.out) { c.out = true; c.o.visible = false; } continue; }
+        if (c.out) { c.out = false; c.R = c.home; c.d = 5 + Math.random() * (c.R.len - 10); c.hidden = Math.random() * 3; }
+        if (c.hidden > 0) { c.hidden -= dt; c.o.visible = c.hidden <= 0; continue; }
+        if (this.driveRally(c, dt, T)) return;
+        const dn = c.pos.distanceTo(me);
+        if (dn < nearD) { nearD = dn; nearV = c.v; nearRally = true; }
+        continue;
+      }
       if (c.hidden > 0) { c.hidden -= dt; c.o.visible = c.hidden <= 0; continue; }
       // desired speed: cruise, curves, town
       let want = Math.min(c.cruise, this.curveSpeed(c));
@@ -112,12 +154,12 @@ export class Traffic {
         if (along > 0 && along < 45 && Math.abs(lat) < 1.0 + r) { const gap = along - 2.2 - r; if (gap < block) { block = gap; blockStill = still; } }
       };
       for (const t of T) check(t.pos, t.r, t.kind === 'parked' || (t.kind === 'car' && g.car.speed < 1) || t.kind === 'foot');
-      for (const o of this.cars) if (o !== c && o.hidden <= 0 && o.dir === c.dir) check(o.pos, 1.0, o.v < 1);
+      for (const o of this.cars) if (o !== c && o.o.visible && o.dir === c.dir && o.R === c.R) check(o.pos, 1.0, o.v < 1);
       if (block < Infinity) want = Math.min(want, Math.max(0, (block - 4) * 0.7));
       // stuck behind something that isn't moving → overtake when the other lane is clear
       if (blockStill && c.v < 2) c.stuck += dt; else if (block > 40) c.stuck = 0;
       if (c.stuck > 3 && c.ot === 0) {
-        const clear = !this.cars.some((o) => o !== c && o.hidden <= 0 && o.dir !== c.dir && o.pos.distanceTo(c.pos) < 70);
+        const clear = !this.cars.some((o) => o !== c && o.o.visible && o.dir !== c.dir && o.pos.distanceTo(c.pos) < 70);
         if (clear) { c.ot = -2 * LANE; c.offT = 7; c.stuck = 0; }
       }
       if (c.ot !== 0) { c.offT -= dt; if (c.offT < 0) c.ot = 0; else if (Math.abs(c.off - c.ot) < 0.5) want = Math.max(want, 6); }
@@ -126,31 +168,63 @@ export class Traffic {
       const acc = want > c.v ? 2.2 : -7;
       c.v = want > c.v ? Math.min(want, c.v + acc * dt) : Math.max(want, c.v + acc * dt);
       c.d += c.dir * c.v * dt;
-      if (c.d < 2 || c.d > this.len - 2) { // end of the road: reappear later going the other way
-        c.dir = -c.dir; c.d = clamp(c.d, 2, this.len - 2); c.hidden = 8 + Math.random() * 20; c.o.visible = false; c.v = 12; c.off = 0; c.ot = 0;
+      if (c.d < 2 || c.d > c.R.len - 2) { // end of the road: reappear later going the other way
+        c.dir = -c.dir; c.d = clamp(c.d, 2, c.R.len - 2); c.hidden = 8 + Math.random() * 20; c.o.visible = false; c.v = 12; c.off = 0; c.ot = 0;
       }
       this.place(c);
       c.wheels.forEach((w) => { w.rotation.x += c.v * dt / 0.32; });
-      // hits
-      if (c.v > 3 && !g.dead) for (const t of T) {
-        if (t.kind === 'parked') continue;
-        for (const k of [-1.5, 0, 1.5]) {
-          const px = c.pos.x + c.fwd.x * k, pz = c.pos.z + c.fwd.z * k;
-          if (Math.hypot(t.pos.x - px, t.pos.z - pz) < 0.95 + t.r && Math.abs(t.pos.y - c.pos.y) < 2.5) {
-            g.audio.crash(20);
-            c.v = 0; c.stuck = 0;
-            g.die(t.kind === 'foot' ? 'You were run over by a car.' : t.kind === 'moped' ? 'A car hit you and your moped.' : 'A car smashed into you.');
-            return;
-          }
+      if (this.hits(c, T)) return;
+      const dn = c.pos.distanceTo(me);
+      if (dn < nearD) { nearD = dn; nearV = c.v; nearRally = false; }
+    }
+    this.sound(nearD, nearV, nearRally);
+  }
+  hits(c, T) {
+    const g = this.game;
+    if (c.v <= 3 || g.dead) return false;
+    for (const t of T) {
+      if (t.kind === 'parked') continue;
+      for (const k of [-1.5, 0, 1.5]) {
+        const px = c.pos.x + c.fwd.x * k, pz = c.pos.z + c.fwd.z * k;
+        if (Math.hypot(t.pos.x - px, t.pos.z - pz) < 0.95 + t.r && Math.abs(t.pos.y - c.pos.y) < 2.5) {
+          g.audio.crash(20);
+          c.v = 0; c.stuck = 0;
+          const who = c.rally ? 'a rally car' : 'a car';
+          g.die(t.kind === 'foot' ? `You were run over by ${who}.` : t.kind === 'moped' ? `You and your moped were hit by ${who}.` : `You were smashed into by ${who}.`);
+          return true;
         }
       }
-      const dn = c.pos.distanceTo(me);
-      if (dn < nearD) { nearD = dn; nearV = c.v; }
     }
-    this.sound(nearD, nearV);
+    return false;
+  }
+  // rally cars: flat out, weaving across the whole road and sideways through the corners.
+  // They brake (late) for cars, never for people.
+  driveRally(c, dt, T) {
+    let want = Math.min(c.cruise, this.curveSpeed(c));
+    if (zoneAt(c.pos.x, c.pos.z)?.id === 'town') want = Math.min(want, 20);
+    for (const t of T) {
+      if (t.kind !== 'car' && t.kind !== 'parked') continue;
+      tmp.subVectors(t.pos, c.pos); const along = tmp.dot(c.fwd);
+      if (along > 0 && along < 18 && Math.abs(tmp.x * -c.fwd.z + tmp.z * c.fwd.x) < 2) want = Math.min(want, Math.max(0, (along - 5) * 1.2));
+    }
+    c.v = want > c.v ? Math.min(want, c.v + 5 * dt) : Math.max(want, c.v - 9 * dt);
+    c.d += c.dir * c.v * dt;
+    c.ph += dt;
+    const half = Math.max(0.3, c.R.road.w / 2 - 1.0);
+    c.off = clamp(Math.sin(c.ph * 0.9) * half * 0.6 - (c.turn || 0) * half * 1.5, -half, half); // weave and cut the corners
+    c.slip += (clamp(-(c.turn || 0) * 1.1, -0.5, 0.5) * clamp(c.v / 25, 0, 1) - c.slip) * Math.min(1, dt * 3);
+    if (c.d < 2 || c.d > c.R.len - 2) { // end of a road: pop up on another one
+      c.R = this.routes[Math.floor(Math.random() * this.routes.length)];
+      c.dir = Math.random() < 0.5 ? 1 : -1; c.d = c.dir > 0 ? 3 : c.R.len - 3;
+      c.hidden = 3 + Math.random() * 8; c.o.visible = false; c.v = 15;
+      return false;
+    }
+    this.place(c);
+    c.wheels.forEach((w) => { w.rotation.x += c.v * dt / 0.32; });
+    return this.hits(c, T);
   }
   // engine/tyre hum of the nearest car, so you can hear traffic coming
-  sound(d, v) {
+  sound(d, v, rally) {
     const a = this.game.audio, ctx = a.ctx; if (!ctx) return;
     if (!this.snd) {
       const out = ctx.createGain(); out.gain.value = 0; out.connect(a.master);
@@ -160,11 +234,11 @@ export class Traffic {
       const og = ctx.createGain(); og.gain.value = 0.25; osc.connect(og); og.connect(lp); osc.start();
       this.snd = { out, osc, lp };
     }
-    const vol = clamp(18 / (d + 6), 0, 1) * clamp(v / 12, 0.15, 1) * 0.5;
+    const vol = clamp((rally ? 30 : 18) / (d + 6), 0, 1) * clamp(v / 12, 0.15, 1) * (rally ? 0.8 : 0.5);
     this.snd.out.gain.setTargetAtTime(vol, ctx.currentTime, 0.1);
-    this.snd.osc.frequency.setTargetAtTime(45 + v * 4, ctx.currentTime, 0.2);
+    this.snd.osc.frequency.setTargetAtTime(rally ? 70 + v * 7 : 45 + v * 4, ctx.currentTime, 0.2);
     this.snd.lp.frequency.setTargetAtTime(300 + v * 30, ctx.currentTime, 0.2);
   }
   // move any car near (x,z) away (after a death, so you don't respawn into the same wreck)
-  clearNear(x, z, r = 40) { for (const c of this.cars) if (Math.hypot(c.pos.x - x, c.pos.z - z) < r) { c.d = (c.d + this.len / 2) % this.len; this.place(c); } }
+  clearNear(x, z, r = 40) { for (const c of this.cars) if (c.o.visible && Math.hypot(c.pos.x - x, c.pos.z - z) < r) { c.d = (c.d + c.R.len / 2) % c.R.len; this.place(c); } }
 }

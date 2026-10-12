@@ -253,6 +253,14 @@ export class Interaction {
       }
     }
     if ((kind === 'fasten') && input.mouse.wheel) this.cycleSocket(input.mouse.wheel);
+    // lie down / get up (creeper) hint near the car
+    const P = g.player, lp = g.car.chassis.obj.worldToLocal(P.pos.clone());
+    if (P.prone || (Math.abs(lp.x) < 2.4 && Math.abs(lp.z) < 3.3 && g.car.mode === 'parked')) {
+      const hint = P.prone
+        ? (g.car.raisedForCreeper() || !(Math.abs(lp.x) < 2.4 && Math.abs(lp.z) < 3.3) ? `${K('Z')}Get up` : `<span class="bad">The car is too low to slide under — jack it up and put it on axle stands first</span>\n${K('Z')}Get up`)
+        : `${K('Z')}Lie down on the creeper${g.car.raisedForCreeper() ? ' (slide under the car)' : ''}`;
+      prompt = prompt ? prompt + '\n' + hint : hint;
+    }
     g.ui.prompt(prompt, active);
   }
 
