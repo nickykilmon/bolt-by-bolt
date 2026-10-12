@@ -358,7 +358,7 @@ export class Guide {
       state: () => {
         if (this.driven) return { done: true };
         if (this.car.speed > 8) this.driven = true;
-        return { text: 'Hold Shift (clutch), press R for 1st gear, ease off Shift while pressing W. Head down the driveway — Ruskala is east along Route 54.', targets: [] };
+        return { text: 'Release the handbrake (Space), hold Shift (clutch) and press 1 for 1st gear, then ease off Shift while pressing W. Head down the driveway — Ruskala is east along Route 54.', targets: [] };
       },
     });
     return steps;

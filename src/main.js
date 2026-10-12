@@ -296,15 +296,19 @@ class Game {
   }
   driveControls(dt) {
     const i = this.input, c = this.ctl, car = this.car;
-    if (!this.player.inCar) { c.throttle = 0; c.brake = 0; c.clutch = 0; c.crank = false; c.steer *= 0.9; c.hand = 1; return; }
+    if (!this.player.inCar) { c.throttle = 0; c.brake = 0; c.clutch = 0; c.crank = false; c.steer *= 0.9; c.hand = 1; this.handOn = true; return; }
     c.throttle += ((i.down('KeyW') || i.down('ArrowUp') ? 1 : 0) - c.throttle) * Math.min(1, dt * 8);
     c.brake = i.down('KeyS') || i.down('ArrowDown') ? 1 : 0;
-    c.clutch += ((i.down('ShiftLeft') ? 1 : 0) - c.clutch) * Math.min(1, dt * 12);
+    const clutchKey = i.down('ShiftLeft') || i.down('ShiftRight');
+    c.clutch += ((clutchKey ? 1 : 0) - c.clutch) * Math.min(1, dt * 12);
     const st = (i.down('KeyA') || i.down('ArrowLeft') ? 1 : 0) - (i.down('KeyD') || i.down('ArrowRight') ? 1 : 0);
     const rate = st ? 2.2 : 3.5;
     const lim = 1 - clamp(car.speed / 45, 0, 0.55);
     c.steer += clamp(st * lim - c.steer, -rate * dt, rate * dt);
-    c.hand = i.down('Space') ? 1 : 0;
+    // handbrake is a toggle: Space pulls it on / releases it
+    if (this.handOn === undefined) this.handOn = true;
+    if (i.hit('Space')) { this.handOn = !this.handOn; this.audio.click(0.5); this.toast(this.handOn ? 'Handbrake ON' : 'Handbrake off', 1.2); }
+    c.hand = this.handOn ? 1 : 0;
     // ignition: tap T toggles, hold T cranks
     if (i.hit('KeyT')) { this.tHeld = 0; if (!c.ign) { c.ign = 1; this.audio.click(0.6); } else this.tWasOn = true; }
     if (i.down('KeyT')) { this.tHeld += dt; if (this.tHeld > 0.25) c.crank = true; }
@@ -317,6 +321,18 @@ class Game {
     let shift = 0;
     if (i.hit('KeyR') || i.mouse.wheel < 0) shift = 1;
     if (i.hit('KeyF') || i.mouse.wheel > 0) shift = -1;
+    // direct gear keys (hold Shift = clutch while you press them): 1 2 3 = gears, 4 = reverse, 5 = 4th, same key again = neutral
+    const direct = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: -1, Digit5: 4 };
+    let pick = null;
+    for (const [k, gr] of Object.entries(direct)) if (i.hit(k)) pick = c.gear === gr ? 0 : gr;
+    if (pick !== null) {
+      const S = car.systems();
+      if (pick === 0) { c.gear = 0; this.audio.shift(false); }
+      else if (!clutchKey && !this.settings.autoClutch && car.pt.running) { this.audio.shift(true); this.toast('Hold Shift (clutch) while you change gear', 1.8); }
+      else if (!S.clutchCable && car.pt.running) { this.audio.shift(true); this.say('GRRRK — the clutch pedal does nothing. Is the clutch cable connected?'); }
+      else if (pick === -1 && car.speed > 2) { this.audio.shift(true); this.toast('Stop before you put it in reverse', 1.8); }
+      else { c.gear = pick; this.audio.shift(false); if (this.settings.autoClutch) car.pt.autoClutchT = 0.35; }
+    }
     if (shift) {
       const S = car.systems();
       const ng = clamp(c.gear + shift, -1, 4);

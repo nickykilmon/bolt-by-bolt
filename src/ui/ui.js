@@ -116,9 +116,9 @@ export class UI {
     if (g.player.inCar) {
       const pt = g.car.pt;
       this.el.drive.classList.remove('hidden');
-      const gear = pt.gear === -1 ? 'R' : pt.gear === 0 ? 'N' : pt.gear;
+      const gear = (pt.gear === -1 ? 'R' : pt.gear === 0 ? 'N' : pt.gear) + (g.handOn ? ' · <b style="color:#ff7060">HANDBRAKE</b>' : '');
       this.el.drive.innerHTML = `${Math.round(g.car.speed * 3.6)} km/h · ${Math.round(pt.rpm)} rpm · ${gear}<br>` +
-        `<span style="opacity:.7">T ignition (hold: start) · Shift clutch · R/F or wheel: gears · Space handbrake · L lights · E exit</span>` +
+        `<span style="opacity:.7">T ignition (hold: start) · hold Shift + 1/2/3 gears, 4 reverse, 5 fourth · Space handbrake on/off · L lights · E exit</span>` +
         (pt.ign ? '' : '<br><span style="opacity:.8">Ignition OFF</span>') + (g.rally.hud() ? `<br><b style="color:#ffd070;font-size:16px">${g.rally.hud()}</b>` : '');
     } else this.el.drive.classList.add('hidden');
   }
