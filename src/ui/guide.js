@@ -466,12 +466,13 @@ export class Guide {
       const late = g.life.minutes > J.parcels.deadline ? ' You\'re late — they now pay half.' : '';
       if (held?.def.type === 'parcel') {
         const mb = g.mailboxes.find((m) => m.id === held.props.dest);
-        return { job: 'PARCEL DELIVERY', st: { title: `Deliver the parcel to ${held.props.destName}` }, s: { text: `Take it to ${held.props.destName}'s mailbox (${dist(mb.pos)} m) and press E on the mailbox. Deliver all ${left.length} by ${due}.${late} The moped's box holds 2 parcels: look at the moped while holding one and press E.${also}`, targets: [mark(mb.pos, `${held.props.destName}'s mailbox — ${dist(mb.pos)} m`, COL.go, 1.5)] } };
+        const others = left.filter((p) => p.dest !== held.props.dest).map((p) => g.mailboxes.find((m) => m.id === p.dest)).filter(Boolean).map((m) => mark(m.pos, `📦 ${m.name} — ${dist(m.pos)} m`, COL.grab, 1.5));
+        return { job: 'PARCEL DELIVERY', st: { title: `Deliver the parcel to ${held.props.destName}` }, s: { text: `Take it to ${held.props.destName}'s mailbox (${dist(mb.pos)} m) and press E on the mailbox. Deliver all ${left.length} by ${due}.${late} The moped's box holds 2 parcels: look at the moped while holding one and press E.${also}`, targets: [mark(mb.pos, `📦 ${held.props.destName}'s mailbox — ${dist(mb.pos)} m`, COL.go, 1.5), ...others] } };
       }
       const next = left.sort((a, b) => dist(a.it.obj.getWorldPosition(new THREE.Vector3())) - dist(b.it.obj.getWorldPosition(new THREE.Vector3())))[0];
       if (!next) return null;
       const inCar = next.it.loc?.cont === 'car', onMoped = next.it.loc?.cont === 'moped';
-      return { job: 'PARCEL DELIVERY', st: { title: `Parcels: ${left.length} left, due ${due}` }, s: { text: `${held ? 'Put down what you\'re holding (G), then p' : 'P'}ick up the parcel for ${next.name}${inCar ? ' (it\'s in your car)' : onMoped ? ' (it\'s in the moped box — look at the moped and press F to take it out)' : next.it.loc?.kind === 'inv' ? ' (it\'s in your pockets — press I)' : ' from the post office counter'}. Destinations: ${left.map((p) => p.name).join(', ')}.${late}${also}`, targets: [{ ...this.itemTarget(next.it, 'Parcel for ' + next.name) }] } };
+      return { job: 'PARCEL DELIVERY', st: { title: `Parcels: ${left.length} left, due ${due}` }, s: { text: `${held ? 'Put down what you\'re holding (G), then p' : 'P'}ick up the parcel for ${next.name}${inCar ? ' (it\'s in your car)' : onMoped ? ' (it\'s in the moped box — look at the moped and press F to take it out)' : next.it.loc?.kind === 'inv' ? ' (it\'s in your pockets — press I)' : ' from the post office counter'}. Destinations: ${left.map((p) => p.name).join(', ')}.${late}${also}`, targets: [{ ...this.itemTarget(next.it, 'Parcel for ' + next.name) }, ...left.map((p) => g.mailboxes.find((m) => m.id === p.dest)).filter(Boolean).map((m) => mark(m.pos, `📦 ${m.name} — ${dist(m.pos)} m`, COL.grab, 1.5))] } };
     }
 
     if (focus === 'mowing' && J.mowing) {
@@ -538,7 +539,7 @@ export class Guide {
   render() {
     this.clearMarkers();
     const g = this.game;
-    const show = !this.hidden && !g.player.inCar;
+    const show = !this.hidden && (!g.player.inCar || !!this.cur?.job);
     if (!this.cur || this.hidden) {
       this.el.innerHTML = this.hidden ? '' : (this.started ? `<div class="gt">✔ Car built!</div><div class="gs">Drive to Ruskala (east), pass the inspection and enter the Ruskala Sprint at the Rally HQ. <span class="gk">H</span> hides this.</div>` : '');
       this.el.classList.toggle('hidden', this.hidden || !this.el.innerHTML);
@@ -549,7 +550,7 @@ export class Guide {
     let dist = '';
     const main = (s.targets || []).find((t) => t.kind === 'mark') || (s.dots?.length ? { pos: s.dots[0].pos } : null);
     if (main) { const d = main.pos.distanceTo(g.camera.position); if (d > 4) dist = ` <span class="gd">${Math.round(d)} m</span>`; }
-    this.el.innerHTML = `<div class="gp">${this.cur.job ? 'JOB · ' + this.cur.job + ' · the car build continues after' : `BUILD THE RUSKA · STEP ${this.cur.idx} OF ${this.total}`}</div><div class="gt">${st.title}${dist}</div><div class="gs">${s.text || ''}</div><div class="gk2"><span class="gk">H</span> hide guide</div>`;
+    this.el.innerHTML = `<div class="gp">${this.cur.job ? 'JOB · ' + this.cur.job + ' · cancel it on the phone (P)' : `BUILD THE RUSKA · STEP ${this.cur.idx} OF ${this.total}`}</div><div class="gt">${st.title}${dist}</div><div class="gs">${s.text || ''}</div><div class="gk2"><span class="gk">H</span> hide guide</div>`;
     if (!show) return;
     for (const t of s.targets || []) {
       if (t.kind !== 'mark') continue;

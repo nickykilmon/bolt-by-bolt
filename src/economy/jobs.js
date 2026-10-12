@@ -341,6 +341,25 @@ export class Jobs {
     if (this.scrapKnown) for (const it of g.asm.items.values()) if (it.def.kind === 'scrap' && it.loc?.kind === 'world' && !it.loc.cont) out.push({ x: it.loc.pos[0], z: it.loc.pos[2], c: '#c07040', t: '' });
     return out;
   }
+  // jobs you're on right now (for the phone's cancel buttons)
+  active() {
+    const a = [];
+    if (this.parcels) a.push({ key: 'parcels', title: 'Parcel delivery' });
+    if (this.workshop) a.push({ key: 'workshop', title: `Esa's workshop job (${this.workshop.title.toLowerCase()})` });
+    if (this.mowing) a.push({ key: 'mowing', title: 'Mowing Pertti\'s lawn' });
+    if (this.scrapActive) a.push({ key: 'scrap', title: 'Scrap metal collecting' });
+    return a;
+  }
+  cancel(key) {
+    const g = this.game, asm = g.asm;
+    const drop = (u) => { const it = asm.get(u); if (!it) return; if (g.interaction.held === it) g.interaction.release(); if (it.loc?.kind === 'inv') g.inventory = g.inventory.filter((x) => x !== u); asm.remove(it); };
+    if (key === 'parcels' && this.parcels) { for (const p of this.parcels.list) drop(p.uid); this.parcels = null; g.say('You called Helena: "Fine, I\'ll find someone else for those parcels."', 5); }
+    if (key === 'workshop' && this.workshop) { for (const u of this.workshop.items) { const it = asm.get(u); if (it && !it.slot) drop(u); else if (it) { asm.uninstall?.(it, { silent: true }); drop(u); } } this.workshop = null; this.returnEsaTools?.(); g.say('You told Esa you can\'t finish the job. "Pfft. Fine. Ask again tomorrow."', 5); }
+    if (key === 'mowing' && this.mowing) { this.mowing = null; if (g.player.pushing === this.mower) g.player.pushing = null; g.say('You told Pertti you won\'t mow the lawn after all.', 4); }
+    if (key === 'scrap') { this.scrapActive = false; g.say('Stopped collecting scrap. (You can still sell scrap to Raimo any time.)', 4); }
+    if (this.focus === key) this.focus = null;
+    g.saveGame(true);
+  }
   list() {
     const g = this.game, L = [];
     L.push({ title: 'Parcel delivery (post office, Ruskala)', status: this.parcels ? `${this.parcels.list.filter((p) => g.asm.get(p.uid)).length} parcels to deliver by ${g.life.fmtTime(this.parcels.deadline)}` : 'Ask Helena at the post office, 8–17', pay: '45–150 mk / parcel' });

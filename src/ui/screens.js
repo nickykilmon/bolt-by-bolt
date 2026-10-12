@@ -226,6 +226,7 @@ P.openPhone = function () {
   el.innerHTML = `<div class="phone"><h2>📱 Nokla 2110</h2>
     <div>${g.life.dayName()} ${g.life.clock()} · ${fmtMoney(g.money)}</div>
     <div><b>Jobs</b>${g.jobs.list().map((j) => `<div class="muted">• ${j.title}: ${j.status}</div>`).join('')}</div>
+    ${g.jobs.active().map((j) => `<button class="small" data-cancel="${j.key}">✖ Cancel job: ${j.title}</button>`).join('')}
     <div><b>Rally</b><div class="muted">${R.active ? R.hud() : 'No event entered.'}<br>Next rally day: ${R.rallyDayText()}</div></div>
     <button id="phTowH">Call tow truck → home (250 mk)</button>
     <button id="phTowS">Call tow truck → Esa's workshop (200 mk)</button>
@@ -241,5 +242,12 @@ P.openPhone = function () {
   $('phRally').onclick = () => this.openRally();
   $('phProfile').onclick = () => g.openProfile();
   $('phClose').onclick = () => this.closeModal();
+  el.querySelectorAll('[data-cancel]').forEach((b) => b.onclick = () => {
+    const key = b.dataset.cancel, j = g.jobs.active().find((x) => x.key === key);
+    this.dialog('Cancel job?', `Give up on: ${j.title}? You won't be paid for it${key === 'parcels' ? ' and the parcels go back to the post office' : ''}.`, [
+      { label: 'Yes, cancel it', go: () => { g.jobs.cancel(key); } },
+      { label: 'No, keep going', go: () => {} },
+    ]);
+  });
   this.openModal('panel');
 };

@@ -4,7 +4,7 @@ import { MAT } from '../core/materials.js';
 import { labelTex } from '../core/textures.js';
 import { box, cyl } from '../mechanics/partMeshes.js';
 import { addCollider } from './colliders.js';
-import { ZONES, heightAt } from './terrain.js';
+import { ZONES, heightAt, nearestRoad } from './terrain.js';
 import { mats, interact } from './buildings.js';
 import { mulberry32 } from '../core/util.js';
 import { mergeByMaterial } from '../core/merge.js';
@@ -112,6 +112,15 @@ function house(parent, x, z, rot, color, y) {
   return g;
 }
 function mailbox(game, parent, id, name, x, z, ry = 0) {
+  // never stand in the road: push it out to the verge
+  for (let k = 0; k < 6; k++) {
+    const nr = nearestRoad(x, z, 12); if (!nr || nr.d > nr.road.w / 2 + 1.2) break;
+    let px = -nr.dirz, pz = nr.dirx; // road normal; step towards the side that gets further from the road
+    const ahead = nearestRoad(x + px * 0.3, z + pz * 0.3, 12);
+    if (ahead && ahead.d < nr.d) { px = -px; pz = -pz; }
+    const step = nr.road.w / 2 + 1.6 - nr.d;
+    x += px * step; z += pz * step;
+  }
   const g = new THREE.Group(); g.position.set(x, heightAt(x, z), z); g.rotation.y = ry; parent.add(g);
   box(g, 0.08, 1.1, 0.08, MAT.wood, 0, 0.55, 0); box(g, 0.32, 0.26, 0.45, MAT.yellowPaint, 0, 1.2, 0);
   sign(g, name, 0.4, 0.1, 0, 1.0, 0.05, '#fff', '#222');
@@ -230,7 +239,7 @@ export function buildTown(game) {
   const houses = [[528, 230, Math.PI / 2, 0xc8a050, 'Virtanen'], [610, 245, -Math.PI / 2, 0x8a3a2a, 'Laine'], [545, 262, Math.PI / 2, 0x6a8aa8, 'Heikkinen'], [500, 150, 0, 0xd8d0b0, 'Koskinen'], [640, 140, -Math.PI / 2, 0xb8c070, 'Salo']];
   for (const [x, z, r, c, n] of houses) {
     house(root, x, z, r, c, T);
-    const off = new THREE.Vector3(0, 0, 6).applyAxisAngle(new THREE.Vector3(0, 1, 0), r);
+    const off = new THREE.Vector3(3.0, 0, 4.6).applyAxisAngle(new THREE.Vector3(0, 1, 0), r); // beside the path to the door
     mailbox(game, root, 'mb_' + n.toLowerCase(), n, x + off.x, z + off.z, r);
   }
   for (let i = 0; i < 6; i++) { const z = 95 + i * 30; for (const x of [553, 572]) { const l = new THREE.Group(); l.position.set(x + (z > 200 ? (x < 560 ? 4 : 8) : 0), T, z); root.add(l); cyl(l, 0.06, 4.5, MAT.darkSteel, 0, 2.25, 0, 'y', 6); const bulb = box(l, 0.4, 0.15, 0.25, mats.fluoro, 0, 4.5, 0); bulb.material = mats.fluoro; } }
@@ -287,15 +296,15 @@ export function buildTown(game) {
   const barn = new THREE.Group(); barn.position.set(-190, P, 132); root.add(barn);
   solid(barn, 10, 5, 7, mats.planks, 0, 2.5, 0);
   for (const s of [1, -1]) { const rf = box(barn, 10.6, 0.1, 4.4, mats.roof, 0, 5.8, s * 1.9); rf.rotation.x = s * 0.6; }
-  mailbox(game, root, 'mb_pertti', 'Pertti', -201, 62, 0);
+  mailbox(game, root, 'mb_pertti', 'Pertti', -212.0, 124.6, 0); // in front of Pertti's door
   game.lawn = { x: -224, z: 100, w: 16, d: 10, y: P };
   game.npcSpots.pertti = new THREE.Vector3(-212, P, 112);
   const M = zh('makela');
   house(root, 322, 132, Math.PI, 0xd8c890, M);
   const barn2 = new THREE.Group(); barn2.position.set(340, M, 136); root.add(barn2);
   solid(barn2, 8, 4.5, 6, mats.planks, 0, 2.25, 0);
-  mailbox(game, root, 'mb_makela', 'Mäkelä', 336, 88, Math.PI);
-  mailbox(game, root, 'mb_jc', game.profile?.name || 'JC', 1.6, 42, 0);
+  mailbox(game, root, 'mb_makela', 'Mäkelä', 319.0, 127.4, Math.PI); // in front of Mäkelä's door
+  mailbox(game, root, 'mb_jc', game.profile?.name || 'JC', 3.4, 39.5, 0); // beside the driveway, off Route 54
   game.npcSpots.makela = new THREE.Vector3(326, M, 122);
 
   // big fields for the farms (fences)
