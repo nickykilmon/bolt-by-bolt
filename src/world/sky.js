@@ -18,13 +18,27 @@ export class Sky {
   constructor(scene, quality) {
     this.scene = scene;
     const geo = new THREE.SphereGeometry(1500, 32, 16);
-    this.uni = { top: { value: new THREE.Color() }, bottom: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3() }, sunCol: { value: new THREE.Color() } };
+    this.uni = { top: { value: new THREE.Color() }, bottom: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3() }, sunCol: { value: new THREE.Color() }, time: { value: 0 }, cover: { value: 0.3 }, dayL: { value: 1 } };
     const mat = new THREE.ShaderMaterial({
       uniforms: this.uni, side: THREE.BackSide, depthWrite: false, fog: false,
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: `uniform vec3 top; uniform vec3 bottom; uniform vec3 sunDir; uniform vec3 sunCol; varying vec3 vP;
-        void main(){ float h = clamp(vP.y*1.4+0.1,0.0,1.0); vec3 c = mix(bottom, top, pow(h,0.7));
-        float s = max(dot(normalize(vP), normalize(sunDir)),0.0); c += sunCol * (pow(s, 600.0)*4.0 + pow(s,8.0)*0.25);
+      fragmentShader: `uniform vec3 top; uniform vec3 bottom; uniform vec3 sunDir; uniform vec3 sunCol; uniform float time; uniform float cover; uniform float dayL; varying vec3 vP;
+        float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+          return mix(mix(hash(i), hash(i+vec2(1.0,0.0)), f.x), mix(hash(i+vec2(0.0,1.0)), hash(i+vec2(1.0,1.0)), f.x), f.y); }
+        float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++){ v += a*noise(p); p = p*2.03 + 1.7; a *= 0.5; } return v; }
+        void main(){ vec3 d = normalize(vP); float h = clamp(d.y*1.4+0.1,0.0,1.0); vec3 c = mix(bottom, top, pow(h,0.7));
+        float s = max(dot(d, normalize(sunDir)),0.0); c += sunCol * (pow(s, 600.0)*4.0 + pow(s,8.0)*0.25);
+        if (d.y > 0.0) {
+          vec2 uv = d.xz / (d.y + 0.15) * 1.3 + vec2(time*0.006, time*0.0025);
+          float n = fbm(uv);
+          float cov = smoothstep(0.62 - cover*0.4, 0.92 - cover*0.35, n);
+          float shade = fbm(uv + normalize(sunDir.xz + 0.001)*0.08);
+          vec3 lit = mix(vec3(1.0, 0.98, 0.95), sunCol*1.4 + 0.25, 0.35);
+          vec3 cc = mix(lit, bottom*0.85 + 0.05, clamp((shade - n)*6.0 + 0.45, 0.0, 1.0)) * (0.12 + 0.88*dayL);
+          cc += sunCol * pow(s, 6.0) * 0.4;
+          c = mix(c, cc, cov * smoothstep(0.0, 0.18, d.y) * 0.95);
+        }
         gl_FragColor = vec4(c,1.0); }`,
     });
     this.dome = new THREE.Mesh(geo, mat);
@@ -70,6 +84,9 @@ export class Sky {
     bottom.lerp(new THREE.Color(0.6, 0.62, 0.64).multiplyScalar(day + 0.1), grey);
     this.uni.top.value.copy(top); this.uni.bottom.value.copy(bottom);
     this.uni.sunDir.value.copy(dir);
+    this.uni.time.value += dt || 0; this.uni.dayL.value = day;
+    this.uni.cover.value = 0.25 + this.rainAmt * 0.75 + this.fogAmt * 0.3;
+    this.scene.environmentIntensity = 0.05 + 0.25 * day * (1 - grey * 0.5);
     this.uni.sunCol.value.setRGB(1, 0.8, 0.6).multiplyScalar(day * (1 - grey));
     this.sun.intensity = 2.4 * day * (1 - grey * 0.75);
     this.sun.color.setRGB(1, 0.92 - dusk * 0.25, 0.82 - dusk * 0.4);

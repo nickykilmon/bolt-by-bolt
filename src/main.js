@@ -1,6 +1,7 @@
 // JC'S CAR — entry point and game orchestration.
 import * as THREE from 'three';
 import { Input } from './core/input.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { initMaterials } from './core/materials.js';
 import { clamp, fmtMoney } from './core/util.js';
 import { createRenderer, Sky } from './world/sky.js';
@@ -81,6 +82,10 @@ class Game {
     this.scene.add(this.camera);
     addEventListener('resize', () => { this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(innerWidth, innerHeight); });
     this.sky = new Sky(this.scene, q);
+    // image-based lighting: soft reflections on paint, chrome and glass
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
     buildTerrainData();
     this.terrain = buildTerrainMesh(this.scene, q);
     buildTrees(this.scene, q);

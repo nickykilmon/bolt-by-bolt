@@ -259,7 +259,7 @@ export function buildTerrainMesh(scene, quality) {
     uv[k * 2] = x / 6; uv[k * 2 + 1] = z / 6;
     const field = fbm(x / 140 + 50, z / 140, 2);
     const nrm = normalAt(x, z);
-    c.setRGB(0.32, 0.45, 0.2);
+    c.setRGB(0.27, 0.42, 0.17);
     const dYard = Math.min(...ZONES.map((zn) => Math.hypot(x - zn.x, z - zn.z) - zn.r + 34));
     if (field > 0.22 && dYard > 140) c.setRGB(0.62, 0.58, 0.3); // hay fields
     if (dYard < YARD.r + 6) c.lerp(new THREE.Color(0.42, 0.42, 0.28), 0.35); // trodden yard
@@ -280,7 +280,7 @@ export function buildTerrainMesh(scene, quality) {
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.grass(), roughness: 0.95, metalness: 0 });
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.grass(), bumpMap: TEX.grass(), bumpScale: 0.8, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
   mesh.userData.surface = true;
@@ -289,9 +289,9 @@ export function buildTerrainMesh(scene, quality) {
 
   // roads
   const roadMats = {
-    asphalt: new THREE.MeshStandardMaterial({ map: repeated(TEX.asphalt(), 1, 1), roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }),
-    gravel: new THREE.MeshStandardMaterial({ map: repeated(TEX.gravel(), 1, 1), roughness: 1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }),
-    dirt: new THREE.MeshStandardMaterial({ map: repeated(TEX.gravel(), 1, 1), color: 0x9a7a58, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }),
+    asphalt: new THREE.MeshStandardMaterial({ map: repeated(TEX.asphalt(), 1, 1), bumpMap: repeated(TEX.asphalt(), 1, 1), bumpScale: 0.5, roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }),
+    gravel: new THREE.MeshStandardMaterial({ map: repeated(TEX.gravel(), 1, 1), bumpMap: repeated(TEX.gravel(), 1, 1), bumpScale: 1.2, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }),
+    dirt: new THREE.MeshStandardMaterial({ map: repeated(TEX.gravel(), 1, 1), bumpMap: repeated(TEX.gravel(), 1, 1), bumpScale: 1.2, color: 0x9a7a58, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }),
   };
   for (const r of ROADS) {
     const s = r.samples, P = [], U = [], I = [];
@@ -344,13 +344,14 @@ export function buildTrees(scene, quality) {
     const s = 0.75 + r() * 0.6;
     (r() < 0.72 ? spruce : birch).push({ x, y, z, s, rot: r() * 6.28 });
   }
-  const dummy = new THREE.Object3D();
+  const dummy = new THREE.Object3D(), tint = new THREE.Color();
   const mk = (list, trunkGeo, trunkMat, crownGeo, crownMat) => {
     const t = new THREE.InstancedMesh(trunkGeo, trunkMat, list.length);
     const c = new THREE.InstancedMesh(crownGeo, crownMat, list.length);
     list.forEach((p, i) => {
       dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, p.rot, 0); dummy.scale.setScalar(p.s); dummy.updateMatrix();
       t.setMatrixAt(i, dummy.matrix); c.setMatrixAt(i, dummy.matrix);
+      const v = 0.8 + r() * 0.35; c.setColorAt(i, tint.setRGB(v * (0.92 + r() * 0.16), v, v * (0.9 + r() * 0.15)));
       const k = Math.floor(p.x / TREES.cell) + ',' + Math.floor(p.z / TREES.cell);
       let l = TREES.grid.get(k); if (!l) TREES.grid.set(k, (l = [])); l.push({ x: p.x, z: p.z, r: 0.22 * p.s });
     });
@@ -358,13 +359,54 @@ export function buildTrees(scene, quality) {
     t.receiveShadow = c.receiveShadow = true;
     scene.add(t, c);
   };
-  const spruceCrown = new THREE.ConeGeometry(2.1, 9, 8).translate(0, 7, 0);
-  const s2 = new THREE.ConeGeometry(1.6, 5, 8).translate(0, 10.5, 0);
-  const merged = mergeGeos([spruceCrown, s2]);
-  mk(spruce, new THREE.CylinderGeometry(0.16, 0.28, 4, 6).translate(0, 2, 0), new THREE.MeshStandardMaterial({ map: TEX.bark(), roughness: 1 }),
-    merged, new THREE.MeshStandardMaterial({ color: 0x24402a, roughness: 0.95, flatShading: true }));
-  mk(birch, new THREE.CylinderGeometry(0.1, 0.17, 7, 6).translate(0, 3.5, 0), new THREE.MeshStandardMaterial({ color: 0xe8e4dc, roughness: 0.8 }),
-    new THREE.IcosahedronGeometry(2.4, 0).scale(1, 1.4, 1).translate(0, 7.5, 0), new THREE.MeshStandardMaterial({ color: 0x6a8a3a, roughness: 0.95, flatShading: true }));
+  // spruce: five drooping tiers with jagged edges; birch: a cluster of leafy blobs on a white trunk
+  const jag = (geo, amt, seed) => {
+    const p = geo.attributes.position; // displacement hashed from the position, so shared corners stay welded
+    const hsh = (x, y, z, o) => { const v = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719 + seed * 4.1 + o) * 43758.5453; return v - Math.floor(v) - 0.5; };
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + hsh(x, y, z, 0) * amt; p.setX(i, x * k); p.setZ(i, z * k); p.setY(i, y + hsh(x, y, z, 1.7) * amt * 0.6); }
+    geo.computeVertexNormals(); return geo;
+  };
+  const tiers = [];
+  for (let t = 0; t < 5; t++) {
+    const rad = 2.3 - t * 0.38, h = 3.4 - t * 0.25, y = 3.2 + t * 1.85;
+    tiers.push(jag(new THREE.ConeGeometry(rad, h, 11, 2, true).translate(0, y + h / 2, 0), 0.25, 10 + t));
+  }
+  const merged = mergeGeos(tiers);
+  const needleM = new THREE.MeshStandardMaterial({ color: 0x2c4a30, roughness: 0.95, side: THREE.DoubleSide, flatShading: true });
+  mk(spruce, new THREE.CylinderGeometry(0.12, 0.3, 4.5, 7).translate(0, 2.25, 0), new THREE.MeshStandardMaterial({ map: TEX.bark(), bumpMap: TEX.bark(), bumpScale: 2, roughness: 1 }),
+    merged, needleM);
+  const blobs = [[0, 7.6, 0, 2.2], [1.1, 6.6, 0.4, 1.5], [-1.0, 6.9, -0.5, 1.6], [0.3, 8.9, -0.3, 1.5], [-0.4, 6.0, 0.9, 1.3]]
+    .map(([x, y, z, r0], i) => jag(new THREE.IcosahedronGeometry(r0, 1).scale(1, 1.15, 1).translate(x, y, z), 0.3, 50 + i));
+  mk(birch, new THREE.CylinderGeometry(0.09, 0.17, 7.4, 7).translate(0, 3.7, 0), new THREE.MeshStandardMaterial({ map: TEX.birch(), roughness: 0.8 }),
+    mergeGeos(blobs), new THREE.MeshStandardMaterial({ color: 0x6f9440, roughness: 0.9, flatShading: true }));
+  // ground cover: grass tufts (crossed alpha cards), denser around places you spend time
+  const tuftN = quality === 'low' ? 0 : quality === 'medium' ? 9000 : 18000;
+  if (tuftN) {
+    const card = new THREE.PlaneGeometry(0.7, 0.5).translate(0, 0.25, 0);
+    const tuftGeo = mergeGeos([card, card.clone().rotateY(Math.PI / 2)]);
+    const uvs = []; for (let k = 0; k < 2; k++) uvs.push(0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1); // PlaneGeometry index order 0,2,1 2,3,1
+    tuftGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    const tuftM = new THREE.MeshStandardMaterial({ map: TEX.tuft(), alphaTest: 0.4, side: THREE.DoubleSide, roughness: 1 });
+    const tufts = new THREE.InstancedMesh(tuftGeo, tuftM, tuftN);
+    const col = new THREE.Color();
+    let n = 0, guard = 0;
+    while (n < tuftN && guard++ < tuftN * 8) {
+      let x, z;
+      if (r() < 0.65) { const zn = ZONES[Math.floor(r() * ZONES.length)], a = r() * 6.28, d = zn.r * 0.6 + r() * 160; x = zn.x + Math.cos(a) * d; z = zn.z + Math.sin(a) * d; }
+      else { x = (r() - 0.5) * (SIZE - 40); z = (r() - 0.5) * (SIZE - 40); }
+      if (Math.abs(x) > HALF - 10 || Math.abs(z) > HALF - 10) continue;
+      if (Math.hypot(x - YARD.x, z - YARD.z) < 22 || Math.hypot(x - LAKE.x, z - LAKE.z) < LAKE.r * 1.3) continue;
+      const nr = nearestRoad(x, z, 8); if (nr && nr.d < nr.road.w / 2 + 1) continue;
+      if (ZONES.some((zn) => zn.id === 'town' && Math.hypot(x - zn.x, z - zn.z) < zn.r - 20)) continue;
+      dummy.position.set(x, heightAt(x, z) - 0.03, z); dummy.rotation.set(0, r() * 6.28, 0); dummy.scale.setScalar(0.45 + r() * 0.7); dummy.updateMatrix();
+      tufts.setMatrixAt(n, dummy.matrix);
+      tufts.setColorAt(n, col.setHSL(0.17 + r() * 0.07, 0.25 + r() * 0.2, 0.42 + r() * 0.18));
+      n++;
+    }
+    tufts.count = n;
+    tufts.raycast = () => {};
+    scene.add(tufts);
+  }
   // rocks
   const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0x77736c, roughness: 1, flatShading: true }), 300);
   for (let i = 0; i < 300; i++) {

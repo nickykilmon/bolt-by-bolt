@@ -27,7 +27,9 @@ function shade(hex, f) {
 }
 
 // draws the portrait into a canvas of any size
-export function drawFace(canvas, face) {
+// opts.decal: only the facial features on a transparent background (for 3D NPC heads)
+export function drawFace(canvas, face, opts = {}) {
+  const decal = !!opts.decal;
   const f = { ...DEFAULT_FACE, ...face };
   const ctx = canvas.getContext('2d');
   const S = canvas.width / 256;
@@ -37,12 +39,13 @@ export function drawFace(canvas, face) {
   const shapeName = FACE_OPTS.shape.list[f.shape], hairName = FACE_OPTS.hair.list[f.hair];
   // background: garage wall
   const bg = ctx.createLinearGradient(0, 0, 0, 256); bg.addColorStop(0, '#4a5a68'); bg.addColorStop(1, '#2a3038');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, 256, 256);
+  if (!decal) { ctx.fillStyle = bg; ctx.fillRect(0, 0, 256, 256); }
   const fill = (c) => { ctx.fillStyle = c; ctx.fill(); };
   const ell = (x, y, rx, ry, rot = 0) => { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); };
   // head geometry
   const g = { Oval: [62, 78], Round: [70, 72], Square: [68, 76], Long: [58, 86], Heart: [66, 78] }[shapeName];
   const cx = 128, cy = 118, rx = g[0], ry = g[1];
+  if (!decal) {
   // hair behind the head
   ctx.fillStyle = hairC;
   if (hairName === 'Long') { ctx.beginPath(); ctx.roundRect(cx - rx - 10, cy - ry + 10, (rx + 10) * 2, ry * 2 + 30, 40); ctx.fill(); }
@@ -61,6 +64,7 @@ export function drawFace(canvas, face) {
   else if (shapeName === 'Heart') { ctx.moveTo(cx - rx, cy - 20); ctx.quadraticCurveTo(cx - rx, cy - ry, cx, cy - ry); ctx.quadraticCurveTo(cx + rx, cy - ry, cx + rx, cy - 20); ctx.quadraticCurveTo(cx + rx - 6, cy + ry * 0.6, cx, cy + ry); ctx.quadraticCurveTo(cx - rx + 6, cy + ry * 0.6, cx - rx, cy - 20); }
   else ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
   fill(skin);
+  }
   // subtle cheek shading
   for (const s of [-1, 1]) { ell(cx + s * rx * 0.62, cy + 26, 16, 10); fill('rgba(0,0,0,0.04)'); }
   const eyeY = cy - 6, ex = 26;
@@ -127,6 +131,7 @@ export function drawFace(canvas, face) {
   if (det === 'Mole') { ell(cx - 30, cy + 34, 3.2, 3.2); fill('#3a2418'); }
   // hair on top
   ctx.fillStyle = hairC;
+  if (!decal) {
   const top = cy - ry;
   if (hairName === 'Short' || hairName === 'Mullet' || hairName === 'Ponytail' || hairName === 'Long') { ctx.beginPath(); ctx.moveTo(cx - rx - 2, cy - 4); ctx.quadraticCurveTo(cx - rx - 4, top - 14, cx, top - 12); ctx.quadraticCurveTo(cx + rx + 4, top - 14, cx + rx + 2, cy - 4); ctx.quadraticCurveTo(cx + rx - 6, top + 22, cx + 10, top + 18); ctx.quadraticCurveTo(cx - 20, top + 30, cx - rx + 6, top + 34); ctx.closePath(); ctx.fill(); }
   if (hairName === 'Buzz cut') { ctx.save(); ctx.globalAlpha = 0.75; ctx.beginPath(); ctx.ellipse(cx, cy, rx + 1, ry + 1, 0, Math.PI * 1.05, Math.PI * 1.95); ctx.quadraticCurveTo(cx, top + 26, cx - rx * 0.95, cy - ry * 0.3); ctx.fill(); ctx.restore(); }
@@ -135,6 +140,7 @@ export function drawFace(canvas, face) {
   if (hairName === 'Side part') { ctx.beginPath(); ctx.moveTo(cx - rx - 2, cy - 2); ctx.quadraticCurveTo(cx - rx, top - 16, cx - 16, top - 12); ctx.quadraticCurveTo(cx + rx + 8, top - 18, cx + rx + 2, cy - 6); ctx.quadraticCurveTo(cx + 10, top + 6, cx - 18, top + 12); ctx.quadraticCurveTo(cx - rx + 4, top + 26, cx - rx - 2, cy - 2); ctx.fill(); ctx.strokeStyle = shade(skin, 0.9); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 18, top - 10); ctx.lineTo(cx - 20, top + 12); ctx.stroke(); }
   if (hairName === 'Mohawk') { ctx.beginPath(); ctx.moveTo(cx - 12, cy - ry * 0.4); ctx.lineTo(cx - 14, top - 36); ctx.quadraticCurveTo(cx, top - 50, cx + 14, top - 36); ctx.lineTo(cx + 12, cy - ry * 0.4); ctx.fill(); }
   if (hairName === 'Bald') { ell(cx - 20, top + 22, 14, 7, -0.3); fill('rgba(255,255,255,0.25)'); }
+  }
   // glasses
   const gl = FACE_OPTS.glasses.list[f.glasses];
   if (gl !== 'None') {

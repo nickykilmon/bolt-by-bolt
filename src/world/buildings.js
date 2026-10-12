@@ -8,11 +8,11 @@ import { heightAt } from './terrain.js';
 
 export const mats = {};
 function initMats() {
-  mats.floor = new THREE.MeshStandardMaterial({ map: repeated(TEX.concrete(), 3, 2.5), roughness: 0.85 });
-  mats.planks = new THREE.MeshStandardMaterial({ map: repeated(TEX.planks(), 2, 1), roughness: 0.9 });
+  mats.floor = new THREE.MeshStandardMaterial({ map: repeated(TEX.concrete(), 3, 2.5), bumpMap: repeated(TEX.concrete(), 3, 2.5), bumpScale: 0.6, roughness: 0.85 });
+  mats.planks = new THREE.MeshStandardMaterial({ map: repeated(TEX.planks(), 2, 1), bumpMap: repeated(TEX.planks(), 2, 1), bumpScale: 1.5, roughness: 0.9 });
   mats.inner = new THREE.MeshStandardMaterial({ map: repeated(TEX.wood(), 3, 1), color: 0xc8b090, roughness: 0.9 });
   mats.wallpaper = new THREE.MeshStandardMaterial({ map: repeated(TEX.wallpaper(), 3, 1), roughness: 0.9 });
-  mats.woodFloor = new THREE.MeshStandardMaterial({ map: repeated(TEX.wood(), 4, 4), roughness: 0.8 });
+  mats.woodFloor = new THREE.MeshStandardMaterial({ map: repeated(TEX.wood(), 4, 4), bumpMap: repeated(TEX.wood(), 4, 4), bumpScale: 0.4, roughness: 0.8 });
   mats.roof = new THREE.MeshStandardMaterial({ color: 0x3a3a3c, roughness: 0.8, metalness: 0.3 });
   mats.peg = new THREE.MeshStandardMaterial({ map: repeated(TEX.pegboard(), 3, 1), roughness: 0.9 });
   mats.fluoro = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xf4f8ff, emissiveIntensity: 1.6 });

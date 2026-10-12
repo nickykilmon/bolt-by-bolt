@@ -7,44 +7,91 @@ import { box, cyl } from '../mechanics/partMeshes.js';
 import { ROADS, groundY, zoneAt } from './terrain.js';
 import { clamp } from '../core/util.js';
 import { labelTex } from '../core/textures.js';
+import { mergeByMaterial } from '../core/merge.js';
 
 const COLORS = [0xb02020, 0x2050a0, 0xd8d8d0, 0x303438, 0x2a6a3a, 0xc8a030, 0x6a2a6a, 0x8a8f96];
 const LANE = 1.8;
 const tmp = new THREE.Vector3();
 
+// side profile of a 70s/80s saloon: [along the car (z), height]
+const PROFILE = [[2.18, 0.34], [2.2, 0.62], [2.12, 0.78], [1.95, 0.84], [0.95, 0.9], [0.32, 1.36], [-1.05, 1.38], [-1.62, 0.98], [-2.12, 0.92], [-2.2, 0.78], [-2.18, 0.34]];
+const W = 1.68;
+const glassM = new THREE.MeshStandardMaterial({ color: 0x1a222c, roughness: 0.08, metalness: 0.9, envMapIntensity: 1.2, side: THREE.DoubleSide });
+const trimM = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.6 });
+const rimM = new THREE.MeshStandardMaterial({ color: 0xb8bcc0, roughness: 0.3, metalness: 0.9 });
+let bodyGeo = null, sideWinGeo = null;
+function sharedGeos() {
+  if (bodyGeo) return;
+  const sh = new THREE.Shape(); PROFILE.forEach(([z, y], i) => (i ? sh.lineTo(z, y) : sh.moveTo(z, y))); sh.closePath();
+  bodyGeo = new THREE.ExtrudeGeometry(sh, { depth: W - 0.12, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.05, bevelSegments: 3, curveSegments: 4 });
+  bodyGeo.rotateY(-Math.PI / 2).translate((W - 0.12) / 2, 0, 0); // shape x -> car z, extrusion -> car x, centred
+  const w = new THREE.Shape(); [[0.86, 0.94], [0.32, 1.31], [-1.0, 1.32], [-1.5, 0.99]].forEach(([z, y], i) => (i ? w.lineTo(z, y) : w.moveTo(z, y))); w.closePath();
+  sideWinGeo = new THREE.ShapeGeometry(w).rotateY(-Math.PI / 2);
+}
+function slab(o, a, b, mat, inset = 0.06) { // glass pane between two profile points, across the car
+  const dz = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dz, dy);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.22, len - inset * 2), mat);
+  const phi = Math.atan2(dz, dy); // plane's up axis along the slope; normal ends up pointing outwards
+  m.rotation.x = phi;
+  m.position.set(0, (a[1] + b[1]) / 2 - Math.sin(phi) * 0.012, (a[0] + b[0]) / 2 + Math.cos(phi) * 0.012);
+  o.add(m); return m;
+}
+
 function carModel(color, lamps, tails) {
+  sharedGeos();
   const o = new THREE.Group();
-  const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.35 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0x1a2028, roughness: 0.1, metalness: 0.6 });
-  box(o, 1.7, 0.55, 4.3, paint, 0, 0.6, 0);
-  box(o, 1.5, 0.48, 2.1, paint, 0, 1.11, -0.25);
-  box(o, 1.52, 0.4, 2.0, glass, 0, 1.12, -0.25);
-  box(o, 1.74, 0.2, 0.15, MAT.darkSteel, 0, 0.42, 2.15);
-  box(o, 1.74, 0.2, 0.15, MAT.darkSteel, 0, 0.42, -2.15);
-  for (const sx of [-0.6, 0.6]) { box(o, 0.32, 0.16, 0.04, lamps, sx, 0.68, 2.16); box(o, 0.3, 0.14, 0.04, tails, sx, 0.7, -2.16); }
+  const paint = new THREE.MeshPhysicalMaterial({ color, roughness: 0.4, metalness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.2 });
+  const body = new THREE.Mesh(bodyGeo, paint); o.add(body);
+  // glass: windscreen, rear screen, side windows (on both flanks)
+  slab(o, PROFILE[4], PROFILE[5], glassM);
+  slab(o, PROFILE[6], PROFILE[7], glassM);
+  for (const s of [-1, 1]) { const sw = new THREE.Mesh(sideWinGeo, glassM); sw.position.x = s * (W / 2 + 0.002); o.add(sw); }
+  // pillars between the side windows, rubbing strips, door gaps, mirrors, handles
+  for (const s of [-1, 1]) {
+    box(o, 0.02, 0.38, 0.06, paint, s * (W / 2 + 0.004), 1.12, -0.32);
+    box(o, 0.02, 0.05, 3.6, trimM, s * (W / 2 + 0.01), 0.62, 0);
+    box(o, 0.012, 0.5, 0.012, trimM, s * (W / 2 + 0.006), 0.6, 0.92);
+    box(o, 0.012, 0.5, 0.012, trimM, s * (W / 2 + 0.006), 0.6, -0.36);
+    box(o, 0.012, 0.03, 0.12, rimM, s * (W / 2 + 0.012), 0.8, 0.55);
+    box(o, 0.1, 0.07, 0.05, trimM, s * (W / 2 + 0.06), 0.98, 0.9);
+  }
+  // front: grille, lamps, bumper, plate; rear: lamps, bumper, plate
+  box(o, 0.9, 0.2, 0.03, trimM, 0, 0.66, 2.215);
+  for (const s of [-1, 1]) { cyl(o, 0.09, 0.03, rimM, s * 0.62, 0.66, 2.205, 'z', 14); cyl(o, 0.075, 0.035, lamps, s * 0.62, 0.66, 2.215, 'z', 14); box(o, 0.32, 0.12, 0.03, tails, s * 0.58, 0.72, -2.215); }
+  box(o, W + 0.04, 0.14, 0.12, rimM, 0, 0.42, 2.24);
+  box(o, W + 0.04, 0.14, 0.12, rimM, 0, 0.42, -2.24);
+  box(o, 0.42, 0.11, 0.01, MAT.whitePlastic, 0, 0.5, 2.305); box(o, 0.42, 0.11, 0.01, MAT.whitePlastic, 0, 0.6, -2.305);
+  // dark wheel wells
+  for (const z of [1.35, -1.35]) box(o, W + 0.02, 0.28, 0.78, trimM, 0, 0.44, z);
   const wheels = [];
-  for (const [x, z] of [[-0.8, 1.35], [0.8, 1.35], [-0.8, -1.35], [0.8, -1.35]]) {
+  for (const [x, z] of [[-0.78, 1.35], [0.78, 1.35], [-0.78, -1.35], [0.78, -1.35]]) {
     const w = new THREE.Group(); w.position.set(x, 0.32, z); o.add(w);
-    cyl(w, 0.32, 0.2, MAT.tire, 0, 0, 0, 'x', 14); cyl(w, 0.18, 0.21, MAT.chrome, 0, 0, 0, 'x', 8);
+    cyl(w, 0.32, 0.2, MAT.tire, 0, 0, 0, 'x', 18); cyl(w, 0.2, 0.21, rimM, 0, 0, 0, 'x', 14); cyl(w, 0.07, 0.22, trimM, 0, 0, 0, 'x', 8);
     wheels.push(w);
   }
-  o.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+  o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.raycast = () => {}; } });
+  mergeByMaterial(o, (m) => !wheels.some((w) => { for (let p = m.parent; p; p = p.parent) if (p === w) return true; return false; }));
   return { o, wheels };
 }
-// rally car: same shell with stripes, a roof scoop, a wing and door numbers
+// rally car: same shell with stripes, a roof scoop, a wing, mud flaps and door numbers
 function rallyModel(color, num, lamps, tails) {
   const r = carModel(color, lamps, tails), o = r.o;
   const stripe = new THREE.MeshStandardMaterial({ color: num % 2 ? 0x1060d0 : 0xe8c020, roughness: 0.5 });
-  box(o, 0.45, 0.02, 4.32, stripe, 0, 0.885, 0);
-  box(o, 0.45, 0.02, 2.12, stripe, 0, 1.36, -0.25);
-  box(o, 0.3, 0.12, 0.4, MAT.darkSteel, 0, 1.42, 0.3);
-  box(o, 1.6, 0.05, 0.35, MAT.darkSteel, 0, 1.45, -2.0);
-  for (const sx of [-0.55, 0.55]) box(o, 0.05, 0.3, 0.05, MAT.darkSteel, sx, 1.28, -2.0);
+  box(o, 0.42, 0.012, 1.0, stripe, 0, 0.9, 1.45).rotation.x = -0.06;
+  box(o, 0.42, 0.012, 1.3, stripe, 0, 1.385, -0.37);
+  box(o, 0.3, 0.1, 0.4, MAT.darkSteel, 0, 1.43, 0.0);
+  box(o, 1.6, 0.04, 0.32, MAT.darkSteel, 0, 1.16, -1.95);
+  for (const sx of [-0.6, 0.6]) box(o, 0.04, 0.22, 0.04, MAT.darkSteel, sx, 1.03, -1.95);
+  for (const s of [-1, 1]) { box(o, 0.3, 0.26, 0.015, trimM, s * 0.72, 0.2, -1.74); box(o, 0.3, 0.26, 0.015, trimM, s * 0.72, 0.2, 0.95); }
+  for (const s of [-1, 1]) cyl(o, 0.09, 0.06, lamps, s * 0.3, 0.86, 2.0, 'z', 12); // spot lamps
   const tex = labelTex(String(num), 128, 128, '#ffffff', '#111', 'bold 90px Impact');
   for (const sd of [-1, 1]) {
-    const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshStandardMaterial({ map: tex }));
-    pl.position.set(sd * 0.856, 0.62, 0.2); pl.rotation.y = sd * Math.PI / 2; o.add(pl);
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.45), new THREE.MeshStandardMaterial({ map: tex }));
+    pl.position.set(sd * (W / 2 + 0.012), 0.6, 0.28); pl.rotation.y = sd * Math.PI / 2; o.add(pl);
   }
+  o.traverse((m) => { if (m.isMesh) m.raycast = () => {}; });
+  const wheels = r.wheels;
+  mergeByMaterial(o, (m) => !wheels.some((w) => { for (let p = m.parent; p; p = p.parent) if (p === w) return true; return false; }));
   return r;
 }
 

@@ -7,6 +7,7 @@ import { addCollider } from './colliders.js';
 import { ZONES, heightAt } from './terrain.js';
 import { mats, interact } from './buildings.js';
 import { mulberry32 } from '../core/util.js';
+import { mergeByMaterial } from '../core/merge.js';
 
 const zh = (id) => ZONES.find((z) => z.id === id).h;
 const _v = new THREE.Vector3();
@@ -32,6 +33,25 @@ function sign(g, text, w, h, x, y, z, bg = '#1a3a7a', fg = '#fff', ry = 0) {
   m.position.set(x, y, z); m.rotation.y = ry; g.add(m); return m;
 }
 
+// decor (no colliders, never blocks aiming): white trim, framed windows, foundation, gables
+const trimM = new THREE.MeshStandardMaterial({ color: 0xf0ece2, roughness: 0.7 });
+const stoneM = new THREE.MeshStandardMaterial({ color: 0x6a6660, roughness: 0.95 });
+const deco = (m) => { m.raycast = () => {}; m.castShadow = true; m.userData.deco = true; return m; };
+// window on a wall: centre (x,y,z), facing direction ry (0 = +z)
+function frameWindow(g, x, y, z, ry, w = 1.1, h = 1.2) {
+  const win = new THREE.Group(); win.position.set(x, y, z); win.rotation.y = ry; g.add(win);
+  const glass = box(win, w - 0.1, h - 0.1, 0.02, MAT.glass, 0, 0, 0); glass.userData.glass = true; glass.userData.deco = true; glass.raycast = () => {};
+  for (const sx of [-1, 1]) deco(box(win, 0.08, h + 0.08, 0.06, trimM, sx * w / 2, 0, 0.02));
+  deco(box(win, w + 0.08, 0.08, 0.06, trimM, 0, h / 2, 0.02));
+  deco(box(win, w + 0.2, 0.06, 0.14, trimM, 0, -h / 2 - 0.03, 0.05)); // sill
+  deco(box(win, 0.04, h - 0.1, 0.04, trimM, 0, 0, 0.02)); deco(box(win, w - 0.1, 0.04, 0.04, trimM, 0, 0.08, 0.02)); // cross
+  return win;
+}
+function gable(g, w, h, d, mat) { // triangular gable ends on the side walls (the ridge runs along x)
+  const sh = new THREE.Shape(); sh.moveTo(-d / 2, 0); sh.lineTo(d / 2, 0); sh.lineTo(0, Math.tan(0.33) * d / 2 + 0.1); sh.closePath();
+  for (const s of [1, -1]) { const m = new THREE.Mesh(new THREE.ShapeGeometry(sh), mat); m.position.set(s * (w / 2 - 0.02), h, 0); m.rotation.y = s * Math.PI / 2; deco(m); g.add(m); }
+}
+
 // A shop-type building. Local frame: front (door) faces +z. rot = multiples of 90°.
 function building(parent, { x, z, rot = 0, w = 10, d = 8, h = 3.4, wallMat, roofMat, title, signBg, door = 2.2, garageDoor = 0, y, floor }) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot; parent.add(g);
@@ -47,14 +67,24 @@ function building(parent, { x, z, rot = 0, w = 10, d = 8, h = 3.4, wallMat, roof
   const lintelH = garageDoor ? 2.8 : 2.2;
   solid(g, open, h - lintelH, t, W, 0, (h + lintelH) / 2, d / 2);
   // windows (decor) on the front
-  if (!garageDoor) for (const sx of [-1, 1]) { const win = box(g, Math.min(2, side - 0.6), 1.1, 0.03, MAT.glass, sx * (open / 2 + side / 2), 1.5, d / 2 + 0.11); win.userData.glass = true; }
+  if (!garageDoor) for (const sx of [-1, 1]) if (side > 1.4) frameWindow(g, sx * (open / 2 + side / 2), 1.55, d / 2 + 0.11, 0, Math.min(2, side - 0.6), 1.2);
   // roof
   const R = roofMat || mats.roof;
   solid(g, w + 0.6, 0.15, d + 0.6, R, 0, h + 0.07, 0, { collide: false });
   for (const s of [1, -1]) { const r = box(g, w + 0.8, 0.08, d / 2 + 0.6, R, 0, h + 0.75, s * d / 4); r.rotation.x = s * 0.33; r.castShadow = true; }
-  box(g, w, 1.1, 0.12, W, 0, h + 0.55, d / 2 - 0.05); box(g, w, 1.1, 0.12, W, 0, h + 0.55, -d / 2 + 0.05);
+  box(g, w, 1.1, 0.12, W, 0, h + 0.55, d / 2 - 0.05); box(g, w, 1.1, 0.12, W, 0, h + 0.55, -d / 2 + 0.05); // false fronts
+  gable(g, w, h, d, W);
+  // trim, foundation, door frame, side windows
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) deco(box(g, 0.16, h, 0.16, trimM, sx * (w / 2 + 0.03), h / 2, sz * (d / 2 + 0.03)));
+  deco(box(g, w + 0.5, 0.06, 0.18, trimM, 0, h + 0.02, d / 2 + 0.2)); deco(box(g, w + 0.5, 0.06, 0.18, trimM, 0, h + 0.02, -d / 2 - 0.2));
+  deco(box(g, w + 0.14, 0.32, d + 0.14, stoneM, 0, 0.1, 0)).receiveShadow = true;
+  for (const sx of [-1, 1]) deco(box(g, 0.1, lintelH, 0.08, trimM, sx * (open / 2 + 0.05), lintelH / 2, d / 2 + 0.12));
+  deco(box(g, open + 0.3, 0.1, 0.08, trimM, 0, lintelH + 0.05, d / 2 + 0.12));
+  const nSide = Math.max(1, Math.floor(d / 3.2));
+  for (let i = 0; i < nSide; i++) { const zz = -d / 2 + (i + 0.5) * d / nSide; frameWindow(g, w / 2 + 0.11, 1.6, zz, Math.PI / 2); frameWindow(g, -w / 2 - 0.11, 1.6, zz, -Math.PI / 2); }
   if (title) sign(g, title, Math.min(w - 1, 6), title.includes('\n') ? 1.1 : 0.8, 0, h - 0.6, d / 2 + 0.13, signBg);
   const lamp = new THREE.PointLight(0xffe8c0, 16, 14, 1.4); lamp.position.set(0, h - 0.4, 0); g.add(lamp);
+  mergeByMaterial(g, (m) => m.userData.deco);
   return g;
 }
 function counter(g, x, z, w = 2.6) { return solid(g, w, 1.0, 0.6, MAT.wood, x, 0.5, z, { surface: true }); }
@@ -71,8 +101,14 @@ function house(parent, x, z, rot, color, y) {
   for (const s of [1, -1]) { const r = box(g, 8.6, 0.1, 3.7, mats.roof, 0, 3.6, s * 1.6); r.rotation.x = s * 0.45; r.castShadow = true; }
   box(g, 8, 1.2, 0.1, m, 0, 3.4, 2.9); box(g, 8, 1.2, 0.1, m, 0, 3.4, -2.9);
   box(g, 1, 2, 0.05, MAT.wood, 1.5, 1, 3.03);
-  for (const sx of [-2, 3.2]) { const w = box(g, 1, 1, 0.05, MAT.glass, sx, 1.6, 3.03); w.userData.glass = true; box(g, 1.15, 1.15, 0.03, MAT.whitePlastic, sx, 1.6, 3.01); }
-  box(g, 0.6, 1.2, 0.6, mats.planks, -2.5, 4, 0);
+  for (const sx of [-2, 3.2]) frameWindow(g, sx, 1.6, 3.04, 0, 1, 1.1);
+  for (const sz of [-1.4, 1.4]) { frameWindow(g, 4.04, 1.6, sz, Math.PI / 2, 1, 1.1); frameWindow(g, -4.04, 1.6, sz, -Math.PI / 2, 1, 1.1); }
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) deco(box(g, 0.16, 3, 0.16, trimM, sx * 4.02, 1.5, sz * 3.02));
+  deco(box(g, 8.3, 0.3, 6.3, stoneM, 0, 0.1, 0));
+  for (const sx of [-1, 1]) deco(box(g, 0.08, 2.1, 0.06, trimM, 1.5 + sx * 0.54, 1.05, 3.05)); deco(box(g, 1.2, 0.08, 0.06, trimM, 1.5, 2.1, 3.05));
+  deco(box(g, 0.6, 1.4, 0.6, new THREE.MeshStandardMaterial({ color: 0x8a4a3a, roughness: 0.9 }), -2.5, 4.1, 0));
+  deco(box(g, 0.7, 0.08, 0.7, stoneM, -2.5, 4.82, 0));
+  mergeByMaterial(g, (m) => m.userData.deco);
   return g;
 }
 function mailbox(game, parent, id, name, x, z, ry = 0) {
