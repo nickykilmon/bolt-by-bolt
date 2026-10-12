@@ -325,6 +325,7 @@ B.kit = (g, def) => {
 B.food = (g, def) => {
   if (def.id === 'sausage') { const m = cyl(g, 0.025, 0.25, MAT.redPaint, 0, 0.025, 0, 'x', 10); m.material = new THREE.MeshStandardMaterial({ color: 0xb0583a, roughness: 0.6 }); }
   else if (def.id === 'rye_bread') { box(g, 0.2, 0.06, 0.2, MAT.wood, 0, 0.03, 0); }
+  else if (def.id === 'pet_food') { cyl(g, 0.045, 0.07, MAT.chrome, 0, 0.035, 0, 'y', 14); cyl(g, 0.046, 0.05, MAT.yellowPlastic, 0, 0.035, 0, 'y', 14); }
   else if (def.id === 'milk') { box(g, 0.07, 0.2, 0.07, MAT.whitePlastic, 0, 0.1, 0); box(g, 0.071, 0.06, 0.071, MAT.bluePaint, 0, 0.12, 0); }
   else { cyl(g, 0.04, 0.26, MAT.chrome, 0, 0.13, 0, 'y', 12); cyl(g, 0.042, 0.04, MAT.redPlastic, 0, 0.28, 0, 'y', 12); }
 };

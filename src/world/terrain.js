@@ -280,7 +280,7 @@ export function buildTerrainMesh(scene, quality) {
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.grass(), bumpMap: TEX.grass(), bumpScale: 0.8, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.grass(), roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
   mesh.userData.surface = true;
@@ -367,20 +367,20 @@ export function buildTrees(scene, quality) {
     geo.computeVertexNormals(); return geo;
   };
   const tiers = [];
-  for (let t = 0; t < 5; t++) {
-    const rad = 2.3 - t * 0.38, h = 3.4 - t * 0.25, y = 3.2 + t * 1.85;
-    tiers.push(jag(new THREE.ConeGeometry(rad, h, 11, 2, true).translate(0, y + h / 2, 0), 0.25, 10 + t));
+  for (let t = 0; t < 4; t++) {
+    const rad = 2.3 - t * 0.45, h = 3.7 - t * 0.3, y = 3.1 + t * 2.25;
+    tiers.push(jag(new THREE.ConeGeometry(rad, h, 9, 1, true).translate(0, y + h / 2, 0), 0.25, 10 + t));
   }
   const merged = mergeGeos(tiers);
   const needleM = new THREE.MeshStandardMaterial({ color: 0x2c4a30, roughness: 0.95, side: THREE.DoubleSide, flatShading: true });
   mk(spruce, new THREE.CylinderGeometry(0.12, 0.3, 4.5, 7).translate(0, 2.25, 0), new THREE.MeshStandardMaterial({ map: TEX.bark(), bumpMap: TEX.bark(), bumpScale: 2, roughness: 1 }),
     merged, needleM);
-  const blobs = [[0, 7.6, 0, 2.2], [1.1, 6.6, 0.4, 1.5], [-1.0, 6.9, -0.5, 1.6], [0.3, 8.9, -0.3, 1.5], [-0.4, 6.0, 0.9, 1.3]]
+  const blobs = [[0, 7.6, 0, 2.2], [1.1, 6.6, 0.4, 1.5], [-1.0, 6.9, -0.5, 1.6], [0.2, 8.9, -0.2, 1.5]]
     .map(([x, y, z, r0], i) => jag(new THREE.IcosahedronGeometry(r0, 1).scale(1, 1.15, 1).translate(x, y, z), 0.3, 50 + i));
   mk(birch, new THREE.CylinderGeometry(0.09, 0.17, 7.4, 7).translate(0, 3.7, 0), new THREE.MeshStandardMaterial({ map: TEX.birch(), roughness: 0.8 }),
     mergeGeos(blobs), new THREE.MeshStandardMaterial({ color: 0x6f9440, roughness: 0.9, flatShading: true }));
   // ground cover: grass tufts (crossed alpha cards), denser around places you spend time
-  const tuftN = quality === 'low' ? 0 : quality === 'medium' ? 9000 : 18000;
+  const tuftN = quality === 'low' ? 0 : quality === 'medium' ? 6000 : 12000;
   if (tuftN) {
     const card = new THREE.PlaneGeometry(0.7, 0.5).translate(0, 0.25, 0);
     const tuftGeo = mergeGeos([card, card.clone().rotateY(Math.PI / 2)]);

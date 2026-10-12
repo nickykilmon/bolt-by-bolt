@@ -239,6 +239,7 @@ export class Rally {
     const g = this.game, st = this.st;
     const total = this.t + this.penalty;
     this.state = 'idle';
+    g.life.cheer(10);
     const prev = this.best[st.id];
     if (!prev || total < prev) this.best[st.id] = total;
     const head = `${this.forEvent ? `SS${this.active.idx + 1} ` : ''}${st.def.name}: ${this.fmt(this.t)}${this.penalty ? ` + ${this.penalty} s = ${this.fmt(total)}` : ''}`;

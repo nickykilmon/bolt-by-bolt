@@ -220,6 +220,7 @@ export class Interaction {
       return;
     }
     const t = this.target = this.pick();
+    if (g.pets.carried) { g.ui.prompt(g.pets.carryPrompt(input), true); g.ui.torque(null); return; }
     let prompt = '';
     let active = !!t;
     g.ui.torque(null);
@@ -241,7 +242,8 @@ export class Interaction {
       default: prompt = this.held ? `${K('G')}Put down` : '';
     }
     // things you can do anywhere
-    if (this.held && kind === 'food' && t?.type !== 'fill') {
+    if (this.held && kind === 'food' && this.held.def.props?.pet) { if (!(t?.type === 'interact' && t.def?.pet)) prompt = `<span class="dim">Pet food — aim at your pet and press LMB to feed it</span>\n` + prompt; }
+    else if (this.held && kind === 'food' && t?.type !== 'fill' && !(t?.type === 'interact' && t.def?.pet)) {
       prompt = `${K('LMB')}Eat / drink ${this.held.def.name}\n` + prompt;
       if (input.mouse.lDown) { g.life.consume(this.held.def.props); g.audio.eat(); const it = this.release(); g.asm.remove(it); g.toast(`Consumed ${it.def.name}`); }
     }
@@ -310,6 +312,7 @@ export class Interaction {
         let nq = f.q + rate * dt;
         if (toolType === 'torque_wrench' && nq >= 1) { nq = 1; if (before < 1) g.audio.torqueClick(); }
         if (toolType !== 'torque_wrench' && before < 1 && nq >= 1) g.audio.snug();
+        if (before < 1 && nq >= 1) g.life.cheer(0.6, true);
         f.q = nq;
         if (f.q > STRIP_AT && grp.kind === 'bolt') { f.s = true; f.q = 0; g.audio.snap(); g.say('*SNAP* — I stripped the thread. Overdid that one.'); }
         if (f.q > STRIP_AT && grp.kind !== 'bolt') f.q = STRIP_AT;
@@ -382,6 +385,7 @@ export class Interaction {
     if (input.mouse.lDown && chk.ok && orientOk) {
       const inst = this.release();
       asm.install(inst, t.host, t.slot);
+      g.life.cheer(2, true);
       if (inst.def.type === 'timing_belt') {
         const cam = asm.at(t.host, 'head/camSprocket'), crank = t.host.kids.crankSprocket;
         inst.props.offset = (cam?.props.tooth || 0) - (crank?.props.tooth || 0);

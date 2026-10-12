@@ -411,6 +411,7 @@ export const DEFS = {};
   { id: 'sausage', type: 'food', name: 'Grill sausage', kind: 'food', mass: 0.4, price: 18, shop: true, cat: 'Groceries', props: { hunger: 40, thirst: -5 } },
   { id: 'rye_bread', type: 'food', name: 'Rye bread', kind: 'food', mass: 0.5, price: 9, shop: true, cat: 'Groceries', props: { hunger: 30, thirst: -5 } },
   { id: 'milk', type: 'food', name: 'Milk carton 1 L', kind: 'food', mass: 1, price: 7, shop: true, cat: 'Groceries', props: { thirst: 45, hunger: 8 } },
+  { id: 'pet_food', type: 'food', name: 'Pet food tin', kind: 'food', mass: 0.4, price: 12, shop: true, cat: 'Groceries', props: { pet: true } },
   { id: 'coffee', type: 'food', name: 'Coffee thermos', kind: 'food', mass: 0.8, price: 15, shop: true, cat: 'Groceries', props: { thirst: 20, fatigue: -25 } },
   { id: 'package', type: 'box', name: 'Delivery package', kind: 'box', mass: 3, price: 0, shop: false },
   { id: 'parcel', type: 'parcel', name: 'Parcel', kind: 'parcel', mass: 4, price: 0, shop: false },

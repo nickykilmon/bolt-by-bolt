@@ -12,6 +12,8 @@ export class Life {
     this.weeklyBill = 260;
     this.billWeek = 0;
     this.passedOut = false;
+    this.happiness = 70;   // 0..100: working on the car, driving and pets keep it up
+    this.griefUntil = 0;   // after a pet dies you can't be properly happy for a while
   }
   get day() { return Math.floor(this.minutes / 1440); }
   get hours() { return (this.minutes % 1440) / 60; }
@@ -33,12 +35,27 @@ export class Life {
       this.game.addMoney(-this.weeklyBill, 'Weekly bills: rent, electricity, insurance');
       this.game.say('The weekly bills just came out of the account.');
     }
+    // happiness slowly drains; hunger and exhaustion drain it faster
+    this.happiness = clamp(this.happiness - gm / 60 * (1.2 + (this.hunger < 20 ? 0.8 : 0) + (this.fatigue > 85 ? 0.6 : 0)), 0, this.cap());
+    this.sadT = (this.sadT || 0) - dt;
+    if (this.sadT <= 0 && this.happiness < 25) {
+      this.sadT = 150;
+      this.game.say(this.minutes < this.griefUntil ? `I keep thinking about ${this.griefName}…` : this.happiness < 10 ? 'I feel awful. Nothing gets done like this. Maybe some time in the garage would help.' : 'Feeling a bit down. Working on the Ruska always cheers me up.', 5);
+    }
     if ((this.hunger <= 0 || this.thirst <= 0 || this.fatigue >= 100) && !this.passedOut) this.passOut();
     const warn = this.hunger < 15 ? 'I\'m starving. Should eat something.' : this.thirst < 15 ? 'So thirsty… there\'s water at the kitchen tap.' : this.fatigue > 88 ? 'I can barely keep my eyes open. Need sleep.' : null;
     this.warnT = (this.warnT || 0) - dt;
     if (warn && this.warnT <= 0) { this.warnT = 60; this.game.say(warn); }
   }
-  canSprint() { return this.fatigue < 85 && this.hunger > 5; }
+  canSprint() { return this.fatigue < 85 && this.hunger > 5 && this.happiness >= 15; }
+  cap() { return this.minutes < this.griefUntil ? 45 : 100; }
+  // add happiness (quiet = no popup)
+  cheer(x, quiet) {
+    const before = this.happiness;
+    this.happiness = clamp(this.happiness + x, 0, this.cap());
+    if (!quiet && x >= 3 && this.happiness > before) this.game.toast(`☺ +${Math.round(this.happiness - before)} happiness`, 1.5);
+  }
+  grieve(name) { this.happiness = clamp(this.happiness - 60, 0, 100); this.griefUntil = this.minutes + 2 * 1440; this.griefName = name; }
   exert(x) { this.fatigue = clamp(this.fatigue + x * 0.3, 0, 100); this.thirst = clamp(this.thirst - x * 0.2, 0, 100); }
   consume(p = {}) {
     if (p.hunger) this.hunger = clamp(this.hunger + p.hunger, 0, 100);
@@ -62,6 +79,7 @@ export class Life {
     this.minutes += min;
     this.hunger = clamp(this.hunger - min * 100 / (60 * 26) * 0.5, 2, 100);
     this.thirst = clamp(this.thirst - min * 100 / (60 * 18) * 0.5, 2, 100);
+    this.happiness = clamp(this.happiness - min / 60 * 0.6, 0, this.cap());
     this.game.timeSkipped(min);
   }
   passOut() {
@@ -74,6 +92,6 @@ export class Life {
       this.passedOut = false;
     });
   }
-  serialize() { return { m: this.minutes, h: this.hunger, t: this.thirst, f: this.fatigue, bw: this.billWeek }; }
-  restore(d) { if (!d) return; this.minutes = d.m; this.hunger = d.h; this.thirst = d.t; this.fatigue = d.f; this.billWeek = d.bw ?? Math.floor(d.m / 1440 / 7); }
+  serialize() { return { m: this.minutes, h: this.hunger, t: this.thirst, f: this.fatigue, bw: this.billWeek, hp: this.happiness, gu: this.griefUntil, gn: this.griefName }; }
+  restore(d) { if (!d) return; this.minutes = d.m; this.hunger = d.h; this.thirst = d.t; this.fatigue = d.f; this.billWeek = d.bw ?? Math.floor(d.m / 1440 / 7); this.happiness = d.hp ?? 70; this.griefUntil = d.gu || 0; this.griefName = d.gn; }
 }

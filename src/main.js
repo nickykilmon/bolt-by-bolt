@@ -23,6 +23,7 @@ import { NPCs } from './world/npc.js';
 import { Jobs } from './economy/jobs.js';
 import { Moped } from './vehicles/moped.js';
 import { Traffic } from './world/traffic.js';
+import { Pets } from './world/pets.js';
 import './ui/screens.js';
 import { Guide } from './ui/guide.js';
 import { hasSave, writeSave, readSave, applySave, SAVE_KEY } from './save/save.js';
@@ -101,6 +102,7 @@ class Game {
     this.jobs = new Jobs(this);
     this.moped = new Moped(this);
     this.traffic = new Traffic(this);
+    this.pets = new Pets(this);
     this.rally = new Rally(this);
     this.guide = new Guide(this);
     this.flashlight = new THREE.SpotLight(0xfff4e0, 0, 18, 0.5, 0.5, 1.5);
@@ -115,6 +117,7 @@ class Game {
     }
     if (!loaded) {
       setupNewGame(this);
+      this.pets.seed();
       this.money = MONEY[this.profile.money]?.v ?? 400;
       this.jobs.seedScrap();
       this.say('Home at last. The old Ruska is in the garage, its engine in pieces on the stand. Time to get to work. (Tab = what\'s missing, Esc = menu)', 9);
@@ -161,7 +164,7 @@ class Game {
     return [{ m: o.matrixWorld, inv: o.matrixWorld.clone().invert(), half: new THREE.Vector3(0.86, 0, 2.08), cz: 0, minY: 0.2, maxY: 1.42 }];
   }
   pickables() {
-    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g)];
+    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || [])];
     for (const it of this.asm.items.values()) if (it.loc?.kind === 'world' && !it.loc.cont) list.push(it.obj);
     return list;
   }
@@ -659,6 +662,8 @@ class Game {
       this.player.update(dt, i, this);
       this.moped.update(dt, i);
       this.traffic.update(dt);
+      this.pets.update(dt);
+      if (this.player.inCar && this.car.speed > 4) this.life.cheer(dt * 0.05, true); // driving is fun
       this.driveControls(dt);
       this.npcs.update(dt);
       this.jobs.update(dt);
@@ -688,6 +693,7 @@ class Game {
       this.car.messages.length = 0;
       for (const ev of this.car.pt.events) {
         if (ev === 'stall' && this.player.inCar) this.say('Stalled.', 2);
+        if (ev === 'start') this.life.cheer(8);
         if (ev === 'start') this.say(this.car.S.firing < 4 ? 'It runs! …roughly. Not all cylinders are firing.' : 'VROOM! It\'s alive!', 4);
         if (ev === 'nofuel') this.say('The engine sputters and dies. Out of fuel?');
       }

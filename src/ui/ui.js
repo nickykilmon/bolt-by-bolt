@@ -108,7 +108,8 @@ export class UI {
     const g = this.game, L = g.life;
     if (this.subT > 0) { this.subT -= dt; if (this.subT <= 0) this.el.sub.style.opacity = 0; }
     const bar = (n, v, inv) => `<div class="n ${(inv ? v > 75 : v < 25) ? 'low' : ''}">${n}<div class="b"><div style="width:${clamp(v, 0, 100)}%"></div></div></div>`;
-    this.el.needs.innerHTML = bar('Hunger', L.hunger) + bar('Thirst', L.thirst) + bar('Energy', 100 - L.fatigue);
+    const pets = (g.pets?.hud || []).map((p) => bar(`${p.kind === 'cat' ? '🐱' : '🐶'} ${p.name}`, p.h)).join('');
+    this.el.needs.innerHTML = bar('Hunger', L.hunger) + bar('Thirst', L.thirst) + bar('Energy', 100 - L.fatigue) + bar(L.minutes < L.griefUntil ? 'Happy 💔' : 'Happy', L.happiness) + pets;
     this.el.clock.innerHTML = `${L.dayName()} ${L.clock()}<br><b>${fmtMoney(g.money)}</b>`;
     const h = g.interaction.held;
     this.el.held.innerHTML = h ? `${h.def.name}${(h.def.type === 'ratchet' || h.def.type === 'torque_wrench') ? ` · ${h.props.socket ? h.props.socket + ' mm socket' : 'no socket'}` : ''}${h.def.type === 'fluid' ? ` · ${h.props.amount.toFixed(1)} L` : ''}<br><span style="opacity:.7">G put down · Q pocket</span>` : '';

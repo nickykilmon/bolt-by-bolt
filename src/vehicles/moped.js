@@ -79,7 +79,7 @@ export class Moped {
   }
   mount() {
     const g = this.game;
-    if (g.interaction.held) { g.say('I need both hands for the handlebars.'); return; }
+    if (g.interaction.held || g.pets?.carried) { g.say('I need both hands for the handlebars.'); return; }
     this.riding = true; g.player.onMoped = true; g.player.yaw = 0; g.player.pitch = -0.1;
     g.audio.click(0.6);
     g.say('Pärinä 50. W throttle, S brake / reverse, A/D steer, L headlight, E to get off.', 3);

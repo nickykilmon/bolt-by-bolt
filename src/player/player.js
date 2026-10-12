@@ -54,6 +54,7 @@ export class Player {
     if (this.stillT > 0.5) this.sprintOn = false; // sprint switches off once you've stopped
     let speed = this.prone ? 0.8 : this.crouch ? 1.3 : this.sprintOn && !heavy && !tired && game.life.canSprint() ? 5.2 : 2.7;
     if (heavy) speed *= 0.6;
+    if (game.life.happiness < 15) speed *= 0.85; // feeling down
     if (this.pushing) speed = Math.min(speed, 1.6);
     const wish = new THREE.Vector3().addScaledVector(fwd, mz).addScaledVector(right, mx);
     if (wish.lengthSq() > 0) wish.normalize().multiplyScalar(speed);
