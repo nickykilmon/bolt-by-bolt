@@ -26,9 +26,31 @@ export class Moped {
     const lamp = cyl(o, 0.07, 0.08, MAT.chrome, 0, 1.0, 0.62, 'z', 12);
     cyl(o, 0.06, 0.01, MAT.lens, 0, 1.0, 0.665, 'z', 12);
     cyl(o, 0.03, 0.4, MAT.chrome, 0.12, 0.3, -0.5, 'z', 8);
+    // rear parcel box (holds 2 parcels), open at the top so you can see what's in it
+    const rack = new THREE.Group(); rack.position.set(0, 0.86, -0.72); o.add(rack);
+    const boxM = new THREE.MeshStandardMaterial({ color: 0xd8a020, roughness: 0.7 });
+    box(rack, 0.5, 0.03, 0.66, boxM, 0, 0, 0);
+    for (const sx of [-1, 1]) box(rack, 0.03, 0.26, 0.66, boxM, sx * 0.25, 0.13, 0);
+    for (const sz of [-1, 1]) box(rack, 0.5, 0.26, 0.03, boxM, 0, 0.13, sz * 0.33);
+    box(rack, 0.08, 0.2, 0.04, MAT.darkSteel, 0, -0.12, 0.3);
+    rack.userData.containerId = 'moped';
+    game.asm.containers.set('moped', rack);
+    this.rack = rack;
     const hit = box(o, 0.6, 1.0, 1.5, MAT.hit, 0, 0.6, 0); hit.castShadow = false;
     o.traverse((m) => { if (m.isMesh && m.material !== MAT.hit) m.castShadow = true; });
-    interact(o, { prompt: () => `<span class="k">E</span>Ride the moped "Pärinä 50"`, use: (b) => b === 'E' && this.mount() });
+    interact(o, {
+      prompt: () => {
+        const h = game.interaction.held, n = this.parcels().length;
+        if (h?.def.type === 'parcel') return n < 2 ? `<span class="k">E</span>Put the parcel in the moped box (${n}/2)` : 'The moped box is full (2/2) — take a parcel out first';
+        if (h) return `Moped "Pärinä 50" <span class="dim">(hands full)</span>`;
+        return `<span class="k">E</span>Ride the moped "Pärinä 50"${n ? `\n<span class="k">F</span>Take a parcel out of the box (${n}/2)` : ''}`;
+      },
+      use: (b) => {
+        const held = game.interaction.held;
+        if (b === 'E') { if (held?.def.type === 'parcel') this.stow(); else this.mount(); }
+        if (b === 'F' && !held) { const p = this.parcels()[0]; if (p) { game.interaction.hold(p); game.toast(`Took out the parcel for ${p.props.destName}`, 2); } }
+      },
+    });
     game.scene.add(o);
     this.place();
   }
@@ -36,6 +58,18 @@ export class Moped {
     this.pos.y = ENV.groundY(this.pos.x, this.pos.z);
     this.obj.position.copy(this.pos);
     this.obj.rotation.set(this.pitch, this.yaw, this.lean, 'YXZ');
+  }
+  parcels() { return [...this.game.asm.items.values()].filter((i) => i.loc?.kind === 'world' && i.loc.cont === 'moped'); }
+  stow() {
+    const g = this.game, inside = this.parcels();
+    if (inside.length >= 2) { g.say('The moped box only fits two parcels.'); return; }
+    const slots = [0.16, -0.16];
+    const used = inside.map((i) => i.loc.pos[2]);
+    const z = slots.find((sz) => !used.some((u) => Math.abs(u - sz) < 0.05)) ?? slots[0];
+    const it = g.interaction.release();
+    g.asm.placeWorld(it, [0, 0.016 - it.bounds.min.y, z], Math.PI / 2, 'moped');
+    g.audio.thunk(0.4);
+    g.toast(`Parcel in the moped box (${inside.length + 1}/2)`, 2);
   }
   mount() {
     const g = this.game;

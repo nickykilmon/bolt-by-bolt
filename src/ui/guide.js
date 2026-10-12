@@ -466,12 +466,12 @@ export class Guide {
       const late = g.life.minutes > J.parcels.deadline ? ' You\'re late — they now pay half.' : '';
       if (held?.def.type === 'parcel') {
         const mb = g.mailboxes.find((m) => m.id === held.props.dest);
-        return { job: 'PARCEL DELIVERY', st: { title: `Deliver the parcel to ${held.props.destName}` }, s: { text: `Take it to ${held.props.destName}'s mailbox (${dist(mb.pos)} m) and press E on the mailbox. Deliver all ${left.length} by ${due}.${late} Heavy loads? Put parcels in the car's boot or ride the moped.${also}`, targets: [mark(mb.pos, `${held.props.destName}'s mailbox — ${dist(mb.pos)} m`, COL.go, 1.5)] } };
+        return { job: 'PARCEL DELIVERY', st: { title: `Deliver the parcel to ${held.props.destName}` }, s: { text: `Take it to ${held.props.destName}'s mailbox (${dist(mb.pos)} m) and press E on the mailbox. Deliver all ${left.length} by ${due}.${late} The moped's box holds 2 parcels: look at the moped while holding one and press E.${also}`, targets: [mark(mb.pos, `${held.props.destName}'s mailbox — ${dist(mb.pos)} m`, COL.go, 1.5)] } };
       }
       const next = left.sort((a, b) => dist(a.it.obj.getWorldPosition(new THREE.Vector3())) - dist(b.it.obj.getWorldPosition(new THREE.Vector3())))[0];
       if (!next) return null;
-      const inCar = next.it.loc?.cont === 'car';
-      return { job: 'PARCEL DELIVERY', st: { title: `Parcels: ${left.length} left, due ${due}` }, s: { text: `${held ? 'Put down what you\'re holding (G), then p' : 'P'}ick up the parcel for ${next.name}${inCar ? ' (it\'s in your car)' : next.it.loc?.kind === 'inv' ? ' (it\'s in your pockets — press I)' : ' from the post office counter'}. Destinations: ${left.map((p) => p.name).join(', ')}.${late}${also}`, targets: [{ ...this.itemTarget(next.it, 'Parcel for ' + next.name) }] } };
+      const inCar = next.it.loc?.cont === 'car', onMoped = next.it.loc?.cont === 'moped';
+      return { job: 'PARCEL DELIVERY', st: { title: `Parcels: ${left.length} left, due ${due}` }, s: { text: `${held ? 'Put down what you\'re holding (G), then p' : 'P'}ick up the parcel for ${next.name}${inCar ? ' (it\'s in your car)' : onMoped ? ' (it\'s in the moped box — look at the moped and press F to take it out)' : next.it.loc?.kind === 'inv' ? ' (it\'s in your pockets — press I)' : ' from the post office counter'}. Destinations: ${left.map((p) => p.name).join(', ')}.${late}${also}`, targets: [{ ...this.itemTarget(next.it, 'Parcel for ' + next.name) }] } };
     }
 
     if (focus === 'mowing' && J.mowing) {
