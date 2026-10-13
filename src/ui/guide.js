@@ -428,11 +428,15 @@ export class Guide {
     const dist = (p) => Math.round(Math.hypot(p.x - here.x, p.z - here.z));
     const mark = (pos, text, col = COL.go, up = 0) => ({ kind: 'mark', pos: pos.clone().add(new THREE.Vector3(0, up, 0)), text, col });
     const npcMark = (id, text) => { const n = g.npcs.get(id); return n ? mark(n.g.position, text, COL.go, 1.9) : null; };
-    const focus = J.focus || (J.workshop ? 'workshop' : J.parcels ? 'parcels' : J.mowing ? 'mowing' : J.scrapActive ? 'scrap' : null);
+    const on = { workshop: J.workshop, parcels: J.parcels, mowing: J.mowing, scrap: J.scrapActive, farm: g.farm?.job, logging: g.logging?.job };
+    const focus = (J.focus && on[J.focus] ? J.focus : null) || Object.keys(on).find((k) => on[k]) || null;
     if (!focus) return null;
-    const others = ['workshop', 'parcels', 'mowing', 'scrap'].filter((k) => k !== focus && (k === 'workshop' ? J.workshop : k === 'parcels' ? J.parcels : k === 'mowing' ? J.mowing : J.scrapActive));
+    const others = Object.keys(on).filter((k) => k !== focus && on[k]);
     const also = others.length ? ` (Also on the go: ${others.join(', ')}.)` : '';
     const held = g.interaction.held;
+
+    if (focus === 'farm') return g.farm.objective(mark, dist, also);
+    if (focus === 'logging') return g.logging.objective(mark, dist, also);
 
     if (focus === 'workshop' && J.workshop) {
       const w = J.workshop;

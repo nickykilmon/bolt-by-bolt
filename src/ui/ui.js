@@ -284,8 +284,9 @@ export class UI {
       for (const m of g.jobs.markers()) { x.fillStyle = m.c; x.beginPath(); x.arc(tx(m.x), tz(m.z), m.t ? 6 : 3, 0, 7); x.fill(); if (m.t && !detail) { x.font = '12px Arial'; x.fillText(m.t, tx(m.x) + 8, tz(m.z) - 6); } }
       if (g.clubPos) { x.fillStyle = '#ff3cc8'; x.beginPath(); x.arc(tx(g.clubPos.x), tz(g.clubPos.z), detail ? 7 : 5, 0, 7); x.fill(); if (detail) { x.font = 'bold 12px Arial'; x.fillText('Nightclub', tx(g.clubPos.x) + 8, tz(g.clubPos.z) + 4); } }
       if (g.saunaPos) { x.fillStyle = '#ff9a40'; x.beginPath(); x.arc(tx(g.saunaPos.x), tz(g.saunaPos.z), detail ? 7 : 5, 0, 7); x.fill(); x.font = 'bold 12px Arial'; x.fillText('Sauna & fishing', tx(g.saunaPos.x) + 8, tz(g.saunaPos.z) + 4); }
-      // you / car / moped
+      // you / car / moped / work vehicles
       const dot = (p, col, r) => { x.fillStyle = '#000'; x.beginPath(); x.arc(tx(p.x), tz(p.z), r + 2, 0, 7); x.fill(); x.fillStyle = col; x.beginPath(); x.arc(tx(p.x), tz(p.z), r, 0, 7); x.fill(); };
+      for (const v of g.workVehicles || []) dot(v.pos, '#ffd23c', 3);
       dot(g.moped.pos, '#9fe39a', 4); dot(g.car.chassis.obj.position, '#40a0ff', 5); dot(g.player.pos, '#ff3030', 6);
       x.restore();
       x.strokeStyle = '#5a4a30'; x.lineWidth = 2; x.strokeRect(bx, by, bw, bw);
@@ -337,6 +338,9 @@ const MAP_POIS = [
   { t: 'job', n: "Pertti's lawn (mowing job)", x: -224, z: 100 },
   { t: 'house', n: "Pertti's farm", x: -215, z: 122, big: true },
   { t: 'house', n: "Mäkelä's farm", x: 322, z: 132, big: true },
+  { t: 'job', n: 'Kivelä farm (farm work)', x: 218, z: 287, big: true },
+  { t: 'job', n: 'Logging camp (logging job)', x: -160, z: -442, big: true },
+  { t: 'job', n: 'Sawmill (deliver logs)', x: -292, z: 128, big: true },
   { t: 'store', n: "Raimo's scrapyard (used parts)", x: -462, z: 238, big: true },
   { t: 'job', n: 'Scrap scale (sell scrap)', x: -484, z: 205 },
   { t: 'store', n: 'Gas station, kiosk & air pump', x: 482, z: 108 },

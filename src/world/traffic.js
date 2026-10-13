@@ -166,6 +166,7 @@ export class Traffic {
     const cp = g.car.chassis.obj.position, cf = tmp.set(0, 0, 1).applyQuaternion(g.car.chassis.obj.quaternion);
     for (const k of [-1.4, 0, 1.4]) out.push({ pos: cp.clone().addScaledVector(cf, k), r: 0.95, kind: g.player.inCar ? 'car' : 'parked' });
     if (!g.moped.riding) out.push({ pos: g.moped.pos, r: 0.6, kind: 'parked' });
+    for (const v of g.workVehicles || []) { const f = tmp.set(Math.sin(v.yaw), 0, Math.cos(v.yaw)); for (const k of [-0.3, 0, 0.3]) out.push({ pos: v.pos.clone().addScaledVector(f, k * v.o.len), r: v.o.wid * 0.55, kind: 'parked' }); }
     return out;
   }
   update(dt) {

@@ -20,6 +20,10 @@ export const ZONES = [
   { id: 'scrapyard', x: -470, z: 225, r: 55 },
   { id: 'pertti', x: -205, z: 112, r: 32 },
   { id: 'makela', x: 330, z: 128, r: 26 },
+  // work out of town: Kivelä farm (north), the logging camp (deep in the southern forest) and the sawmill on Route 54
+  { id: 'farm', x: 230, z: 305, r: 62 },
+  { id: 'logcamp', x: -150, z: -440, r: 28 },
+  { id: 'sawmill', x: -292, z: 128, r: 20 },
 ];
 const HILLS = [
   { x: -560, z: -200, h: 52, r: 320 },   // Hirvimäki
@@ -37,6 +41,9 @@ export const ROADS = [
   { name: 'Romutie', label: 'Scrapyard road', type: 'gravel', w: 4.5, smooth: 4, rough: 0.03, pts: [[-474, 146], [-472, 175], [-470, 200]] },
   { name: 'Pertin tie', label: 'Pertti\'s road', type: 'gravel', w: 3.5, smooth: 4, rough: 0.03, pts: [[-205, 58], [-205, 80], [-205, 98]] },
   { name: 'Makelantie', label: 'Mäkelä\'s road', type: 'gravel', w: 3.5, smooth: 4, rough: 0.03, pts: [[332, 86], [331, 102], [330, 116]] },
+  { name: 'Kiveläntie', label: 'Kivelä farm road', type: 'gravel', w: 4.5, smooth: 8, rough: 0.025, pts: [[240, 58], [238, 130], [234, 200], [231, 255]] },
+  { name: 'Tukkitie', label: 'Logging road', type: 'gravel', w: 4.8, smooth: 8, rough: 0.04, pts: [[-10, -232], [-35, -300], [-85, -372], [-130, -428]] },
+  { name: 'Sahatie', label: 'Sawmill road', type: 'gravel', w: 5, smooth: 4, rough: 0.02, pts: [[-298, 77], [-296, 100], [-293, 116]] },
   { name: 'Metsätie', label: 'Forest Road (rally stage)', type: 'gravel', w: 5.5, smooth: 10, rough: 0.035, stage: true, pts: [[170, 42], [205, -20], [262, -62], [300, -90], [335, -150], [310, -230], [250, -280], [190, -300], [110, -290], [40, -270], [-10, -230], [-30, -170], [-75, -125], [-120, -70], [-160, -20], [-200, 60]] },
   { name: 'Harju', label: 'Harju Ridge (rally stage)', type: 'dirt', w: 4.6, smooth: 11, rough: 0.07, stage: true, jumps: [0.22, 0.47, 0.68, 0.86], pts: [[-330, 82], [-345, 30], [-310, -10], [-350, -60], [-300, -100], [-245, -85], [-200, -125], [-225, -185], [-170, -225], [-120, -200], [-90, -240], [-40, -230], [-10, -230]] },
   { name: 'Hirvimäki', label: 'Moose Hill (rally stage)', type: 'gravel', w: 5, smooth: 12, rough: 0.05, stage: true, jumps: [0.35, 0.78], pts: [[-610, 190], [-640, 130], [-590, 75], [-670, 20], [-590, -35], [-675, -95], [-585, -150], [-670, -210], [-570, -265], [-500, -330], [-420, -360], [-360, -300], [-440, -250], [-370, -195], [-450, -140], [-385, -80], [-450, -20], [-400, 40], [-400, 112]] },
@@ -426,7 +433,7 @@ export function buildTrees(scene, quality) {
   // rocks
   const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0x77736c, roughness: 1, flatShading: true }), 300);
   for (let i = 0; i < 300; i++) {
-    let x, z; do { x = (r() - 0.5) * (SIZE - 60); z = (r() - 0.5) * (SIZE - 60); } while (nearestRoad(x, z, 10) || Math.hypot(x - YARD.x, z - YARD.z) < 50);
+    let x, z; do { x = (r() - 0.5) * (SIZE - 60); z = (r() - 0.5) * (SIZE - 60); } while (nearestRoad(x, z, 10) || Math.hypot(x - YARD.x, z - YARD.z) < 50 || ZONES.some((zn) => Math.hypot(x - zn.x, z - zn.z) < zn.r + 6));
     dummy.position.set(x, heightAt(x, z) - 0.3, z); dummy.rotation.set(r(), r() * 6, r()); dummy.scale.set(0.5 + r() * 1.5, 0.4 + r(), 0.5 + r() * 1.5); dummy.updateMatrix();
     rocks.setMatrixAt(i, dummy.matrix);
   }

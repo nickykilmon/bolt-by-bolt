@@ -31,6 +31,8 @@ import { Achievements } from './economy/achievements.js';
 import { FightClub } from './world/fightclub.js';
 import { Police } from './world/police.js';
 import { Nightclub } from './world/nightclub.js';
+import { Farm } from './world/farm.js';
+import { Logging } from './world/logging.js';
 import './ui/screens.js';
 import { Guide } from './ui/guide.js';
 import { hasSave, writeSave, readSave, applySave, SAVE_KEY } from './save/save.js';
@@ -115,6 +117,9 @@ class Game {
     this.fightclub = new FightClub(this);
     this.police = new Police(this);
     this.nightclub = new Nightclub(this);
+    this.farm = new Farm(this);
+    this.logging = new Logging(this);
+    this.workVehicles = [this.farm.tractor, this.logging.truck];
     this.ach = new Achievements(this);
     this.stats = {};
     this.rally = new Rally(this);
@@ -179,7 +184,7 @@ class Game {
     return [{ m: o.matrixWorld, inv: o.matrixWorld.clone().invert(), half: new THREE.Vector3(0.86, 0, 2.08), cz: 0, minY: 0.2, maxY: 1.42 }];
   }
   pickables() {
-    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || []), ...this.fightclub.pickRoots, this.police.officer.g, this.nightclub.root];
+    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || []), ...this.fightclub.pickRoots, this.police.officer.g, this.nightclub.root, this.farm.root, this.logging.root, ...this.workVehicles.map((v) => v.obj)];
     for (const it of this.asm.items.values()) if (it.loc?.kind === 'world' && !it.loc.cont) list.push(it.obj);
     return list;
   }
@@ -619,6 +624,7 @@ class Game {
     setTimeout(() => {
       if (this.player.inCar) this.exitCar();
       if (this.moped.riding) { this.moped.riding = false; this.player.onMoped = false; this.moped.speed = 0; this.moped.lean = 0; this.moped.place(); }
+      this.activeWorkVehicle?.exit(true);
       if (this.interaction.held) this.interaction.putDown(null);
       this.traffic.clearNear(this.player.pos.x, this.player.pos.z);
       this.player.pos.set(2, 0, 9); this.player.yaw = 0; this.player.pitch = 0; this.player.vel?.set(0, 0, 0);
@@ -741,6 +747,7 @@ class Game {
     if (this.money < 60) { this.toast('Not enough money'); return; }
     if (this.player.inCar) this.exitCar();
     if (this.moped.riding) this.moped.dismount();
+    this.activeWorkVehicle?.exit(true);
     this.ui.closeModal();
     this.fade(() => { this.addMoney(-60, 'Taxi home'); this.player.pos.set(2, 0, 9); this.player.yaw = 0; this.life.skip(30); });
   }
@@ -867,6 +874,8 @@ class Game {
       this.fightclub.update(dt, i);
       this.police.update(dt);
       this.nightclub.update(dt, i);
+      this.farm.update(dt, i);
+      this.logging.update(dt, i);
       this.updatePee(dt, i);
       this.updatePoo(dt, i);
       this.updateCig(dt);
@@ -931,9 +940,9 @@ class Game {
     if (this.car.mode === 'physics') for (const w of wheels) if (w.contact) { slip = Math.max(slip, Math.abs(w.slipV) / 6 + Math.abs(w.slipA) * 2 - 0.25); if (w.surface?.dust) gravel = 1; }
     const inside = Math.abs(this.player.pos.x) < 15.2 && this.player.pos.z > -5.2 && this.player.pos.z < 5.2 && this.player.pos.x < 6.2;
     this.audio.update(dt, {
-      camPos: this.camera.position, camFwd: this.camera.getWorldDirection(new THREE.Vector3()), enginePos: this.moped.riding && !pt.running ? this.moped.pos : this.car.engineWorldPos(),
-      engine: this.moped.riding && !pt.running ? { rpm: this.moped.rpm, running: true, load: 0.5, throttle: i.down('KeyW') ? 0.8 : 0.1, misfire: 0, loud: 1.7, starter: 0, knock: 0 } : { rpm: pt.rpm, running: pt.running, load: pt.load, throttle: pt.throttleEff || 0, misfire: pt.misfire || 0, loud: S?.loud || 1, starter: pt.cranking ? pt.starterSpin : 0, knock: pt.knock + (pt.detonation > 2 ? 0.3 : 0) },
-      slip: this.car.speed > 1 ? slip : 0, gravel, speed: this.moped.riding ? Math.abs(this.moped.speed) : this.car.speed, rain: this.weather.rain, day: this.sky.dayLight, outdoors: !inside, indoors: inside,
+      camPos: this.camera.position, camFwd: this.camera.getWorldDirection(new THREE.Vector3()), enginePos: this.activeWorkVehicle && !pt.running ? this.activeWorkVehicle.pos : this.moped.riding && !pt.running ? this.moped.pos : this.car.engineWorldPos(),
+      engine: this.activeWorkVehicle && !pt.running ? { rpm: this.activeWorkVehicle.rpm, running: true, load: 0.7, throttle: i.down('KeyW') ? 0.9 : 0.15, misfire: 0, loud: 2.2, starter: 0, knock: 0 } : this.moped.riding && !pt.running ? { rpm: this.moped.rpm, running: true, load: 0.5, throttle: i.down('KeyW') ? 0.8 : 0.1, misfire: 0, loud: 1.7, starter: 0, knock: 0 } : { rpm: pt.rpm, running: pt.running, load: pt.load, throttle: pt.throttleEff || 0, misfire: pt.misfire || 0, loud: S?.loud || 1, starter: pt.cranking ? pt.starterSpin : 0, knock: pt.knock + (pt.detonation > 2 ? 0.3 : 0) },
+      slip: this.car.speed > 1 ? slip : 0, gravel, speed: this.activeWorkVehicle ? Math.abs(this.activeWorkVehicle.speed) : this.moped.riding ? Math.abs(this.moped.speed) : this.car.speed, rain: this.weather.rain, day: this.sky.dayLight, outdoors: !inside, indoors: inside,
     });
     if (this.audio.ctx) {
       const R = this.audio.radio;

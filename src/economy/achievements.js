@@ -39,6 +39,8 @@ export const ACH = [
   { id: 'clubbing', icon: '🪩', title: 'On the list', desc: 'Get into Klubi Revontuli.' },
   { id: 'dance', icon: '💃', title: 'Dancing queen', desc: 'Hit the dance floor.' },
   { id: 'dj', icon: '🎧', title: 'Selecta', desc: 'Play a good DJ set at the club.' },
+  { id: 'farmhand', icon: '🚜', title: 'Farmhand', desc: 'Plough Kivelä\'s field.' },
+  { id: 'lumberjack', icon: '🪵', title: 'Lumberjack', desc: 'Deliver a full load of 6 logs to the sawmill.' },
   { id: 'dj_fight', icon: '🤜', title: 'Meet me outside', desc: 'Win the fight after a bad DJ set.' },
   { id: 'died', icon: '☠', title: 'Roadkill', desc: 'Get hit by a car.' },
   { id: 'rich', icon: '💰', title: 'Rich', desc: 'Have 10 000 mk in the bank.' },

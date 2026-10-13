@@ -376,6 +376,9 @@ export class Jobs {
     if (this.workshop) a.push({ key: 'workshop', title: `Esa's workshop job (${this.workshop.title.toLowerCase()})` });
     if (this.mowing) a.push({ key: 'mowing', title: 'Mowing Pertti\'s lawn' });
     if (this.scrapActive) a.push({ key: 'scrap', title: 'Scrap metal collecting' });
+    const g = this.game;
+    if (g.farm?.job) a.push({ key: 'farm', title: g.farm.job.kind === 'plough' ? 'Ploughing Kivelä\'s field' : 'Chores at Kivelä farm' });
+    if (g.logging?.job) a.push({ key: 'logging', title: 'Logging for Metsä-Pekka' });
     return a;
   }
   cancel(key) {
@@ -384,6 +387,8 @@ export class Jobs {
     if (key === 'parcels' && this.parcels) { for (const p of this.parcels.list) drop(p.uid); this.parcels = null; g.say('You called Helena: "Fine, I\'ll find someone else for those parcels."', 5); }
     if (key === 'workshop' && this.workshop) { for (const u of this.workshop.items) { const it = asm.get(u); if (it && !it.slot) drop(u); else if (it) { asm.uninstall?.(it, { silent: true }); drop(u); } } this.workshop = null; this.returnEsaTools?.(); g.say('You told Esa you can\'t finish the job. "Pfft. Fine. Ask again tomorrow."', 5); }
     if (key === 'mowing' && this.mowing) { this.mowing = null; if (g.player.pushing === this.mower) g.player.pushing = null; g.say('You told Pertti you won\'t mow the lawn after all.', 4); }
+    if (key === 'farm' && g.farm?.job) g.farm.cancel();
+    if (key === 'logging' && g.logging?.job) { g.logging.endJob(false); g.say('You called Metsä-Pekka: "Suit yourself. Trees aren\'t going anywhere."', 4); }
     if (key === 'scrap') { this.scrapActive = false; g.say('Stopped collecting scrap. (You can still sell scrap to Raimo any time.)', 4); }
     if (this.focus === key) this.focus = null;
     g.saveGame(true);
@@ -394,6 +399,8 @@ export class Jobs {
     L.push({ title: 'Mow neighbour Pertti\'s lawn', status: this.mowing ? `${Math.round(this.mowProgress() * 100)}% mowed` : 'Talk to Pertti (farm west of your place)', pay: '180 mk / week' });
     L.push({ title: 'Scrap metal for Raimo\'s scrapyard', status: this.scrapKnown ? 'Collect junk around the parish and put it on the scale' : 'Ask Raimo or Mäkelä', pay: `${SCRAP_PRICE} mk/kg` });
     L.push({ title: 'Workshop jobs at Esa\'s garage', status: this.workshop ? `${this.workshop.title}: ${this.workshop.tasks.filter((t) => !this.taskDone(t)).length} tasks left` : 'Ask Esa, 8–18 (one job per day)', pay: '240–380 mk' });
+    L.push({ title: 'Farm work at Kivelä farm (south of Route 54)', status: g.farm?.job ? (g.farm.job.kind === 'plough' ? `Ploughing: ${Math.round(g.farm.progress() * 100)}%` : 'Doing the chores') : 'Talk to Isäntä Kivelä, 6–21', pay: '110–220 mk / job' });
+    L.push({ title: 'Logging: Metsä-Pekka\'s camp (far north, past the lake)', status: g.logging?.job ? `${g.logging.truck.logs} logs on the truck` : 'Talk to Metsä-Pekka, 6–20', pay: '55 mk / log delivered' });
     return L;
   }
   serialize() { return { focus: this.focus, scrapActive: this.scrapActive, parcels: this.parcels, mowing: this.mowing, cut: Array.from(this.mowCut).join(''), workshop: this.workshop, scrapKnown: this.scrapKnown, restockDay: this.restockDay, scrapSeeded: this.scrapSeeded, lastMowWeek: this.lastMowWeek, lastWorkshopDay: this.lastWorkshopDay }; }
