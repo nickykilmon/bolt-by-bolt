@@ -28,7 +28,7 @@ export class Life {
     const nm = { relaxed: 0.6, harsh: 1.5 }[this.game.profile?.needs] || 1;
     this.hunger = clamp(this.hunger - gm * nm * 100 / (60 * 26), 0, 100);
     this.thirst = clamp(this.thirst - gm * nm * 100 / (60 * 18), 0, 100);
-    this.fatigue = clamp(this.fatigue + gm * 100 / (60 * 20), 0, 100);
+    this.fatigue = clamp(this.fatigue + gm / 60 * this.tireRate(), 0, 100);
     // weekly bills every Monday 00:00
     const week = Math.floor(this.day / 7);
     if (week > this.billWeek) {
@@ -77,15 +77,38 @@ export class Life {
   }
   drinkWater() { this.thirst = clamp(this.thirst + 30, 0, 100); this.game.audio.pour(); this.game.toast('Drank some tap water'); }
 
+  // tiredness follows the clock: slow in the day, fast in the evening, so you're sleepy at bedtime
+  tireRate(h = this.hours) {
+    if (h >= 7 && h < 17) return 2.5;   // per game hour
+    if (h >= 17 && h < 21) return 7;
+    return 12;                          // late night
+  }
+  isNight(h = this.hours) { return h >= 19 || h < 5; }
+  sleepPrompt() {
+    if (this.isNight()) return `<span class="k">E</span>Sleep until morning <span class="dim">(wake up at 07:00)</span>`;
+    return this.fatigue >= 40 ? `<span class="k">E</span>Take a nap <span class="dim">(1.5 h — bedtime is from 19:00)</span>` : `Bed <span class="dim">(not tired — bedtime is from 19:00)</span>`;
+  }
   sleep() {
-    if (this.fatigue < 30) { this.game.say('I\'m not tired yet.'); return; }
-    this.game.fade(() => {
-      const hrs = clamp(this.fatigue / 100 * 9, 4, 9);
-      const target = this.minutes + hrs * 60;
-      this.skip(target - this.minutes);
-      this.fatigue = 0;
-      this.game.say(`Slept ${hrs.toFixed(1)} hours. ${this.hunger < 30 ? 'Woke up hungry.' : 'Feeling fresh.'}`);
-      this.game.saveGame(true);
+    const g = this.game;
+    if (this.isNight()) {
+      // sleep through the night: always wake up at 07:00 (the next day if it's still evening)
+      const wake = (this.day + (this.hours >= 19 ? 1 : 0)) * 1440 + 7 * 60;
+      g.fade(() => {
+        const hrs = (wake - this.minutes) / 60;
+        this.skip(wake - this.minutes);
+        this.fatigue = 0;
+        this.cheer(4, true);
+        g.say(`Slept ${hrs.toFixed(1)} hours. Good morning — it's 07:00, ${this.dayName()}. ${this.hunger < 30 ? 'Woke up hungry.' : 'Feeling fresh.'}`, 6);
+        g.saveGame(true);
+      });
+      return;
+    }
+    if (this.fatigue < 40) { g.say('I\'m not tired. Bedtime is in the evening (from 19:00).'); return; }
+    g.fade(() => {
+      this.skip(90);
+      this.fatigue = Math.max(0, this.fatigue - 35);
+      g.say('Had a 1.5 hour nap. That helped a bit — proper sleep comes tonight.', 5);
+      g.saveGame(true);
     });
   }
   skip(min) {

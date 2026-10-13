@@ -185,7 +185,7 @@ export function buildPlace(game) {
   const bed = new THREE.Group(); bed.position.set(-13.9, 0, -3.6); g.add(bed);
   box(bed, 1.0, 0.4, 2.0, MAT.wood, 0, 0.2, 0); box(bed, 0.95, 0.15, 1.95, mats.bedding, 0, 0.47, 0); box(bed, 0.6, 0.12, 0.35, mats.white, 0, 0.6, -0.75);
   addBoxCollider(-13.9, 0.3, -3.6, 1.0, 0.6, 2.0);
-  interact(bed, { prompt: () => `<span class="k">E</span>Sleep`, use: () => game.life.sleep() });
+  interact(bed, { prompt: () => game.life.sleepPrompt(), use: () => game.life.sleep() });
   // fridge (container with door)
   const fr = new THREE.Group(); fr.position.set(-7.0, 0, -4.65); g.add(fr);
   box(fr, 0.65, 1.7, 0.08, mats.white, 0, 0.85, -0.28); box(fr, 0.06, 1.7, 0.62, mats.white, -0.3, 0.85, 0); box(fr, 0.06, 1.7, 0.62, mats.white, 0.3, 0.85, 0);
