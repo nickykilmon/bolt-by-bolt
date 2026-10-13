@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { DEFS, slotById, fastenerList, SIZE_LABEL } from '../mechanics/partsdb.js';
 import { TIGHT_OK } from '../mechanics/assembly.js';
+import { installRepair } from './repair.js';
 
 const COL = { grab: '#ffd23c', go: '#4ad8ff', tool: '#ff9a3c', bolt: '#ff7a2a', done: '#5ce05c' };
 
@@ -55,12 +56,12 @@ export class Guide {
   slotPos(host, slot) { return new THREE.Vector3().setFromMatrixPosition(this.asm.slotWorldMatrix(host, slot)); }
   fillPos(inst) { let p = null; inst.vis?.traverse((o) => { if (o.userData.fill && !p) p = this.wp(o); }); return p || this.center(inst); }
   // best loose (or held / pocketed) item of a type, optionally needing a minimum condition
-  pick(type, minCond = 0) {
+  pick(type, minCond = 0, defId = null) {
     const held = this.game.interaction.held;
-    if (held && held.def.type === type && held.cond >= minCond) return held;
+    if (held && held.def.type === type && held.cond >= minCond && (!defId || held.def.id === defId)) return held;
     let best = null;
     for (const it of this.asm.items.values()) {
-      if (it.def.type !== type || it.slot || it.props.forSale || this.isJobItem(it)) continue;
+      if (it.def.type !== type || it.slot || it.props.forSale || this.isJobItem(it) || (defId && it.def.id !== defId)) continue;
       if (it.loc?.kind === 'hoist') continue;
       if (it.cond < minCond) continue;
       const p = it.loc?.kind === 'inv' ? this.game.player.pos : it.obj.getWorldPosition(new THREE.Vector3());
@@ -153,7 +154,7 @@ export class Guide {
         if (o.car && !inst) { const hb = this.hoodBlock(); if (hb && o.bay) return hb; }
         if (o.under && !this.underOk()) return this.raiseGuide();
         if (!inst) {
-          const item = this.pick(type, o.minCond || 0);
+          const item = this.pick(type, o.minCond || 0, o.defId);
           if (!item) return this.buyGuide(type, o.minCond);
           if (!this.asm.checkInstall(item, host, slot).ok) return { blocked: true }; // something else has to go on first
           const held = this.game.interaction.held;
@@ -520,6 +521,10 @@ export class Guide {
       this.doneCount = doneCount; this.total = this.steps.length;
       if (box) this.cur = { st: { title: 'Your delivery has arrived' }, s: { text: 'Open the box on the pallet outside the garage door (E) to unpack the parts.', targets: [{ kind: 'mark', pos: this.center(box), text: 'Open the delivery box', col: COL.grab }] }, idx: doneCount + 1 };
       else if (!this.cur && doneCount < this.total) { const m = this.moneyStep(); if (m) this.cur = { ...m, idx: doneCount + 1 }; }
+      // repairs & upgrades take over from the build steps (the build steps then put back what was removed)
+      let rp = null;
+      try { rp = this.repairObjective(); } catch (e) { console.error('repair plan failed', e); }
+      if (rp) this.cur = { ...rp, idx: 0 };
       // a job you've taken takes over the objective until it's finished
       let jo = null;
       try { jo = this.jobObjective(); } catch (e) { console.error('job objective failed', e); }
@@ -550,7 +555,7 @@ export class Guide {
     let dist = '';
     const main = (s.targets || []).find((t) => t.kind === 'mark') || (s.dots?.length ? { pos: s.dots[0].pos } : null);
     if (main) { const d = main.pos.distanceTo(g.camera.position); if (d > 4) dist = ` <span class="gd">${Math.round(d)} m</span>`; }
-    this.el.innerHTML = `<div class="gp">${this.cur.job ? 'JOB · ' + this.cur.job + ' · cancel it on the phone (P)' : `BUILD THE RUSKA · STEP ${this.cur.idx} OF ${this.total}`}</div><div class="gt">${st.title}${dist}</div><div class="gs">${s.text || ''}</div><div class="gk2"><span class="gk">H</span> hide guide</div>`;
+    this.el.innerHTML = `<div class="gp">${this.cur.job ? 'JOB · ' + this.cur.job + ' · cancel it on the phone (P)' : this.cur.repair ? `REPAIRS & UPGRADES · ${this.cur.repair}` : `BUILD THE RUSKA · STEP ${this.cur.idx} OF ${this.total}`}</div><div class="gt">${st.title}${dist}</div><div class="gs">${s.text || ''}</div><div class="gk2"><span class="gk">H</span> hide guide</div>`;
     if (!show) return;
     for (const t of s.targets || []) {
       if (t.kind !== 'mark') continue;
@@ -568,8 +573,10 @@ export class Guide {
     }
   }
   toggle() { this.hidden = !this.hidden; this.t = 1; this.game.toast(this.hidden ? 'Build guide hidden (H to show)' : 'Build guide on'); }
-  serialize() { return { hidden: this.hidden, started: this.started, driven: this.driven }; }
-  restore(d) { if (!d) return; this.hidden = !!d.hidden; this.started = !!d.started; this.driven = !!d.driven; }
+  serialize() { return { hidden: this.hidden, started: this.started, driven: this.driven, repair: this.repair || [] }; }
+  restore(d) { if (!d) return; this.hidden = !!d.hidden; this.started = !!d.started; this.driven = !!d.driven; this.repair = d.repair || []; }
 }
 
 function short(name) { return name.replace(/\s*\(.*?\)\s*/g, ' ').trim(); }
+
+installRepair(Guide);
