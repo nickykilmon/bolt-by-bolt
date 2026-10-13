@@ -189,6 +189,7 @@ export class Interaction {
   update(dt, input) {
     const g = this.game;
     if (g.player.inCar || g.player.onMoped) { this.updateInCar(dt, input); return; }
+    if (g.fightclub?.fight) { this.target = null; g.ui.prompt('', false); return; }
     this.updateGhosts();
     if (this.ghosts.children.length) this.refreshGhostMatrices();
     // inspect mode

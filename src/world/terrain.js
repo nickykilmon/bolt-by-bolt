@@ -5,6 +5,8 @@ import { TEX, repeated } from '../core/textures.js';
 
 export const SIZE = 1600, CELL = 4, N = SIZE / CELL;
 const HALF = SIZE / 2;
+// the church and the fight cellar under it (stairwell dug through the ground inside the church)
+export const CELLAR = { x: 520, z: 215, depth: 5, pit: [[520, 212], [520, 216]] };
 export const LAKE = { x: 150, z: -175, r: 70, level: -1.6, SHORE: 88 }; // SHORE: radius of the waterline
 export const YARD = { x: 0, z: 8, r: 34 };
 // flattened building zones (h filled in at build time)
@@ -185,6 +187,9 @@ export function buildTerrainData() {
     if (zn && (!nr || nr.d > nr.road.w / 2 + 1.5)) h = zn.h;
     H[idx(i, j)] = h;
   }
+  // stairwell pit under the church floor (hidden by the church's floor and walls)
+  const T0 = ZONES.find((z) => z.id === 'town').h;
+  for (const [x, z] of CELLAR.pit) H[idx((x + HALF) / CELL, (z + HALF) / CELL)] = T0 - CELLAR.depth - 1;
   // roughness map (2 m cells)
   ROUGH = new Float32Array(RN * RN);
   for (const r of ROADS) {

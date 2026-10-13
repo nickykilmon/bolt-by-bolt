@@ -30,6 +30,9 @@ export const ACH = [
   { id: 'pee_self', icon: '😳', title: 'Accident', desc: 'Wet yourself.' },
   { id: 'drunk', icon: '🥴', title: 'Hyvää juhannusta', desc: 'Get properly drunk.' },
   { id: 'smoke_20', icon: '🚬', title: 'Pack a day', desc: 'Smoke 20 cigarettes.' },
+  { id: 'fight_win', icon: '🥊', title: 'First blood', desc: 'Win a fight in The Cellar.' },
+  { id: 'fight_champ', icon: '👊', title: 'King of the Cellar', desc: 'Beat all five fighters, Iso-Jussi included.' },
+  { id: 'bet_win', icon: '🎲', title: 'Called it', desc: 'Win a bet at The Cellar.' },
   { id: 'died', icon: '☠', title: 'Roadkill', desc: 'Get hit by a car.' },
   { id: 'rich', icon: '💰', title: 'Rich', desc: 'Have 10 000 mk in the bank.' },
 ];

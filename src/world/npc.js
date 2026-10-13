@@ -13,14 +13,14 @@ const shoeM = new THREE.MeshStandardMaterial({ color: 0x2a2018, roughness: 0.6 }
 const cap = (r, len, mat) => { const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 10), mat); m.castShadow = true; return m; };
 
 // a seeded random face for each villager
-function npcFace(rnd, hairIdx) {
+export function npcFace(rnd, hairIdx) {
   const pick = (k) => Math.floor(rnd() * FACE_OPTS[k].list.length);
   return { skin: Math.floor(rnd() * 5), shape: pick('shape'), hair: pick('hair'), hairColor: hairIdx, eyes: pick('eyes'), eyeColor: pick('eyeColor'),
     brows: pick('brows'), nose: pick('nose'), mouth: rnd() < 0.6 ? 0 : pick('mouth'), beard: rnd() < 0.5 ? 0 : pick('beard'),
     details: rnd() < 0.6 ? 0 : pick('details'), glasses: rnd() < 0.7 ? 0 : 1 + Math.floor(rnd() * 2), shirt: 0 };
 }
 
-function personModel(shirt, pants, face, hat) {
+export function personModel(shirt, pants, face, hat) {
   const g = new THREE.Group();
   const skinHex = FACE_OPTS.skin.list[face.skin], hairHex = FACE_OPTS.hairColor.list[face.hairColor];
   const skinM = new THREE.MeshStandardMaterial({ color: skinHex, roughness: 0.75 });
@@ -172,7 +172,7 @@ export class NPCs {
     const pitches = [0.1, 0.35, 0.55, 0.75, 1.35, 1.6, 1.9];
     return { voice: key, pitch: n?.voice?.pitch ?? pitches[h % pitches.length], rate: n?.voice?.rate ?? 0.85 + ((h >> 4) % 5) * 0.09 };
   }
-  isWorking(npc) { const h = this.game.life.hours; return h >= npc.hours[0] && h < npc.hours[1]; }
+  isWorking(npc) { const h = this.game.life.hours, [a, b] = npc.hours; return a < b ? h >= a && h < b : h >= a || h < b; }
   get(id) { return this.list.find((n) => n.id === id); }
   available(role) { const n = this.list.find((x) => x.role === role); return n && this.isWorking(n); }
 

@@ -27,6 +27,7 @@ import { Pets } from './world/pets.js';
 import { FX } from './vehicles/fx.js';
 import { Lake } from './world/lake.js';
 import { Achievements } from './economy/achievements.js';
+import { FightClub } from './world/fightclub.js';
 import './ui/screens.js';
 import { Guide } from './ui/guide.js';
 import { hasSave, writeSave, readSave, applySave, SAVE_KEY } from './save/save.js';
@@ -108,6 +109,7 @@ class Game {
     this.pets = new Pets(this);
     this.fx = new FX(this.scene);
     this.lake = new Lake(this);
+    this.fightclub = new FightClub(this);
     this.ach = new Achievements(this);
     this.stats = {};
     this.rally = new Rally(this);
@@ -172,7 +174,7 @@ class Game {
     return [{ m: o.matrixWorld, inv: o.matrixWorld.clone().invert(), half: new THREE.Vector3(0.86, 0, 2.08), cz: 0, minY: 0.2, maxY: 1.42 }];
   }
   pickables() {
-    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || [])];
+    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || []), ...this.fightclub.pickRoots];
     for (const it of this.asm.items.values()) if (it.loc?.kind === 'world' && !it.loc.cont) list.push(it.obj);
     return list;
   }
@@ -743,6 +745,7 @@ class Game {
       this.traffic.update(dt);
       this.pets.update(dt);
       this.lake.update(dt);
+      this.fightclub.update(dt, i);
       this.updatePee(dt, i);
       this.updateMisc(dt);
       if (this.player.inCar && this.car.speed > 4) this.life.cheer(dt * 0.05, true); // driving is fun
@@ -794,6 +797,7 @@ class Game {
     const cp = this.camera.position, under = cp.y < LAKE.level - 0.02 && Math.hypot(cp.x - LAKE.x, cp.z - LAKE.z) < LAKE.SHORE + 5;
     if (under) { const f = this.scene.fog; f.color.setRGB(0.06, 0.22, 0.3); f.near = 0.5; f.far = 14; }
     this.sky.dome.visible = !under; this.sky.stars.visible = !under;
+    if (this.player.pos.y < heightAt(this.player.pos.x, this.player.pos.z) - 1.5) this.sky.rain.visible = false; // no rain in the cellar
     this.scene.background = under ? this.scene.fog.color : null;
     if (under !== this.underwater) { this.underwater = under; $('underwater').classList.toggle('on', under); if (under) this.say('Brr! You\'re underwater.', 1.5); }
     // audio

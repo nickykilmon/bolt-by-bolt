@@ -243,11 +243,7 @@ export function buildTown(game) {
     mailbox(game, root, 'mb_' + n.toLowerCase(), n, x + off.x, z + off.z, r);
   }
   for (let i = 0; i < 6; i++) { const z = 95 + i * 30; for (const x of [553, 572]) { const l = new THREE.Group(); l.position.set(x + (z > 200 ? (x < 560 ? 4 : 8) : 0), T, z); root.add(l); cyl(l, 0.06, 4.5, MAT.darkSteel, 0, 2.25, 0, 'y', 6); const bulb = box(l, 0.4, 0.15, 0.25, mats.fluoro, 0, 4.5, 0); bulb.material = mats.fluoro; } }
-  // church tower for silhouette
-  const ch = new THREE.Group(); ch.position.set(520, T, 215); root.add(ch);
-  solid(ch, 7, 6, 11, mats.white, 0, 3, 0); solid(ch, 3, 12, 3, mats.white, 0, 6, -6.5);
-  const spire = new THREE.Mesh(new THREE.ConeGeometry(2.2, 6, 4), mats.roof); spire.position.set(0, 15, -6.5); spire.rotation.y = Math.PI / 4; ch.add(spire);
-  for (const s of [1, -1]) { const r = box(ch, 7.6, 0.1, 6.2, mats.roof, 0, 7.2, s * 0); r.rotation.z = s * 0.6; r.position.x = s * 1.6; r.scale.set(0.55, 1, 1.95); }
+  // (the church — with the fight cellar under it — is built in fightclub.js)
 
   // ---------------- scrapyard ----------------
   const S = zh('scrapyard');

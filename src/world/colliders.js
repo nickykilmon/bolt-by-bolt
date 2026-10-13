@@ -99,9 +99,12 @@ export function collidePlayer(pos, radius, feetY, headY, dynamicBoxes) {
 
 // extra walkable surfaces that aren't boxes (e.g. the rotated lake jetty): fn(x, z) -> y | null
 export const FLOORS = [];
+// underground areas: below ground inside these, the ground above is your ceiling, not your floor
+export const UNDERGROUND = []; // { minX, maxX, minZ, maxZ, top }: below `top` inside the box, the outside ground doesn't count
 // Highest walkable surface under the player (terrain or walkable box tops)
 export function floorAt(x, z, feetY) {
   let y = heightAt(x, z);
+  if (UNDERGROUND.some((u) => x > u.minX && x < u.maxX && z > u.minZ && z < u.maxZ && feetY < u.top)) y = -1e9;
   for (const f of FLOORS) { const fy = f(x, z); if (fy !== null && fy <= feetY + 0.45 && fy > y) y = fy; }
   for (const c of STATICS) {
     if (!c.walkable) continue;
