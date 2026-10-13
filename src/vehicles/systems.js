@@ -317,6 +317,14 @@ export function analyze(asm, car) {
     const dead = /light/i.test(k) && p.cond < 0.15;
     issue(dead ? 2 : 1, `Crash damage: ${n} ${Math.round(p.cond * 100)}%${dead ? ' — broken, gives no light' : ''} (replace it, or Esa/Ari can repair the body)`, 'body');
   }
+  // anything else in the car that's worn out (e.g. a crushed radiator only cools worse, but it's still worth knowing)
+  const CW = { FL: 'front-left', FR: 'front-right', RL: 'rear-left', RR: 'rear-right' };
+  for (const d of asm.descendants(ch)) {
+    const host = asm.hostOf(d), s = asm.slotDef(d);
+    if (!s || d.def.kind !== 'part' || d.cond >= 0.2 || BODY[s.id] || d.def.type === 'block') continue;
+    if (host === ch && /^(tieRod|controlArm)/.test(s.id) && Math.abs(d.props.bent || 0) > 0.003) continue; // reported as alignment
+    issue(1, `${s.id === 'radiator' ? 'Crash damage' : 'Worn out'}: ${s.name.replace(/(FL|FR|RL|RR)/g, (m) => CW[m])} ${Math.round(d.cond * 100)}% — replace it`, 'wear');
+  }
   S.issues.sort((a, b2) => b2.sev - a.sev);
   return S;
 }

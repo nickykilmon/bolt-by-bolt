@@ -192,7 +192,7 @@ class Game {
     const p = this.player.pos;
     const ds = p.distanceTo(this.stand.obj.position);
     const dc = p.distanceTo(this.car.chassis.obj.position);
-    return ds < dc && ds < 3 ? 'stand' : 'car';
+    return ds < dc && ds < 3 && this.stand.kids.engine ? 'stand' : 'car'; // an empty stand never hides the car's diagnosis
   }
   nearestSocketCase(r) {
     const p = this.camera.position; let best = null, bd = r;

@@ -39,8 +39,8 @@ export function installRepair(Guide) {
         if (!occ || NO_SWAP.has(occ.def.type) || occ.def.kind !== 'part' || has(h, s.id)) continue;
         const bent = Math.abs(occ.props.bent || 0) > 0.003;
         if (occ.cond < 0.2 || bent) {
-          plan.push({ h: h.uid, s: s.id, type: occ.def.type, kind: 'fix', why: bent ? `Bent ${short(occ.def.name).toLowerCase()} (crash damage)` : BODY.has(s.id) ? `Crash-damaged ${short(occ.def.name).toLowerCase()} (${Math.round(occ.cond * 100)}%)` : `Worn out ${short(occ.def.name).toLowerCase()} (${Math.round(occ.cond * 100)}%)`, where: words(s.name) });
-          this.game.toast(`🔧 New repair job: ${bent ? 'bent' : BODY.has(s.id) ? 'crash-damaged' : 'worn out'} ${words(s.name).toLowerCase()} — see the guide (H)`, 4);
+          plan.push({ h: h.uid, s: s.id, type: occ.def.type, kind: 'fix', why: bent ? `Bent ${short(occ.def.name).toLowerCase()} (crash damage)` : BODY.has(s.id) || s.id === 'radiator' ? `Crash-damaged ${short(occ.def.name).toLowerCase()} (${Math.round(occ.cond * 100)}%)` : `Worn out ${short(occ.def.name).toLowerCase()} (${Math.round(occ.cond * 100)}%)`, where: words(s.name) });
+          this.game.toast(`🔧 New repair job: ${bent ? 'bent' : BODY.has(s.id) || s.id === 'radiator' ? 'crash-damaged' : 'worn out'} ${words(s.name).toLowerCase()} — see the guide (H)`, 4);
         }
       }
     }

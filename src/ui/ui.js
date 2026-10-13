@@ -75,6 +75,8 @@ export class UI {
     } else {
       h += `<h3>Ruska 1600 — diagnosis</h3>`;
       const sev = ['ok', 'warn', 'warn', 'bad'];
+      const plan = (g.guide.repair || []).filter((t) => t.kind !== 'refit');
+      if (plan.length) h += `<div class="warn">🔧 Repair plan: ${plan.length} job${plan.length > 1 ? 's' : ''} — the guide (top left) walks you through them</div>`;
       const list = S.issues.slice(0, 22);
       if (!list.length) h += '<div class="ok">No problems found. Time to drive!</div>';
       for (const i of list) h += `<div class="${sev[i.sev]}">${i.sev >= 3 ? '✖' : '⚠'} ${i.text}</div>`;
