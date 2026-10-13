@@ -108,14 +108,17 @@ export class FightClub {
     this.doorman.g.traverse((o) => { if (o.isMesh) o.userData.interact = { prompt: () => `${K('E')}Talk to the doorman`, use: (b) => { if (b === 'E') { if (this.door.target) g.say('Doorman: "In or out, make up your mind."'); else this.useDoor(); } } }; });
     this.pickRoots = [this.church, hinge, this.doorman.g];
   }
+  insideCellar() { return this.game.player.pos.z < CELLAR.z - 9.2 && this.game.player.pos.y < this.T - 2; }
   doorPrompt() {
     if (this.door.target) return `${K('E')}Close the door`;
+    if (this.insideCellar()) return `${K('E')}Open the door <span class="dim">(it unlocks from the inside)</span>`;
     if (!this.isNight()) return `Cellar door — locked. <span class="dim">A note: "Fight night 21:00–04:00. Members only."</span>`;
     return `${K('E')}Knock on the cellar door`;
   }
   useDoor() {
     const g = this.game;
     if (this.door.target) { this.door.target = 0; g.audio.door(false, 'door'); return; }
+    if (this.insideCellar()) { this.door.target = 1; g.audio.door(true, 'door'); return; } // you can always get out
     if (!this.isNight()) { g.audio.thunk(0.5); g.say('Locked. Nobody answers. (Fight night is 21:00–04:00)'); return; }
     g.audio.thunk(0.6);
     if (!this.metDoorman) { this.metDoorman = true; g.say(`Doorman: "…Password? Ha, just kidding. You look like you can take a punch, ${g.profile?.name || 'JC'}. Get in."`, 5); }
@@ -189,36 +192,39 @@ export class FightClub {
   }
   openBets() {
     const g = this.game, ui = g.ui;
-    if (this.fight || this.match) { g.say('Veikko: "Wait for this one to finish."'); return; }
+    if (this.bet) { const bf = FIGHTERS[this.bet.side ? this.bet.m.b : this.bet.m.a]; g.say(`Veikko: "You've got ${this.bet.amt} mk on ${bf.name} in the next fight. Patience."`, 4); return; }
     const m = this.matchup(), A = FIGHTERS[m.a], B = FIGHTERS[m.b];
-    ui.panel(`<h2>Veikko's book</h2><div>Next fight: <b>${A.name}</b> vs <b>${B.name}</b></div>
+    const now = this.match ? `<div class="muted">In the ring now: ${this.match.a.f.name} vs ${this.match.b.f.name}</div>` : this.fight ? '<div class="muted">In the ring now: you!</div>' : '';
+    ui.panel(`<h2>Veikko's book</h2>${now}<div>Next fight: <b>${A.name}</b> vs <b>${B.name}</b> <span class="muted">(bets are for the next fight)</span></div>
       <div class="muted">Odds: ${A.name.split(' ')[0]} pays ${m.oddsA}× · ${B.name.split(' ')[0]} pays ${m.oddsB}×. You have ${fmtMoney(g.money)}.</div>
       ${[A, B].map((F, i) => `<div class="svc"><span>Bet on <b>${F.name}</b> (${i ? m.oddsB : m.oddsA}×)</span><span>${[20, 50, 100, 250].map((v) => `<button class="small" data-b="${i}:${v}">${v} mk</button>`).join(' ')}</span></div>`).join('')}`, (el) => {
       el.querySelectorAll('[data-b]').forEach((btn) => btn.onclick = () => {
         const [side, amt] = btn.dataset.b.split(':').map(Number);
         if (g.money < amt) { ui.toast('Not enough money'); return; }
         g.addMoney(-amt, `Bet on ${(side ? B : A).name}`);
-        this.bet = { side, amt, odds: side ? m.oddsB : m.oddsA };
-        ui.closeModal(); this.startMatch();
+        this.bet = { side, amt, odds: side ? m.oddsB : m.oddsA, m };
+        ui.closeModal();
+        g.say(this.match || this.fight ? `Veikko: "${amt} mk on ${(side ? B : A).name}. It's the next fight — enjoy this one."` : `Veikko: "${amt} mk on ${(side ? B : A).name}. They're up next."`, 4);
       });
     });
   }
   startMatch() {
-    const g = this.game, m = this.nextMatch; this.nextMatch = null;
+    const g = this.game, m = this.matchup(); this.nextMatch = null;
     const mk = (i, sx) => { const f = FIGHTERS[i]; const p = personModel(f.shirt, f.pants, npcFace(mulberry32(i * 17 + 3), i % 7), null); p.g.position.set(this.rc.x + sx * 1.6, this.F, this.rc.z); g.scene.add(p.g); return { ...this.newFighter(f), model: p, pos: p.g.position }; };
     const a = mk(m.a, -1), b = mk(m.b, 1);
     // bias the fight towards the odds a little (the favourite hits a bit harder)
     a.dmg *= 0.85 + m.pa * 0.3; b.dmg *= 0.85 + (1 - m.pa) * 0.3;
-    this.match = { a, b, winner: null, t: 0 };
-    g.say(`Ring master: "Ladies and gentlemen… ${FIGHTERS[m.a].name}… versus… ${FIGHTERS[m.b].name}!"`, 4);
-    g.audio.beep(true);
+    this.match = { a, b, winner: null, t: 0, bet: this.bet && this.bet.m === m ? this.bet : null };
+    if (this.match.bet) this.bet = null;
+    if (g.player.pos.distanceTo(this.rc) < 25) { g.say(`Ring master: "Ladies and gentlemen… ${FIGHTERS[m.a].name}… versus… ${FIGHTERS[m.b].name}!"`, 4); g.audio.beep(true); }
   }
   newFighter(f) { return { f, hp: f.hp, maxHp: f.hp, dmg: f.dmg, speed: f.speed, wind: f.wind, blockP: f.block, cd: 1 + Math.random(), state: 'move', t: 0, arm: 0, blockT: 0, yaw: 0, ko: 0 }; }
 
   // ---------------- fighting ----------------
   openFight() {
     const g = this.game, ui = g.ui;
-    if (this.fight || this.match) { g.say('Ring master: "Wait your turn."'); return; }
+    if (this.fight) { g.say('Ring master: "You\'re already in there!"'); return; }
+    if (this.queued) { g.say('Ring master: "You\'re on after this one. Warm up."'); return; }
     const i = Math.min(this.rank, FIGHTERS.length - 1), f = FIGHTERS[i];
     const champ = this.rank >= FIGHTERS.length;
     const prize = champ ? Math.round(f.prize * 0.6) : f.prize, fee = 30;
@@ -226,11 +232,13 @@ export class FightClub {
       <div>${champ ? 'You beat them all. Rematch against <b>Iso-Jussi</b> for the crowd?' : `Next on the ladder (${i + 1}/${FIGHTERS.length}): <b>${f.name}</b>`}</div>
       <div class="muted">Entry ${fmtMoney(fee)} · Win ${fmtMoney(prize)} · ${f.hp} HP, hits ${f.dmg <= 8 ? 'soft' : f.dmg <= 11 ? 'hard' : 'very hard'}.</div>
       <div class="muted" style="margin-top:6px">${K('LMB')} punch (uses stamina) · hold ${K('RMB')} block · WASD move. Watch his arm pull back — that's your cue to block or step away.</div>
-      <div class="svc"><span>Step into the ring</span><button id="fgo">Fight! (${fmtMoney(fee)})</button></div>`, (el) => {
+      <div class="svc"><span>${this.match ? 'Fight after the current match' : 'Step into the ring'}</span><button id="fgo">Fight! (${fmtMoney(fee)})</button></div>`, (el) => {
       el.querySelector('#fgo').onclick = () => {
         if (g.money < fee) { ui.toast('Not enough money for the entry fee'); return; }
         if (g.interaction.held) { ui.toast('Put down what you\'re holding first'); return; }
-        g.addMoney(-fee, 'Fight entry fee'); ui.closeModal(); this.startFight(i, prize);
+        g.addMoney(-fee, 'Fight entry fee'); ui.closeModal();
+        if (this.match) { this.queued = { i, prize }; g.say('Ring master: "You\'re up after this fight. Don\'t wander off."', 4); }
+        else this.startFight(i, prize);
       };
     });
   }
@@ -320,27 +328,36 @@ export class FightClub {
     if (!night && this.door.target && Math.hypot(g.player.pos.x - CELLAR.x, g.player.pos.z - (CELLAR.z - 9.2)) > 6) this.door.target = 0; // doorman locks up at dawn
     if (this.match) this.updateMatch(dt);
     if (this.fight) this.updateFight(dt, input);
+    // fight night: one match after another (and your fight, if you signed up, comes next)
+    if (night && !this.match && !this.fight) {
+      this.breakT = (this.breakT ?? 0) - dt;
+      if (this.queued) {
+        if (g.player.pos.distanceTo(this.rc) < 25 && !g.interaction.held) { const q = this.queued; this.queued = null; this.startFight(q.i, q.prize); }
+        else if (this.breakT < -60) { this.queued = null; g.say('Ring master: "You missed your fight. No refunds."', 4); }
+      } else if (this.breakT <= 0) this.startMatch();
+    }
+    if (!night && this.queued) this.queued = null;
   }
   updateMatch(dt) {
     const g = this.game, M = this.match;
     M.t += dt;
-    if (!M.winner) {
+    if (M.winner === null) {
       this.aiStep(M.a, M.b.pos, dt, (d) => { if (d < 1.45) { this.hitFighter(M.b, M.a.dmg * (0.7 + Math.random() * 0.6)); g.audio.thunk(0.7); } });
       this.aiStep(M.b, M.a.pos, dt, (d) => { if (d < 1.45) { this.hitFighter(M.a, M.b.dmg * (0.7 + Math.random() * 0.6)); g.audio.thunk(0.7); } });
       if (M.a.state === 'ko' || M.b.state === 'ko') {
         M.winner = M.a.state === 'ko' ? 1 : 0; M.endT = 4;
         const w = M.winner ? M.b : M.a;
-        g.say(`KNOCKOUT! ${w.f.name} wins!`, 4); g.audio.crash(10);
-        if (this.bet) {
-          if (this.bet.side === M.winner) { const pay = Math.round(this.bet.amt * this.bet.odds); g.addMoney(pay, 'Bet won at The Cellar'); g.life.cheer(8); g.ach?.unlock('bet_win'); }
+        if (this.game.player.pos.distanceTo(this.rc) < 25) { g.say(`KNOCKOUT! ${w.f.name} wins!`, 4); g.audio.crash(10); }
+        const near = this.game.player.pos.distanceTo(this.rc) < 25;
+        if (M.bet) {
+          if (M.bet.side === M.winner) { const pay = Math.round(M.bet.amt * M.bet.odds); g.addMoney(pay, 'Bet won at The Cellar'); g.life.cheer(8); g.ach?.unlock('bet_win'); }
           else { g.say('Your fighter lost. Veikko pockets your money with a grin.', 4); g.life.cheer(-3, true); }
-          this.bet = null;
-        }
+        } else if (!near) M.quiet = true;
       }
     } else {
       this.aiStep(M.a, M.b.pos, dt, () => {}); this.aiStep(M.b, M.a.pos, dt, () => {});
       M.endT -= dt;
-      if (M.endT <= 0) { g.scene.remove(M.a.model.g, M.b.model.g); this.match = null; }
+      if (M.endT <= 0) { g.scene.remove(M.a.model.g, M.b.model.g); this.match = null; this.breakT = 18; }
     }
   }
   updateFight(dt, input) {
@@ -420,6 +437,6 @@ export class FightClub {
     if (F.won) g.player.pos.set(this.rc.x, this.F, this.rc.z + this.R + 1.2); // climb out of the ring
     this.fight = null; this.showHud(false); if (this.fists) this.fists.visible = false;
   }
-  serialize() { return { rank: this.rank, wins: this.wins, met: this.metDoorman }; }
+  serialize() { return { rank: this.rank, wins: this.wins, met: this.metDoorman }; } // (bets & queued fights don't survive a save)
   restore(d) { if (!d) return; this.rank = d.rank || 0; this.wins = d.wins || 0; this.metDoorman = !!d.met; }
 }

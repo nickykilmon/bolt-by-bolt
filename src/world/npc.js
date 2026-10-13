@@ -237,6 +237,13 @@ export class NPCs {
       const want = working || n.hours[1] >= 24;
       if (want !== n.present) { n.present = want; n.g.visible = want; if (want) { this.home(n); if (n.pos.distanceTo(cam) > 30) n.pos.copy(n.target); } }
       if (!n.present) continue;
+      if (n.down > 0) { // knocked over by a car: lie there a while, then get up
+        n.down -= dt;
+        const lie = n.down > 1 ? 1 : Math.max(0, n.down);
+        n.g.rotation.x = -lie * Math.PI / 2; n.g.position.y = heightAt(n.pos.x, n.pos.z) + lie * 0.2;
+        if (n.down <= 0) n.g.rotation.x = 0;
+        continue;
+      }
       if (n.wander) {
         n.wanderT -= dt;
         if (n.wanderT <= 0) { n.wanderT = 6 + Math.random() * 10; const s = this.spot(n); n.target.set(s.x + (Math.random() - 0.5) * n.wander * 2, 0, s.z + (Math.random() - 0.5) * n.wander * 2); }

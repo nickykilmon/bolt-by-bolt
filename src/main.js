@@ -28,6 +28,7 @@ import { FX } from './vehicles/fx.js';
 import { Lake } from './world/lake.js';
 import { Achievements } from './economy/achievements.js';
 import { FightClub } from './world/fightclub.js';
+import { Police } from './world/police.js';
 import './ui/screens.js';
 import { Guide } from './ui/guide.js';
 import { hasSave, writeSave, readSave, applySave, SAVE_KEY } from './save/save.js';
@@ -110,6 +111,7 @@ class Game {
     this.fx = new FX(this.scene);
     this.lake = new Lake(this);
     this.fightclub = new FightClub(this);
+    this.police = new Police(this);
     this.ach = new Achievements(this);
     this.stats = {};
     this.rally = new Rally(this);
@@ -174,7 +176,7 @@ class Game {
     return [{ m: o.matrixWorld, inv: o.matrixWorld.clone().invert(), half: new THREE.Vector3(0.86, 0, 2.08), cz: 0, minY: 0.2, maxY: 1.42 }];
   }
   pickables() {
-    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || []), ...this.fightclub.pickRoots];
+    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || []), ...this.fightclub.pickRoots, this.police.officer.g];
     for (const it of this.asm.items.values()) if (it.loc?.kind === 'world' && !it.loc.cont) list.push(it.obj);
     return list;
   }
@@ -797,6 +799,7 @@ class Game {
       this.pets.update(dt);
       this.lake.update(dt);
       this.fightclub.update(dt, i);
+      this.police.update(dt);
       this.updatePee(dt, i);
       this.updateMisc(dt);
       if (this.player.inCar && this.car.speed > 4) this.life.cheer(dt * 0.05, true); // driving is fun

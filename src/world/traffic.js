@@ -37,7 +37,7 @@ function slab(o, a, b, mat, inset = 0.06) { // glass pane between two profile po
   o.add(m); return m;
 }
 
-function carModel(color, lamps, tails) {
+export function carModel(color, lamps, tails) {
   sharedGeos();
   const o = new THREE.Group();
   const paint = new THREE.MeshPhysicalMaterial({ color, roughness: 0.4, metalness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.2 });
