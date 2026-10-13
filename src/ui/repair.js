@@ -39,6 +39,12 @@ export function installRepair(Guide) {
       plan.push({ h: p.host.uid, s: p.slot.id, type: p.type, kind: 'fix', why: p.why, where: p.where });
       this.game.toast(`🔧 New repair job: ${p.why.toLowerCase()} — see the guide (H)`, 4);
     }
+    // parts missing from the car (e.g. a spring that came off and never went back) — Tab lists them, so the plan does too
+    for (const p of partProblems(asm, [this.C], { missing: true })) {
+      if (p.kind !== 'missing' || NO_SWAP.has(p.type) || has(p.host, p.slot.id)) continue;
+      plan.push({ h: p.host.uid, s: p.slot.id, type: p.type, kind: 'fix', why: `Missing ${short(p.slot.name).replace(/\s+(FL|FR|RL|RR)$/, '').toLowerCase()}`, where: p.where });
+      this.game.toast(`🔧 New repair job: ${p.where.toLowerCase()} is missing — see the guide (H)`, 4);
+    }
     // upgrade parts you own that aren't fitted yet
     const used = new Set();
     for (const it of asm.items.values()) {
