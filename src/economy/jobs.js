@@ -9,6 +9,16 @@ import { mulberry32, fmtMoney, clamp } from '../core/util.js';
 
 const SCRAP_PRICE = 1.4; // mk / kg
 
+// Esa's workshop jobs (variant index = position)
+export const WORKSHOP_JOBS = [
+  { title: 'Finish rebuilding a customer\'s cylinder head', pay: 380 },
+  { title: 'Fit a carburettor to a customer\'s intake manifold', pay: 240 },
+  { title: 'Ignition overhaul: distributor, plugs and wires', pay: 300 },
+  { title: 'Fit an exhaust manifold and thermostat to a head', pay: 320 },
+  { title: 'Turbo conversion on a customer\'s head', pay: 600 },
+  { title: 'Twin-choke carburettor upgrade', pay: 280 },
+];
+
 export class Jobs {
   constructor(game) {
     this.game = game;
@@ -216,11 +226,11 @@ export class Jobs {
       return;
     }
     if (this.lastWorkshopDay === g.life.day) { g.ui.dialog('Esa (mechanic)', 'Nothing more today. Come back tomorrow.', [{ label: 'OK', go: () => {} }]); return; }
-    const variant = g.life.day % 2;
-    const title = variant === 0 ? 'Finish rebuilding a customer\'s cylinder head' : 'Fit a carburettor to a customer\'s intake manifold';
-    const pay = variant === 0 ? 380 : 240;
-    g.ui.dialog('Esa (mechanic)', `I've got a job: ${title.toLowerCase()}. Bring your own tools or use mine on the bench. Pays ${pay} mk. Torque everything to spec.`, [
-      { label: 'I\'ll do it', go: () => this.startWorkshop(variant, title, pay) },
+    // two jobs to pick from each day, rotating through the whole list
+    const a = g.life.day % WORKSHOP_JOBS.length, b = (g.life.day * 7 + 3) % WORKSHOP_JOBS.length;
+    const offer = [...new Set([a, b === a ? (a + 1) % WORKSHOP_JOBS.length : b])];
+    g.ui.dialog('Esa (mechanic)', `I've got ${offer.length > 1 ? 'two jobs, pick one' : 'a job'}. Use my tools on the table by the bench, and torque everything to spec.`, [
+      ...offer.map((v) => ({ label: `${WORKSHOP_JOBS[v].title} — ${WORKSHOP_JOBS[v].pay} mk`, go: () => this.startWorkshop(v, WORKSHOP_JOBS[v].title, WORKSHOP_JOBS[v].pay) })),
       { label: 'Not today', go: () => {} },
     ]);
   }
@@ -238,12 +248,28 @@ export class Jobs {
       for (let i = 0; i < 4; i++) drop('spark_plug', 1.4 + i * 0.12, -0.2);
       tasks = [{ host: head.uid, slot: 'camshaft', label: 'torque the cam cap bolts' }, { host: head.uid, slot: 'rockers', label: 'fit & torque the rockers' },
         ...[1, 2, 3, 4].map((i) => ({ host: head.uid, slot: 'plug' + i, label: `spark plug #${i}` })), { host: head.uid, slot: 'valveCover', label: 'valve cover' }];
-    } else {
-      // customer's intake manifold: fit and torque the carburettor, then the air filter
+    } else if (variant === 1 || variant === 5) {
+      // customer's intake manifold: fit and torque the carburettor (single, or the twin-choke upgrade), then the air filter
       const im = drop('intake_manifold', 0, 0, { cond: 0.9 });
-      drop('carb_single', 1.2, -0.1, { cond: 0.9 });
+      drop(variant === 5 ? 'carb_twin' : 'carb_single', 1.2, -0.1, { cond: 0.95 });
       drop('air_filter', -1.1, 0.05, { cond: 1 });
-      tasks = [{ host: im.uid, slot: 'carb', label: 'fit & torque the carburettor' }, { host: '', hostOf: 'carb', slot: 'airFilter', label: 'fit the air filter' }];
+      tasks = [{ host: im.uid, slot: 'carb', label: `fit & torque the ${variant === 5 ? 'twin-choke ' : ''}carburettor` }, { host: '', hostOf: 'carb', slot: 'airFilter', label: 'fit the air filter' }];
+    } else {
+      // a finished customer head on the bench; the job bolts things onto it
+      const head = drop('head_16', 0, 0, { cond: 0.9 });
+      const put = (slot, id, o = {}) => { const p = asm.create(id, { cond: 0.9 }); asm.install(p, head, slot, { fastened: true }); return p; };
+      for (const [s, id] of [['valvesIn', 'valves_in'], ['valvesEx', 'valves_ex'], ['valveSprings', 'valve_springs'], ['retainers', 'valve_retainers'], ['camBearings', 'cam_bearings'], ['camshaft', 'camshaft_std'], ['rockers', 'rockers'], ['valveCover', 'valve_cover']]) put(s, id);
+      if (variant === 2) { // ignition overhaul
+        drop('distributor', 1.0, 0); for (let i = 0; i < 4; i++) drop('spark_plug', 1.4 + i * 0.12, -0.2); drop('plug_wires', -1.1, 0.05);
+        tasks = [{ host: head.uid, slot: 'distributor', label: 'fit & bolt down the distributor' }, ...[1, 2, 3, 4].map((i) => ({ host: head.uid, slot: 'plug' + i, label: `spark plug #${i}` })), { host: head.uid, slot: 'plugWires', label: 'connect the plug wires' }];
+      } else if (variant === 3) { // exhaust side
+        drop('exhaust_gasket', 1.0, 0.15); drop('exhaust_manifold', 1.4, -0.1); drop('thermostat', -1.1, 0.05);
+        tasks = [{ host: head.uid, slot: 'exGasket', label: 'fit the exhaust manifold gasket' }, { host: head.uid, slot: 'exManifold', label: 'fit & torque the exhaust manifold (8 nuts)' }, { host: head.uid, slot: 'thermostat', label: 'fit the thermostat housing' }];
+      } else { // turbo conversion
+        put('exGasket', 'exhaust_gasket'); put('exManifold', 'header_42');
+        drop('turbo_kit', 1.3, -0.1, { cond: 1 }); drop('intake_manifold', -1.0, 0.1); drop('carb_twin', -1.5, -0.15); drop('air_filter', 1.7, 0.15);
+        tasks = [{ host: head.uid, slot: 'turbo', label: 'bolt the turbo to the header (4 flange nuts)' }, { host: head.uid, slot: 'intake', label: 'fit the intake manifold' }, { host: '', hostOf: 'intake', slot: 'carb', label: 'fit & torque the twin-choke carb' }, { host: '', hostOf: 'carb', slot: 'airFilter', label: 'fit the air filter' }];
+      }
     }
     this.workshop = { variant, title, pay, tasks, items };
     this.focus = 'workshop';
@@ -251,7 +277,8 @@ export class Jobs {
   }
   // where each customer part sits on Esa's bench (by item type, in order)
   benchLayout(defId, n) {
-    const L = { head_16: [0, 0], rockers: [1.0, 0], valve_cover: [-1.1, 0.05], spark_plug: [1.4 + n * 0.12, -0.2], intake_manifold: [0, 0], carb_single: [1.2, -0.1], air_filter: [-1.1, 0.05] };
+    const L = { head_16: [0, 0], rockers: [1.0, 0], valve_cover: [-1.1, 0.05], spark_plug: [1.4 + n * 0.12, -0.2], intake_manifold: [0, 0], carb_single: [1.2, -0.1], carb_twin: [1.2, -0.1], air_filter: [-1.1, 0.05],
+      distributor: [1.0, 0], plug_wires: [-1.1, 0.05], exhaust_gasket: [1.0, 0.15], exhaust_manifold: [1.4, -0.1], thermostat: [-1.1, 0.05], turbo_kit: [1.3, -0.1] };
     return L[defId] || [0.5 + n * 0.2, 0.2];
   }
   // put loose job parts back on the bench (fixes saves where they ended up inside the wall)
@@ -277,7 +304,8 @@ export class Jobs {
     const asm = this.game.asm;
     if (t.hostOf) { // a part that is itself fitted as part of the job (e.g. the carb's air filter)
       const first = this.workshop?.tasks.find((x) => x.slot === t.hostOf);
-      return first ? asm.get(first.host)?.kids[first.slot] || null : null;
+      const fh = first ? this.taskHost(first) : null; // follows chains (air filter -> carb -> intake -> head)
+      return fh ? fh.kids[first.slot] || null : null;
     }
     return asm.get(t.host);
   }
