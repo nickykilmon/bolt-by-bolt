@@ -1,5 +1,6 @@
 // HUD, overlays and menus (DOM based).
 import { DEFS, slotById, HOSTS, SIZE_LABEL } from '../mechanics/partsdb.js';
+import { mountShop } from './shop.js';
 import { fmtMoney, clamp } from '../core/util.js';
 import { ROADS, LAKE } from '../world/terrain.js';
 
@@ -179,13 +180,7 @@ export class UI {
     const render = () => {
       let body = '';
       if (tab === 'shop') {
-        body += `<div class="muted">Rautaosa Varaosat Oy — orders are delivered to the pallet outside your garage in about 2 hours. Delivery fee 25 mk per order. Basket total: <b>${fmtMoney(this.basketTotal())}</b> <button class="small" id="buy">Order basket</button> <button class="small" id="clear">Clear</button></div>`;
-        body += `<div class="muted">Basket: ${g.basket.length ? g.basket.map((id) => DEFS[id].name).join(', ') : 'empty'}</div>`;
-        for (const [c, list] of Object.entries(cats)) {
-          body += `<div class="cat">${c}</div><table><tr><th>Item</th><th>Fits</th><th>Price</th><th></th></tr>`;
-          for (const d of list) body += `<tr><td>${d.name}${d.desc ? `<div class="muted">${d.desc}</div>` : ''}</td><td class="muted">${d.kind === 'part' ? 'Ruska 1600' : '—'}</td><td>${fmtMoney(d.price)}</td><td><button data-add="${d.id}">Add</button></td></tr>`;
-          body += '</table>';
-        }
+        body += '<div id="shopRoot"></div>';
       } else if (tab === 'orders') {
         body += '<div class="cat">Deliveries</div>';
         if (!g.orders.length) body += '<div class="muted">No pending deliveries.</div>';
@@ -220,7 +215,9 @@ export class UI {
       }
       el.innerHTML = `<div class="pc"><div class="bar"><span>Pentium 75 — ${tab === 'shop' ? 'Rautaosa.fi — car parts' : tab}</span><span>${fmtMoney(g.money)} <button id="pcClose">✕</button></span></div>
         <div class="tabs">${['shop', 'orders', 'sell', 'jobs', 'rally', 'bank', 'help'].map((t) => `<button data-tab="${t}" class="${t === tab ? 'on' : ''}">${{ shop: 'Parts shop', orders: 'Deliveries', sell: 'Sell stuff', jobs: 'Jobs', rally: 'Rally', bank: 'Bank', help: 'Notes' }[t]}</button>`).join('')}</div>
-        <div class="body">${body}</div></div>`;
+        <div class="body ${tab === 'shop' ? 'shopbody' : ''}">${body}</div></div>`;
+      const sr = el.querySelector('#shopRoot');
+      if (sr) mountShop(sr, g, { mode: 'order', items: () => Object.values(DEFS).filter((d) => d.shop), onBuy: () => g.placeOrder(), onRender: () => { const m = el.querySelector('.bar span:last-child'); if (m) m.firstChild.textContent = fmtMoney(g.money) + ' '; } });
       el.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
       el.querySelectorAll('[data-add]').forEach((b) => b.onclick = () => { g.basket.push(b.dataset.add); g.audio.click(0.3); render(); });
       const orl = $('openRally'); if (orl) orl.onclick = () => this.openRally();

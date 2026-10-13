@@ -405,7 +405,7 @@ class Game {
     if (total > this.money) { this.toast('Not enough money for that order'); this.audio.clink(); return; }
     this.addMoney(-total, `Parts order #${this.nextOrder}`);
     this.orders.push({ id: this.nextOrder++, items: [...this.basket], eta: this.life.minutes + 110 + Math.random() * 40 });
-    this.basket = [];
+    this.basket.length = 0; // keep the same array (the shop UI holds on to it)
     this.say('Order placed. The van should come by in a couple of hours.');
   }
   checkDeliveries() {

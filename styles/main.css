@@ -137,6 +137,37 @@ table.keys th { color: #f2c14e; padding-top: 10px; }
 .swatches button.on { border-color: #fff; }
 .svc { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #2a2620; font-size: 14px; }
 .svc button { min-width: 0; font-size: 13px; padding: 3px 12px; }
+.pc .body.shopbody { padding: 0; overflow: hidden; }
+#shopRoot, #storeRoot { height: 100%; }
+#storeRoot { height: 70vh; }
+.shop-panel { max-width: 1050px !important; width: 1000px; }
+.sh { display: grid; grid-template-columns: 175px 1fr 240px; height: 100%; min-height: 0; font-size: 13px; }
+.sh-side { display: flex; flex-direction: column; gap: 3px; padding: 8px; overflow: auto; border-right: 1px solid #8884; }
+.sh-search { font-size: 13px; padding: 6px; margin-bottom: 6px; border: 1px solid #888; }
+.sh button { min-width: 0; font-size: 12px; padding: 3px 8px; }
+.sh-cat { text-align: left; background: transparent !important; border: none !important; color: inherit !important; padding: 4px 6px !important; border-radius: 4px; }
+.sh-cat.on { background: #f2c14e !important; color: #000 !important; font-weight: bold; }
+.sh-list { overflow: auto; padding: 6px 10px; }
+.sh-item { display: grid; grid-template-columns: 1fr 70px 96px; gap: 8px; align-items: center; padding: 7px 4px; border-bottom: 1px solid #8883; }
+.sh-why { color: #c0392b; font-size: 12px; font-weight: bold; }
+.sh-why.ok { color: #2f7d32; }
+.sh-fits { color: #2f6db0; font-size: 11px; }
+.sh-desc { opacity: .65; font-size: 11px; }
+.sh-price { text-align: right; font-weight: bold; }
+.sh-btns { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
+.sh-n { min-width: 18px; text-align: center; font-weight: bold; }
+.sh-hint { opacity: .7; font-size: 12px; margin-bottom: 4px; }
+.sh-sub { margin: 14px 0 2px; font-weight: bold; opacity: .75; font-size: 12px; border-top: 2px solid #8885; padding-top: 8px; }
+.sh-empty { opacity: .6; padding: 14px 4px; }
+.sh-cart { border-left: 1px solid #8884; padding: 8px; display: flex; flex-direction: column; gap: 4px; overflow: auto; background: #00000010; }
+.sh-ct { font-weight: bold; font-size: 15px; margin-bottom: 4px; }
+.sh-cl { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; border-bottom: 1px dotted #8885; padding: 2px 0; }
+.sh-cl button { padding: 0 5px !important; }
+.sh-total { display: flex; justify-content: space-between; font-weight: bold; font-size: 15px; margin-top: 6px; }
+.sh-money { font-size: 12px; opacity: .8; }
+.sh-buy { font-size: 14px !important; padding: 8px !important; margin-top: 6px; background: #2f7d32 !important; color: #fff !important; border: none !important; }
+.sh-buy:disabled { background: #888 !important; }
+.sh-note { font-size: 11px; opacity: .6; }
 .store-grid { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 12px; font-size: 13px; align-items: center; }
 .store-grid button { min-width: 0; font-size: 12px; padding: 2px 10px; }
 .phone { width: 380px; background: #111; border: 10px solid #333; border-radius: 22px; padding: 14px; color: #ddd; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }

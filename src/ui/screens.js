@@ -5,6 +5,7 @@ import { EVENTS, STAGES } from '../racing/rally.js';
 import { fmtMoney, clamp } from '../core/util.js';
 import { TQ_PEAK, torqueShape } from '../vehicles/systems.js';
 import { ACH } from '../economy/achievements.js';
+import { mountShop } from './shop.js';
 import * as THREE from 'three';
 
 const $ = (id) => document.getElementById(id);
@@ -35,29 +36,25 @@ const STORE = {
 };
 P.openStore = function (kind) {
   const g = this.game, S = STORE[kind];
-  const items = Object.values(DEFS).filter(S.filter).map((d) => ({ id: d.id, name: d.name, price: d.price, make: d.id, cat: d.cat }));
-  for (const e of S.extra || []) items.push(e);
-  const render = () => {
-    let rows = '';
-    let cat = null;
-    for (const it of items) {
-      if (it.cat && it.cat !== cat) { cat = it.cat; rows += `<div style="grid-column:1/4;color:#f2c14e;margin-top:6px">${cat}</div>`; }
-      rows += `<div>${it.name}</div><div>${fmtMoney(it.price)}</div><div><button data-buy="${it.id}">Buy</button></div>`;
-    }
-    this.panel(`<h2>${S.title}</h2><div class="muted">Money: <b>${fmtMoney(g.money)}</b>. Items are put on the counter.</div><div class="store-grid">${rows}</div>`, (el) => {
-      el.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => {
-        const it = items.find((x) => x.id === b.dataset.buy);
-        if (g.money < it.price) { this.toast('Not enough money'); g.audio.clink(); return; }
-        g.addMoney(-it.price, `Bought ${it.name}`);
-        const inst = g.asm.create(it.make, it.amount !== undefined ? { amount: it.amount } : {});
-        if (it.amount !== undefined) inst.props.amount = it.amount;
+  const defs = Object.values(DEFS).filter(S.filter);
+  for (const e of S.extra || []) defs.push({ ...DEFS[e.make], id: e.id, name: e.name, price: e.price, make: e.make, amount: e.amount });
+  const cart = [];
+  this.panel(`<h2>${S.title}</h2><div id="storeRoot"></div>`, (el) => {
+    el.querySelector('.panel').classList.add('shop-panel');
+    mountShop(el.querySelector('#storeRoot'), g, { mode: 'counter', cart, items: () => defs, onBuy: (c, total) => {
+      if (g.money < total) { this.toast('Not enough money'); g.audio.clink(); return; }
+      g.addMoney(-total, `Bought ${c.length} item${c.length > 1 ? 's' : ''} at ${S.title.split(' —')[0].split(' (')[0]}`);
+      for (const id of c) {
+        const d = defs.find((x) => x.id === id);
+        const inst = g.asm.create(d.make || d.id, d.amount !== undefined ? { amount: d.amount } : {});
+        if (d.amount !== undefined) inst.props.amount = d.amount;
         const at = S.where(g).clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.2, 0, (Math.random() - 0.5) * 0.25));
         g.asm.dropAt(inst, at, Math.random() * 6, null);
-        render();
-      });
-    });
-  };
-  render();
+      }
+      g.audio.cash(); this.toast(`Paid ${fmtMoney(total)} — your things are on the counter`, 3);
+      c.length = 0;
+    } });
+  });
 };
 
 // ---------- tuning ----------
