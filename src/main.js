@@ -29,6 +29,7 @@ import { Lake } from './world/lake.js';
 import { Achievements } from './economy/achievements.js';
 import { FightClub } from './world/fightclub.js';
 import { Police } from './world/police.js';
+import { Nightclub } from './world/nightclub.js';
 import './ui/screens.js';
 import { Guide } from './ui/guide.js';
 import { hasSave, writeSave, readSave, applySave, SAVE_KEY } from './save/save.js';
@@ -112,6 +113,7 @@ class Game {
     this.lake = new Lake(this);
     this.fightclub = new FightClub(this);
     this.police = new Police(this);
+    this.nightclub = new Nightclub(this);
     this.ach = new Achievements(this);
     this.stats = {};
     this.rally = new Rally(this);
@@ -176,7 +178,7 @@ class Game {
     return [{ m: o.matrixWorld, inv: o.matrixWorld.clone().invert(), half: new THREE.Vector3(0.86, 0, 2.08), cz: 0, minY: 0.2, maxY: 1.42 }];
   }
   pickables() {
-    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || []), ...this.fightclub.pickRoots, this.police.officer.g];
+    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || []), ...this.fightclub.pickRoots, this.police.officer.g, this.nightclub.root];
     for (const it of this.asm.items.values()) if (it.loc?.kind === 'world' && !it.loc.cont) list.push(it.obj);
     return list;
   }
@@ -567,8 +569,15 @@ class Game {
     }
     if (car.lastImpact > 13) this.ach.unlock('crash');
     if (this.money >= 10000) this.ach.unlock('rich');
-    const blur = L.drunk > 0.6 ? Math.min(3, (L.drunk - 0.6) * 2.2) : 0;
-    const f = blur ? `blur(${blur.toFixed(1)}px)` : '';
+    const blur = L.drunk > 0.6 ? Math.min(3.5, (L.drunk - 0.6) * 2.2) : 0;
+    this.drinkPulse = Math.max(0, (this.drinkPulse || 0) - dt);
+    const tt = performance.now() * 0.001, pu = this.drinkPulse > 0 ? Math.sin((3.5 - this.drinkPulse) / 3.5 * Math.PI) : 0;
+    const hue = pu * Math.sin(tt * 3) * 35 + (L.drunk > 1.2 ? Math.sin(tt * 0.7) * 12 * (L.drunk - 1.2) : 0);
+    const sat = 1 + pu * 0.6 + Math.min(0.5, L.drunk * 0.15);
+    let f = '';
+    if (blur || pu > 0.01 || L.drunk > 0.3) f = `blur(${(blur + pu * 1.2).toFixed(1)}px) hue-rotate(${hue.toFixed(0)}deg) saturate(${sat.toFixed(2)})`;
+    const dfx = document.getElementById('drunkfx');
+    if (dfx) { dfx.style.opacity = Math.min(0.85, L.drunk * 0.35 + pu * 0.6).toFixed(2); dfx.style.transform = `scale(${(1 + pu * 0.04 + Math.sin(tt * 1.3) * 0.01 * L.drunk).toFixed(3)}) rotate(${(Math.sin(tt * 0.9) * L.drunk * 0.6).toFixed(2)}deg)`; }
     if (this.canvas.style.filter !== f) this.canvas.style.filter = f;
   }
   // tyre marks, gravel dust and wheelspin smoke from the player's car
@@ -856,6 +865,7 @@ class Game {
       this.lake.update(dt);
       this.fightclub.update(dt, i);
       this.police.update(dt);
+      this.nightclub.update(dt, i);
       this.updatePee(dt, i);
       this.updatePoo(dt, i);
       this.updateCig(dt);

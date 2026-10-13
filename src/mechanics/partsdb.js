@@ -443,6 +443,8 @@ export const DEFS = {};
   { id: 'salmiakki', type: 'food', name: 'Salmiakki candy', kind: 'food', mass: 0.1, price: 5, shop: true, cat: 'Groceries', props: { hunger: 5, treat: 1, shape: 'bag', col: 0x111111 } },
   { id: 'ice_cream', type: 'food', name: 'Ice cream cone', kind: 'food', mass: 0.15, price: 6, shop: true, cat: 'Groceries', props: { hunger: 10, thirst: 4, treat: 1, shape: 'cone' } },
   { id: 'pea_soup', type: 'food', name: 'Pea soup tin (hernekeitto)', kind: 'food', mass: 0.6, price: 7, shop: true, cat: 'Groceries', props: { hunger: 45, thirst: 5, shape: 'tin', col: 0x7a9a30 } },
+  { id: 'shot_kossu', type: 'food', name: 'Koskenkorva shot', kind: 'food', mass: 0.1, price: 8, shop: false, cat: 'Groceries', props: { thirst: 2, beer: 1.5, shape: 'shot' } },
+  { id: 'cocktail', type: 'food', name: '"Revontuli" cocktail', kind: 'food', mass: 0.3, price: 18, shop: false, cat: 'Groceries', props: { thirst: 15, beer: 1.2, treat: 1, shape: 'cocktail' } },
   { id: 'beer', type: 'food', name: 'Beer bottle 0.5 L "Karhu"', kind: 'food', mass: 0.6, price: 9, shop: true, cat: 'Groceries', props: { thirst: 15, beer: 1 } },
   { id: 'cigarettes', type: 'food', name: 'Cigarettes (pack of 20)', kind: 'food', mass: 0.05, price: 22, shop: true, cat: 'Groceries', props: { cig: true, left: 20 } },
   { id: 'fish', type: 'food', name: 'Fresh fish', kind: 'food', mass: 1, price: 0, shop: false, cat: 'Groceries', props: { hunger: 30, thirst: -3 } },

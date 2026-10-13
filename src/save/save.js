@@ -30,7 +30,7 @@ export function writeSave(game) {
     jobs: g.jobs.serialize(), moped: g.moped.serialize(), guide: g.guide.serialize(),
     profile: g.profile,
     pets: g.pets.serialize(),
-    ach: g.ach.serialize(), stats: g.stats, fightclub: g.fightclub.serialize(), police: g.police.serialize(),
+    ach: g.ach.serialize(), stats: g.stats, fightclub: g.fightclub.serialize(), police: g.police.serialize(), nightclub: g.nightclub.serialize(),
   };
   const json = JSON.stringify(data);
   const prev = localStorage.getItem(SAVE_KEY);
@@ -97,6 +97,7 @@ export function applySave(game, d) {
   game.pets.restore(d.pets);
   game.fightclub.restore(d.fightclub);
   game.police.restore(d.police);
+  game.nightclub.restore(d.nightclub);
   game.ach.restore(d.ach); game.stats = d.stats || {};
   game.car.reapplyShellDents();
   for (const it of asm.items.values()) if (Math.abs(it.props.bent || 0) > 0.003 && !it.props.broken) { breakPart(it); asm.buildVisual(it); asm.applyOpen?.(it); }

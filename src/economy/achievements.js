@@ -36,6 +36,10 @@ export const ACH = [
   { id: 'fight_win', icon: '🥊', title: 'First blood', desc: 'Win a fight in The Cellar.' },
   { id: 'fight_champ', icon: '👊', title: 'King of the Cellar', desc: 'Beat all five fighters, Iso-Jussi included.' },
   { id: 'bet_win', icon: '🎲', title: 'Called it', desc: 'Win a bet at The Cellar.' },
+  { id: 'clubbing', icon: '🪩', title: 'On the list', desc: 'Get into Klubi Revontuli.' },
+  { id: 'dance', icon: '💃', title: 'Dancing queen', desc: 'Hit the dance floor.' },
+  { id: 'dj', icon: '🎧', title: 'Selecta', desc: 'Play a good DJ set at the club.' },
+  { id: 'dj_fight', icon: '🤜', title: 'Meet me outside', desc: 'Win the fight after a bad DJ set.' },
   { id: 'died', icon: '☠', title: 'Roadkill', desc: 'Get hit by a car.' },
   { id: 'rich', icon: '💰', title: 'Rich', desc: 'Have 10 000 mk in the bank.' },
 ];

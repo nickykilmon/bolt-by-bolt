@@ -76,7 +76,14 @@ export class Life {
     if (p.thirst > 0) this.bladder = clamp(this.bladder + p.thirst * 0.6, 0, 100);
     if (p.hunger > 0) this.bowel = clamp(this.bowel + p.hunger * 0.45, 0, 100);
     if (p.treat) this.cheer(3);
-    if (p.beer) { this.drunk = Math.min(2, this.drunk + 0.3); this.cheer(5); this.bladder = clamp(this.bladder + 12, 0, 100); if (this.drunk > 1) this.game.ach?.unlock('drunk'); }
+    if (p.beer) {
+      this.drunk = Math.min(2.5, this.drunk + 0.3 * p.beer); this.cheer(5);
+      this.bladder = clamp(this.bladder + 22 * p.beer, 0, 100);           // alcohol goes straight through you
+      this.game.drinkPulse = 3.5;                                          // the woozy hit on screen
+      if (this.drunk > 1) this.game.ach?.unlock('drunk');
+      if (this.bladder > 70) setTimeout(() => this.game.say('Ugh… I really need to pee. (Hold U somewhere discreet, or find a toilet.)', 4), 1200);
+      else if (this.drunk > 1.4) setTimeout(() => this.game.say('Whoa… the room is spinning.', 3), 1200);
+    }
     if (p.hunger) this.hunger = clamp(this.hunger + p.hunger, 0, 100);
     if (p.thirst) this.thirst = clamp(this.thirst + p.thirst, 0, 100);
     if (p.fatigue) this.fatigue = clamp(this.fatigue + p.fatigue, 0, 100);

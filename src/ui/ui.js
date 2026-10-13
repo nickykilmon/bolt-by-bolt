@@ -281,6 +281,7 @@ export class UI {
       }
       // active job markers
       for (const m of g.jobs.markers()) { x.fillStyle = m.c; x.beginPath(); x.arc(tx(m.x), tz(m.z), m.t ? 6 : 3, 0, 7); x.fill(); if (m.t && !detail) { x.font = '12px Arial'; x.fillText(m.t, tx(m.x) + 8, tz(m.z) - 6); } }
+      if (g.clubPos) { x.fillStyle = '#ff3cc8'; x.beginPath(); x.arc(tx(g.clubPos.x), tz(g.clubPos.z), detail ? 7 : 5, 0, 7); x.fill(); if (detail) { x.font = 'bold 12px Arial'; x.fillText('Nightclub', tx(g.clubPos.x) + 8, tz(g.clubPos.z) + 4); } }
       if (g.saunaPos) { x.fillStyle = '#ff9a40'; x.beginPath(); x.arc(tx(g.saunaPos.x), tz(g.saunaPos.z), detail ? 7 : 5, 0, 7); x.fill(); x.font = 'bold 12px Arial'; x.fillText('Sauna & fishing', tx(g.saunaPos.x) + 8, tz(g.saunaPos.z) + 4); }
       // you / car / moped
       const dot = (p, col, r) => { x.fillStyle = '#000'; x.beginPath(); x.arc(tx(p.x), tz(p.z), r + 2, 0, 7); x.fill(); x.fillStyle = col; x.beginPath(); x.arc(tx(p.x), tz(p.z), r, 0, 7); x.fill(); };

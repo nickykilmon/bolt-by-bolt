@@ -37,6 +37,7 @@ export class Player {
     this.look(input, sens);
     if (this.inCar) return this.updateSeated(game);
     if (this.onMoped) return;
+    if (game.nightclub?.dj) { this.camera.position.set(this.pos.x, this.pos.y + this.eye, this.pos.z); this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ'); return; }
     const fwd = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
     let mx = 0, mz = 0;
@@ -99,7 +100,7 @@ export class Player {
     const dr = game.life.drunk;
     if (dr > 0.2) { // the world won't hold still
       const t = performance.now() * 0.001;
-      this.camera.rotation.set(this.pitch + Math.sin(t * 0.9) * 0.03 * dr, this.yaw + Math.sin(t * 0.6) * 0.04 * dr, Math.sin(t * 1.3) * 0.05 * dr, 'YXZ');
+      this.camera.rotation.set(this.pitch + Math.sin(t * 0.9) * 0.03 * dr, this.yaw + Math.sin(t * 0.6) * 0.04 * dr + Math.sin(t * 2.3) * 0.015 * Math.max(0, dr - 1.2), Math.sin(t * 1.3) * 0.05 * dr, 'YXZ');
       if (dr > 1 && (mx || mz)) { this.vel.x += Math.sin(t * 1.7) * dr * 0.6 * dt * 10; this.vel.z += Math.cos(t * 1.1) * dr * 0.6 * dt * 10; }
     } else this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
   }

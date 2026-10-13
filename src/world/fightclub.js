@@ -252,6 +252,18 @@ export class FightClub {
     this.showHud(true); this.buildFists();
     g.say(`Ring master: "${f.name} versus ${g.profile?.name || 'JC'}! Three… two… one…"`, 3);
   }
+  // a fight anywhere (e.g. "meet me outside" at the club): same fists, same AI, own outcome
+  startStreetFight({ center, R = 3.5, fighter, onWin, onLose }) {
+    const g = this.game;
+    const p = personModel(fighter.shirt, fighter.pants, npcFace(mulberry32(fighter.hp * 7 + 1), 3), null);
+    p.g.position.set(center.x, center.y, center.z - 1.8); g.scene.add(p.g);
+    const arena = { c: center.clone(), R };
+    const opp = { ...this.newFighter(fighter), model: p, pos: p.g.position, arena, baseY: center.y };
+    g.player.pos.set(center.x, center.y, center.z + 1.8); g.player.yaw = 0; g.player.pitch = -0.05; g.player.vel.set(0, 0, 0);
+    this.fight = { opp, hp: 100, stam: 100, prize: 0, idx: -1, count: 3, punchT: 0, punchArm: 0, over: false, street: { arena, onWin, onLose } };
+    this.showHud(true); this.buildFists();
+    g.say(`${fighter.name}: "Right. You and me." Three… two… one…`, 3);
+  }
   buildFists() {
     if (this.fists) { this.fists.visible = true; return; }
     const g = this.game;
@@ -289,13 +301,13 @@ export class FightClub {
     a.model.g.rotation.y = a.yaw;
     a.t -= dt; a.cd -= dt; a.blockT -= dt;
     const arms = a.model.arms;
-    if (a.state === 'ko') { a.ko = Math.min(1, a.ko + dt * 2); a.model.g.rotation.x = -a.ko * 1.45; a.model.g.position.y = this.F + a.ko * 0.15; return; }
-    if (a.state === 'stagger') { if (a.t <= 0) a.state = 'move'; a.pos.addScaledVector(to.normalize(), -dt * 0.8); this.keepIn(a.pos); return; }
+    if (a.state === 'ko') { a.ko = Math.min(1, a.ko + dt * 2); a.model.g.rotation.x = -a.ko * 1.45; a.model.g.position.y = (a.baseY ?? this.F) + a.ko * 0.15; return; }
+    if (a.state === 'stagger') { if (a.t <= 0) a.state = 'move'; a.pos.addScaledVector(to.normalize(), -dt * 0.8); this.keepIn(a.pos, a.arena); return; }
     const guard = a.blockT > 0 ? -1.2 : -0.6;
     if (a.state === 'move') {
       if (d > 1.05) { a.pos.addScaledVector(to.clone().normalize(), Math.min(d - 1, a.speed * dt)); a.walk = (a.walk || 0) + dt * 8; }
       else if (d < 0.8) a.pos.addScaledVector(to.clone().normalize(), -dt * 0.6);
-      this.keepIn(a.pos);
+      this.keepIn(a.pos, a.arena);
       arms.forEach((s) => { s.rotation.x += (guard - s.rotation.x) * Math.min(1, dt * 10); });
       if (a.model.legs) a.model.legs.forEach((l, i) => { l.rotation.x = Math.sin((a.walk || 0) + i * Math.PI) * 0.3; });
       if (d < 1.6 && a.cd <= 0) { a.state = 'windup'; a.t = a.wind; a.arm = Math.random() < 0.5 ? 0 : 1; }
@@ -307,7 +319,7 @@ export class FightClub {
       if (a.t <= 0) { a.state = 'move'; a.cd = a.f.cd * (0.7 + Math.random() * 0.6); }
     }
   }
-  keepIn(p) { const r = this.R - 0.45; p.x = clamp(p.x, this.rc.x - r, this.rc.x + r); p.z = clamp(p.z, this.rc.z - r, this.rc.z + r); }
+  keepIn(p, ar) { const c = ar?.c || this.rc, r = (ar?.R || this.R) - 0.45; p.x = clamp(p.x, c.x - r, c.x + r); p.z = clamp(p.z, c.z - r, c.z + r); }
   // something lands on fighter a
   hitFighter(a, dmg) {
     if (a.state === 'ko') return;
@@ -362,7 +374,8 @@ export class FightClub {
   }
   updateFight(dt, input) {
     const g = this.game, F = this.fight, o = F.opp, P = g.player;
-    P.pos.x = clamp(P.pos.x, this.rc.x - this.R + 0.4, this.rc.x + this.R - 0.4); P.pos.z = clamp(P.pos.z, this.rc.z - this.R + 0.4, this.rc.z + this.R - 0.4);
+    const AR = F.street?.arena || { c: this.rc, R: this.R };
+    P.pos.x = clamp(P.pos.x, AR.c.x - AR.R + 0.4, AR.c.x + AR.R - 0.4); P.pos.z = clamp(P.pos.z, AR.c.z - AR.R + 0.4, AR.c.z + AR.R - 0.4);
     const blocking = input.mouse.r && !F.over;
     // fists on screen
     F.punchT = Math.max(0, F.punchT - dt);
@@ -415,6 +428,11 @@ export class FightClub {
   endFight(won) {
     const g = this.game, F = this.fight;
     F.over = true; F.won = won; F.endT = won ? 3 : 0.5;
+    if (F.street) {
+      if (won) { g.audio.crash(10); g.life.cheer(10); F.street.onWin?.(); }
+      else g.fade(() => { const cb = F.street.onLose; this.cleanupFight(); cb?.(); });
+      return;
+    }
     if (won) {
       g.audio.crash(10);
       g.addMoney(F.prize, `Won a fight at The Cellar vs ${F.opp.f.name}`);
@@ -434,7 +452,7 @@ export class FightClub {
   cleanupFight() {
     const g = this.game, F = this.fight; if (!F) return;
     g.scene.remove(F.opp.model.g);
-    if (F.won) g.player.pos.set(this.rc.x, this.F, this.rc.z + this.R + 1.2); // climb out of the ring
+    if (F.won && !F.street) g.player.pos.set(this.rc.x, this.F, this.rc.z + this.R + 1.2); // climb out of the ring
     this.fight = null; this.showHud(false); if (this.fists) this.fists.visible = false;
   }
   serialize() { return { rank: this.rank, wins: this.wins, met: this.metDoorman }; } // (bets & queued fights don't survive a save)
