@@ -3,6 +3,7 @@
 import { clamp, lerp } from '../core/util.js';
 import { CORNERS } from '../mechanics/partsdb.js';
 import { TIGHT_OK } from '../mechanics/assembly.js';
+import { partProblems } from '../mechanics/problems.js';
 
 export const OIL_CAP = 3.8, COOLANT_CAP = 6, GEAROIL_CAP = 1.6, BRAKE_CAP = 0.5, FUEL_CAP = 45;
 
@@ -299,7 +300,7 @@ export function analyze(asm, car) {
     if (!spring) issue(3, `Coil spring ${c} missing`, 'suspension');
     if (!pads || !cal || !disc) issue(2, `Brake ${c} incomplete`, 'brakes');
     else if (pads.cond < 0.2) issue(2, `Brake pads ${c} worn to the metal`, 'brakes');
-    if (Math.abs(C.toe) > 0.02) {
+    if (Math.abs(C.toe) > 0.02 && !(Math.abs(ch.kids['tieRod' + c]?.props.bent || 0) > 0.003 || Math.abs(ch.kids['controlArm' + c]?.props.bent || 0) > 0.003)) {
       const trB = ch.kids['tieRod' + c], armB = ch.kids['controlArm' + c];
       const bentTr = Math.abs(trB?.props.bent || 0) > 0.003, bentArm = Math.abs(armB?.props.bent || 0) > 0.003;
       const why = bentTr && bentArm ? 'bent tie rod and control arm' : bentTr ? 'bent tie rod' : bentArm ? 'bent control arm' : 'toe setting';
@@ -310,20 +311,10 @@ export function analyze(asm, car) {
   S.lights = !!(ch.kids.headlightL || ch.kids.headlightR) && S.electric;
   S.firing = S.cyl.filter((c) => c.comp > 0.35 && c.spark > 0.3).length;
   S.quality = S.cyl.reduce((s, c) => s + (c.comp > 0.35 && c.spark > 0.3 ? c.comp * c.spark : 0), 0) / 4;
-  // crash damage on body panels and lights (looks only — except lights that stop working)
-  const BODY = { bumperF: 'Front bumper', bumperR: 'Rear bumper', hood: 'Bonnet', trunk: 'Boot lid', doorL: 'Left door', doorR: 'Right door', headlightL: 'Left headlight', headlightR: 'Right headlight', taillightL: 'Left tail light', taillightR: 'Right tail light', lightPod: 'Rally light pod', splitter: 'Front splitter', skirtL: 'Left side skirt', skirtR: 'Right side skirt' };
-  for (const [k, n] of Object.entries(BODY)) {
-    const p = ch.kids[k]; if (!p || p.cond >= 0.2) continue;
-    const dead = /light/i.test(k) && p.cond < 0.15;
-    issue(dead ? 2 : 1, `Crash damage: ${n} ${Math.round(p.cond * 100)}%${dead ? ' — broken, gives no light' : ''} (replace it, or Esa/Ari can repair the body)`, 'body');
-  }
-  // anything else in the car that's worn out (e.g. a crushed radiator only cools worse, but it's still worth knowing)
-  const CW = { FL: 'front-left', FR: 'front-right', RL: 'rear-left', RR: 'rear-right' };
-  for (const d of asm.descendants(ch)) {
-    const host = asm.hostOf(d), s = asm.slotDef(d);
-    if (!s || d.def.kind !== 'part' || d.cond >= 0.2 || BODY[s.id] || d.def.type === 'block') continue;
-    if (host === ch && /^(tieRod|controlArm)/.test(s.id) && Math.abs(d.props.bent || 0) > 0.003) continue; // reported as alignment
-    issue(1, `${s.id === 'radiator' ? 'Crash damage' : 'Worn out'}: ${s.name.replace(/(FL|FR|RL|RR)/g, (m) => CW[m])} ${Math.round(d.cond * 100)}% — replace it`, 'wear');
+  // broken / crash-damaged parts — the same list the repair objective and the shop use
+  for (const p of partProblems(asm, [ch])) {
+    const fix = p.kind === 'bent' ? 'Replace it, or Esa/Ari can straighten it (alignment is off).' : p.kind === 'crash' ? 'Replace it, or Esa/Ari can repair it.' : 'Replace it.';
+    issue(/no light/.test(p.why) ? 2 : 1, `${p.why} — ${p.where}. ${fix}`, p.kind === 'wear' ? 'wear' : 'body');
   }
   S.issues.sort((a, b2) => b2.sev - a.sev);
   return S;

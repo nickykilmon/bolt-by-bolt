@@ -565,6 +565,57 @@ class Game {
   timeSkipped() { this.checkDeliveries(); this.npcs?.placeAll(); }
 
   // ---------------- gas station ----------------
+  // ---- full service: tell Kalle how much, he walks out and fills the car ----
+  openFuelService() {
+    const PRICE = 7.9, CAP = 45, car = this.car, tank = car.chassis.kids.fuelTank;
+    const cp = car.chassis.obj.position;
+    const pump = (this.pumps || []).reduce((b, p) => (!b || p.pos().distanceTo(cp) < b.pos().distanceTo(cp) ? p : b), null);
+    if (!pump || pump.pos().distanceTo(cp) > 14) { this.say('Kalle: "Bring the car up to the pumps first and I\'ll fill her up."'); return; }
+    if (!tank) { this.say('Kalle: "Your car hasn\'t got a fuel tank. I can\'t fill thin air."'); return; }
+    if (this.fuelService) { this.say('Kalle: "I\'m on it, I\'m on it."'); return; }
+    const have = tank.props.fuel || 0, free = Math.max(0, CAP - have);
+    if (free < 0.5) { this.say('Kalle: "She\'s already full."'); return; }
+    const full = Math.ceil(free * PRICE);
+    const opts = [10, 20, 50, 100, 200].filter((v) => v < full).map((v) => ({ label: `${v} mk  (${(v / PRICE).toFixed(1)} L)`, go: () => this.startFuelService(v, v / PRICE, pump) }));
+    opts.push({ label: `Fill it up — ${full} mk (${free.toFixed(1)} L)`, go: () => this.startFuelService(full, free, pump) });
+    opts.push({ label: 'Never mind', go: () => {} });
+    this.ui.dialog('Kalle (gas station)', `Petrol is ${PRICE.toFixed(2).replace('.', ',')} mk a litre. You've got ${have.toFixed(1)} of ${CAP} litres in there. How much?`, opts);
+  }
+  startFuelService(mk, litres, pump) {
+    if (this.money < mk) { this.toast('Not enough money'); return; }
+    this.addMoney(-mk, `Petrol ${litres.toFixed(1)} L (full service)`);
+    const kalle = this.npcs.get('kalle');
+    this.fuelService = { litres, left: litres, pump, kalle, state: 'walk', t: 0 };
+    this.say('Kalle: "Right, wait in the car or stretch your legs — won\'t be a minute."', 3);
+  }
+  updateFuelService(dt) {
+    const F = this.fuelService; if (!F) return;
+    const car = this.car, tank = car.chassis.kids.fuelTank, k = F.kalle;
+    const filler = car.chassis.obj.localToWorld(new THREE.Vector3(0.95, 0, -1.35));
+    if (!tank || car.speed > 1 || filler.distanceTo(F.pump.pos()) > 16) { // drove off!
+      if (F.state !== 'back') { this.say('Kalle: "Hey! You drove off with the nozzle!" (You keep what was pumped so far.)', 4); F.state = 'back'; }
+    }
+    if (!F.hose) {
+      F.hose = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: 0x111111 }));
+      F.hose.frustumCulled = false; this.scene.add(F.hose);
+    }
+    const hand = k ? k.g.localToWorld(new THREE.Vector3(0.25, 1.0, 0.25)) : filler;
+    const hp = F.hose.geometry.attributes.position; const pp = F.pump.pos(); hp.setXYZ(0, pp.x, pp.y + 1.0, pp.z); hp.setXYZ(1, hand.x, hand.y, hand.z); hp.needsUpdate = true;
+    F.hose.visible = F.state === 'pump' || F.state === 'walk';
+    if (F.state === 'walk') {
+      if (k) k.target.copy(filler).add(new THREE.Vector3(0, heightAt(filler.x, filler.z), 0));
+      if (!k || k.pos.distanceTo(new THREE.Vector3(filler.x, k.pos.y, filler.z)) < 0.6) { F.state = 'pump'; this.audio.thunk(0.5); }
+    } else if (F.state === 'pump') {
+      const step = Math.min(F.left, dt * 2.5); // litres per second
+      tank.props.fuel = Math.min(45, (tank.props.fuel || 0) + step); F.left -= step;
+      F.t -= dt; if (F.t <= 0) { F.t = 0.35; this.audio.burst(500, 2, 0.05, 0.3, 'lowpass'); }
+      if (k) { const cp = car.chassis.obj.position; k.g.rotation.y = Math.atan2(cp.x - k.pos.x, cp.z - k.pos.z); }
+      if (F.left <= 0.001) { F.state = 'back'; this.audio.click(0.6); this.say(`Kalle: "There you go — ${F.litres.toFixed(1)} litres. Drive safe."`, 3); car.sVer = -1; }
+    } else if (F.state === 'back') {
+      if (k) this.npcs.home(k);
+      this.scene.remove(F.hose); this.fuelService = null;
+    }
+  }
   gasPumpPrompt(pump) {
     const h = this.interaction.held;
     if (this.nozzle?.pump === pump && h === this.nozzle.inst) return '<span class="k">E</span>Hang up the nozzle';
@@ -753,6 +804,7 @@ class Game {
       this.npcs.update(dt);
       this.jobs.update(dt);
       this.updateNozzle();
+      this.updateFuelService(dt);
       this.interaction.update(dt, i);
       if (!this.player.inCar && i.hit('KeyF') && this.interaction.target?.type !== 'interact') { this.flashlight.intensity = this.flashlight.intensity ? 0 : 25; this.audio.click(0.4); }
       if (i.hit('KeyI')) this.ui.openInventory();

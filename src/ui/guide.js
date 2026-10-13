@@ -6,6 +6,8 @@ import { DEFS, slotById, fastenerList, SIZE_LABEL } from '../mechanics/partsdb.j
 import { TIGHT_OK } from '../mechanics/assembly.js';
 import { installRepair } from './repair.js';
 
+// once the car has been built, the late build steps read as upkeep, not as starting over
+const AFTER = { 'Fill the cooling system': 'Top up the coolant', 'Lower the car back onto its wheels': 'Lower the car back down when you’re done underneath', 'Fill the engine with oil': 'Top up the engine oil', 'Fill the gearbox with gear oil': 'Top up the gear oil', 'Fill the brake fluid': 'Top up the brake fluid' };
 const COL = { grab: '#ffd23c', go: '#4ad8ff', tool: '#ff9a3c', bolt: '#ff7a2a', done: '#5ce05c' };
 
 function makeLabelTex(text, col) {
@@ -555,7 +557,7 @@ export class Guide {
     let dist = '';
     const main = (s.targets || []).find((t) => t.kind === 'mark') || (s.dots?.length ? { pos: s.dots[0].pos } : null);
     if (main) { const d = main.pos.distanceTo(g.camera.position); if (d > 4) dist = ` <span class="gd">${Math.round(d)} m</span>`; }
-    this.el.innerHTML = `<div class="gp">${this.cur.job ? 'JOB · ' + this.cur.job + ' · cancel it on the phone (P)' : this.cur.repair ? `REPAIRS & UPGRADES · ${this.cur.repair}` : `BUILD THE RUSKA · STEP ${this.cur.idx} OF ${this.total}`}</div><div class="gt">${st.title}${dist}</div><div class="gs">${s.text || ''}</div><div class="gk2"><span class="gk">H</span> hide guide</div>`;
+    this.el.innerHTML = `<div class="gp">${this.cur.job ? 'JOB · ' + this.cur.job + ' · cancel it on the phone (P)' : this.cur.repair ? `REPAIRS & UPGRADES · ${this.cur.repair}` : this.started ? 'BACK ON THE ROAD · finishing up' : `BUILD THE RUSKA · STEP ${this.cur.idx} OF ${this.total}`}</div><div class="gt">${this.started && !this.cur.job && !this.cur.repair ? (AFTER[st.title] || st.title) : st.title}${dist}</div><div class="gs">${s.text || ''}</div><div class="gk2"><span class="gk">H</span> hide guide</div>`;
     if (!show) return;
     for (const t of s.targets || []) {
       if (t.kind !== 'mark') continue;

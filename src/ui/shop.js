@@ -2,6 +2,7 @@
 // search, categories, "what my car needs", clear "fits" labels and a real cart with quantities.
 import { DEFS, HOSTS } from '../mechanics/partsdb.js';
 import { fmtMoney } from '../core/util.js';
+import { partProblems } from '../mechanics/problems.js';
 
 const CORNER = { FL: 'front-left', FR: 'front-right', RL: 'rear-left', RR: 'rear-right' };
 const words = (s) => s.replace(/\b(FL|FR|RL|RR)\b/g, (m) => CORNER[m]);
@@ -31,18 +32,9 @@ export function carNeeds(g) {
   const spare = (type) => [...asm.items.values()].some((i) => i.def.type === type && i.cond >= 0.3 && !i.props.forSale && i.props.owner !== 'esa' && !g.guide?.isJobItem?.(i) && !inCar(i))
     || g.orders.some((o) => o.items.some((id) => DEFS[id].type === type)) || g.basket.some((id) => DEFS[id].type === type);
   const cheapest = (type) => Object.values(DEFS).filter((d) => d.type === type && d.shop).sort((a, b) => a.price - b.price)[0];
-  for (const h of hosts) {
-    for (const s of HOSTS[h.def.host] || []) {
-      const kid = h.kids[s.id];
-      if (!kid && !OPTIONAL.has(s.id)) {
-        const d = cheapest(s.accepts); if (!d) continue;
-        const key = 'm:' + s.accepts + ':' + s.id + ':' + h.uid;
-        out.set(key, { id: d.id, why: `Missing: ${words(s.name)}`, have: spare(s.accepts) });
-      } else if (kid && kid.cond < 0.3 && kid.def.kind === 'part') {
-        const d = cheapest(kid.def.type); if (!d) continue;
-        out.set('w:' + kid.uid, { id: d.id, why: `Worn out (${Math.round(kid.cond * 100)}%): ${words(s.name)}`, have: spare(kid.def.type) });
-      }
-    }
+  for (const p of partProblems(asm, [...hosts].filter((h) => !asm.hostOf(h) || !hosts.has(asm.hostOf(h))), { missing: true })) {
+    const d = cheapest(p.type); if (!d) continue;
+    out.set(p.kind + ':' + p.host.uid + ':' + p.slot.id, { id: d.id, why: p.why, have: spare(p.type) });
   }
   return [...out.values()];
 }

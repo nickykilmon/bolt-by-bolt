@@ -205,7 +205,7 @@ export class NPCs {
     const g = this.game, ui = g.ui;
     const o = [];
     switch (npc.role) {
-      case 'kiosk': o.push({ label: 'Buy snacks & a jerry can', go: () => ui.openStore('kiosk') }); break;
+      case 'kiosk': o.push({ label: '⛽ Fill up my car (Kalle pumps it for you)', go: () => g.openFuelService() }, { label: 'Buy snacks & a jerry can', go: () => ui.openStore('kiosk') }); break;
       case 'parts': o.push({ label: 'Buy parts over the counter (no delivery wait)', go: () => ui.openStore('parts') }); break;
       case 'grocery': o.push({ label: 'Buy groceries', go: () => ui.openStore('grocery') }, { label: 'Sell the fish I caught', go: () => {
         const fish = [...g.asm.items.values()].filter((it) => it.def.id === 'fish' && (it.loc?.kind === 'inv' || g.interaction.held === it));

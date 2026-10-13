@@ -7,6 +7,7 @@
 //   4. the normal build guide then refits whatever was taken off, in build order
 import * as THREE from 'three';
 import { DEFS, HOSTS, slotById } from '../mechanics/partsdb.js';
+import { partProblems, BROKEN } from '../mechanics/problems.js';
 
 const COL = { grab: '#ffd23c', go: '#4ad8ff', tool: '#ff9a3c', bolt: '#ff7a2a', buy: '#ff6ad5' };
 const UPGRADE_CATS = new Set(['Performance', 'Body kits']);
@@ -33,16 +34,10 @@ export function installRepair(Guide) {
   P.scanRepairs = function () {
     const asm = this.asm, plan = this.repair ||= [];
     const has = (h, s) => plan.some((t) => t.h === h.uid && t.s === s);
-    for (const h of this.repairHosts()) {
-      for (const s of HOSTS[h.def.host] || []) {
-        const occ = h.kids[s.id];
-        if (!occ || NO_SWAP.has(occ.def.type) || occ.def.kind !== 'part' || has(h, s.id)) continue;
-        const bent = Math.abs(occ.props.bent || 0) > 0.003;
-        if (occ.cond < 0.2 || bent) {
-          plan.push({ h: h.uid, s: s.id, type: occ.def.type, kind: 'fix', why: bent ? `Bent ${short(occ.def.name).toLowerCase()} (crash damage)` : BODY.has(s.id) || s.id === 'radiator' ? `Crash-damaged ${short(occ.def.name).toLowerCase()} (${Math.round(occ.cond * 100)}%)` : `Worn out ${short(occ.def.name).toLowerCase()} (${Math.round(occ.cond * 100)}%)`, where: words(s.name) });
-          this.game.toast(`🔧 New repair job: ${bent ? 'bent' : BODY.has(s.id) || s.id === 'radiator' ? 'crash-damaged' : 'worn out'} ${words(s.name).toLowerCase()} — see the guide (H)`, 4);
-        }
-      }
+    for (const p of partProblems(asm, [this.C, this.game.stand])) {
+      if (p.kind === 'missing' || NO_SWAP.has(p.type) || has(p.host, p.slot.id)) continue;
+      plan.push({ h: p.host.uid, s: p.slot.id, type: p.type, kind: 'fix', why: p.why, where: p.where });
+      this.game.toast(`🔧 New repair job: ${p.why.toLowerCase()} — see the guide (H)`, 4);
     }
     // upgrade parts you own that aren't fitted yet
     const used = new Set();
@@ -71,14 +66,14 @@ export function installRepair(Guide) {
     const h = this.asm.get(t.h); if (!h) return true;
     const occ = h.kids[t.s];
     if (!occ) return false;
-    if (t.defId ? occ.def.id !== t.defId : (occ.cond < 0.3 || Math.abs(occ.props.bent || 0) > 0.003)) return false;
+    if (t.defId ? occ.def.id !== t.defId : (occ.cond < BROKEN || Math.abs(occ.props.bent || 0) > 0.003)) return false;
     return this.asm.fastenerSummary(occ).secure;
   };
   // does the current occupant of the slot have to come out?
   P.mustRemove = function (t) {
     const h = this.asm.get(t.h), occ = h?.kids[t.s];
     if (!occ) return null;
-    if (t.defId ? occ.def.id === t.defId : (occ.cond >= 0.3 && Math.abs(occ.props.bent || 0) <= 0.003)) return null;
+    if (t.defId ? occ.def.id === t.defId : (occ.cond >= BROKEN && Math.abs(occ.props.bent || 0) <= 0.003)) return null;
     return occ;
   };
   // the replacement / upgrade part to fit
@@ -114,27 +109,30 @@ export function installRepair(Guide) {
     const list = plan.filter((t) => t.kind !== 'refit').map((t, i) => `${i + 1}) ${t.why} — ${t.where}`).join('<br>') + (plan.some((t) => t.kind === 'refit') ? `<br>…then put back what was taken off (${plan.filter((t) => t.kind === 'refit').length})` : '');
     const wrap = (title, s) => ({ repair: `${n} JOB${n > 1 ? 'S' : ''}`, st: { title }, s: { ...s, text: `${s.text}<div class="gplan">${list}</div>` } });
     const held = g.interaction.held;
-    // 1) buy what's missing before taking anything apart
+    // jobs whose new part you already own go ahead; the rest wait until you've bought it
     const noPart = plan.filter((t) => !this.repairPart(t) && !(this.asm.get(t.h)?.kids[t.s] && !this.mustRemove(t)));
-    if (noPart.length) {
-      const names = [...new Set(noPart.map((t) => { const d = Object.values(DEFS).filter((x) => x.type === t.type && x.shop).sort((a, b) => a.price - b.price)[0]; return d ? `${d.name} (${d.price} mk)` : t.type; }))];
+    const ready = plan.filter((t) => !noPart.includes(t));
+    const buyNames = [...new Set(noPart.map((t) => { const d = Object.values(DEFS).filter((x) => x.type === t.type && x.shop).sort((a, b) => a.price - b.price)[0]; return d ? `${d.name} (${d.price} mk)` : t.type; }))];
+    const stillBuy = buyNames.length && ready.length ? `<div class="gplan">🛒 Still to buy: ${buyNames.join(', ')} — those jobs wait until you have the parts.</div>` : '';
+    const wrap2 = (title, st) => wrap(title, { ...st, text: st.text + stillBuy });
+    if (!ready.length) {
       const bentOnly = noPart.every((t) => /Bent/.test(t.why)), bodyOnly = noPart.every((t) => /Crash-damaged/.test(t.why));
-      return wrap(names.length === 1 ? `Get a new ${names[0].replace(/ \(\d+ mk\)$/, '').toLowerCase()}` : `Get new parts (${names.length})`, {
-        text: `You need: ${names.join(', ')}. Order on the computer (⭐ My car needs) or buy at the parts store in Ruskala.${bentOnly ? ' Or let Esa or Ari straighten it ("Straighten suspension & alignment").' : bodyOnly ? ' Cheaper: drive (or tow) the car to Esa’s workshop or Ari’s service park and pick "Repair body panels & lights" — that fixes them all without new parts.' : ''} Nothing gets taken apart until you have it.`,
+      return wrap(buyNames.length === 1 ? `Get a new ${buyNames[0].replace(/ \(\d+ mk\)$/, '').toLowerCase()}` : `Get new parts (${buyNames.length})`, {
+        text: `You need: ${buyNames.join(', ')}. Order on the computer (⭐ My car needs) or buy at the parts store in Ruskala — each job starts as soon as you have its part.${bentOnly ? ' Or let Esa or Ari straighten it ("Straighten suspension & alignment").' : bodyOnly ? ' Cheaper: take the car to Esa’s workshop or Ari’s service park and pick "Repair body panels & lights".' : ''}`,
         targets: [{ kind: 'mark', pos: this.pcPos(), text: 'Computer: order parts', col: COL.buy }],
       });
     }
     // 2) take apart: union of everything in the way, outermost first
-    for (const t of plan) {
+    for (const t of ready) {
       const occ = this.mustRemove(t);
       if (!occ) continue;
       const x = this.removable(occ);
       const isOld = x === occ;
-      if (this.inBay(x)) { const hb = this.hoodBlock(); if (hb) return wrap(`${t.why}: open the bonnet`, hb); }
-      if (this.isUnder(x) && !this.underOk()) return wrap(`${t.why}: raise the car`, this.raiseGuide());
+      if (this.inBay(x)) { const hb = this.hoodBlock(); if (hb) return wrap2(`${t.why}: open the bonnet`, hb); }
+      if (this.isUnder(x) && !this.underOk()) return wrap2(`${t.why}: raise the car`, this.raiseGuide());
       const chk = this.asm.checkRemove(x);
       const lift = chk.reasons.find((r) => /Raise/.test(r));
-      if (lift) return wrap(`${t.why}: raise the car`, { text: lift + ' (floor jack under the jack point, pump with LMB).', targets: [] });
+      if (lift) return wrap2(`${t.why}: raise the car`, { text: lift + ' (floor jack under the jack point, pump with LMB).', targets: [] });
       const name = short(x.def.name);
       // remember to put back whatever is only in the way
       if (!isOld && !plan.some((p) => p.item === x.uid)) plan.push({ h: this.asm.hostOf(x).uid, s: x.slot.id, type: x.def.type, defId: x.def.id, item: x.uid, kind: 'refit', why: `Put back the ${name}`, where: words(this.asm.slotDef(x).name) });
@@ -144,19 +142,19 @@ export function installRepair(Guide) {
           : `Undo ${fj.dots.length} × ${fj.sizeText}${fj.g0.name ? ' (' + fj.g0.name + ')' : ''}: hold RMB on each marked bolt until it comes out`;
         const tg = [{ kind: 'mark', pos: this.center(x), text: `${isOld ? 'Remove' : 'Take off'}: ${name}`, col: COL.grab }];
         if (fj.tool) { text = fj.tool.text; tg.push(...fj.tool.targets); }
-        return wrap(isOld ? `Remove the ${t.kind === 'upgrade' ? 'old ' : /Bent/.test(t.why) ? 'bent ' : 'worn-out '}${name}` : `Take off the ${name} (it's in the way)`, { text: text + (isOld ? '' : ` — it has to come off to reach the ${t.where.toLowerCase()}; it goes back on afterwards.`), targets: tg, dots: fj.dots });
+        return wrap2(isOld ? `Remove the ${t.kind === 'upgrade' ? 'old ' : /Bent/.test(t.why) ? 'bent ' : /Crash/.test(t.why) ? 'damaged ' : 'worn-out '}${name}` : `Take off the ${name} (it's in the way)`, { text: text + (isOld ? '' : ` — it has to come off to reach the ${t.where.toLowerCase()}; it goes back on afterwards.`), targets: tg, dots: fj.dots });
       }
-      if (held) return wrap(`Put down the ${short(held.def.name)}`, { text: `Free your hands: put the ${short(held.def.name)} down out of the way (G).`, targets: [] });
-      return wrap(isOld ? `Lift out the ${name}` : `Take off the ${name}`, { text: `All bolts are out — look at the ${name} and press E to take it off, then put it down out of the way (G).${isOld && t.kind === 'fix' ? ' The old one is scrap (sell it to Raimo).' : ''}`, targets: [{ kind: 'mark', pos: this.center(x), text: `E: take off ${name}`, col: COL.grab }] });
+      if (held) return wrap2(`Put down the ${short(held.def.name)}`, { text: `Free your hands: put the ${short(held.def.name)} down out of the way (G).`, targets: [] });
+      return wrap2(isOld ? `Lift out the ${name}` : `Take off the ${name}`, { text: `All bolts are out — look at the ${name} and press E to take it off, then put it down out of the way (G).${isOld && t.kind === 'fix' ? ' The old one is scrap (sell it to Raimo).' : ''}`, targets: [{ kind: 'mark', pos: this.center(x), text: `E: take off ${name}`, col: COL.grab }] });
     }
     // 3) fit the new parts, deepest first (blocked ones wait until what they sit on is back)
-    for (const t of plan) {
+    for (const t of ready) {
       const h = this.asm.get(t.h);
       const part = this.repairPart(t);
       const step = this.fit(`${t.why}`, () => h, t.s, t.type, { minCond: 0.3, defId: t.defId, car: this.asm.root(h) === this.C, bay: this.asm.root(h) === this.C, under: h === this.C && slotById(h.def.host, t.s)?.pos[1] < 0.35 && !/^(wheel|disc|pads|caliper|shock|spring|skirt|splitter)/.test(t.s) }).state();
       if (step.done || step.blocked || step.buy) continue;
       const title = h.kids[t.s] ? `Bolt up the ${short(h.kids[t.s].def.name)}` : `Fit the ${part ? short(part.def.name) : t.type} — ${t.where.toLowerCase()}`;
-      return wrap(title, step);
+      return wrap2(title, step);
     }
     return null; // what's left is putting the removed parts back: the normal build steps do that
   };
