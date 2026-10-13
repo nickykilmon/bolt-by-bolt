@@ -2,7 +2,7 @@
 // support state (jack / axle stands), damage, leaks and the cockpit.
 import * as THREE from 'three';
 import { dentAt, applyDents, undent } from './damage.js';
-import { breakPart, BROKEN } from '../mechanics/problems.js';
+import { breakPart, BROKEN, works } from '../mechanics/problems.js';
 import { VehicleBody } from './physics.js';
 import { analyze, newPowertrain, stepPowertrain, slowUpdate } from './systems.js';
 import { buildShell, drawGauges } from './carBody.js';
@@ -370,11 +370,11 @@ export class Car {
     this.shell.key.rotation.z = pt.cranking ? -1.2 : pt.ign ? -0.8 : 0;
     // lights
     const lightsOk = S.lights && this.lightsOn;
-    this.shell.lights[0].intensity = lightsOk && this.chassis.kids.headlightL && this.chassis.kids.headlightL.cond > 0.15 ? 40 : 0;
-    this.shell.lights[1].intensity = lightsOk && this.chassis.kids.headlightR && this.chassis.kids.headlightR.cond > 0.15 ? 40 : 0;
+    this.shell.lights[0].intensity = lightsOk && works(this.chassis.kids.headlightL) ? 40 : 0;
+    this.shell.lights[1].intensity = lightsOk && works(this.chassis.kids.headlightR) ? 40 : 0;
     MAT.lens.emissive.setHex(lightsOk ? 0xfff0c0 : 0); MAT.lens.emissiveIntensity = 2;
     const pod = this.chassis.kids.lightPod;
-    for (const L of this.podLights) L.intensity = lightsOk && pod && pod.cond > 0.15 ? 70 : 0;
+    for (const L of this.podLights) L.intensity = lightsOk && works(pod) ? 70 : 0;
     MAT.redLens.emissive.setHex((lightsOk || ctl.brake > 0.1) && S.electric ? 0xff2010 : 0); MAT.redLens.emissiveIntensity = ctl.brake > 0.1 ? 2 : 0.8;
     // openables animation
     for (const k of ['hood', 'doorL', 'doorR', 'trunk']) {

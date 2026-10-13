@@ -1,5 +1,6 @@
 // HUD, overlays and menus (DOM based).
 import { DEFS, slotById, HOSTS, SIZE_LABEL } from '../mechanics/partsdb.js';
+import { healthText, isBroken } from '../mechanics/problems.js';
 import { mountShop } from './shop.js';
 import { fmtMoney, clamp } from '../core/util.js';
 import { ROADS, LAKE } from '../world/terrain.js';
@@ -45,7 +46,7 @@ export class UI {
     const d = inst.def;
     let h = `<h3>${d.name}</h3>`;
     h += `<div>Mass ${asm.subtreeMass(inst).toFixed(1)} kg · Value ~${fmtMoney(d.price * (0.3 + 0.6 * inst.cond))}</div>`;
-    if (d.kind === 'part') h += `<div>Condition: ${inst.known ? `<span class="${inst.cond < 0.35 ? 'bad' : 'ok'}">${Math.round(inst.cond * 100)}%</span>` : 'unknown — inspect it (hold RMB)'}</div>`;
+    if (d.kind === 'part') h += `<div>Condition: ${inst.known ? `<span class="${isBroken(inst) ? 'bad' : 'ok'}">${healthText(inst)}</span>${isBroken(inst) ? '' : ' <span style="color:#999">(works fully until it breaks)</span>'}` : 'unknown — inspect it (hold RMB)'}</div>`;
     if (d.type === 'fluid') h += `<div>Contents: ${inst.props.amount.toFixed(2)} / ${d.cap} L</div>`;
     if (d.desc) h += `<div style="margin-top:4px;color:#ccc">${d.desc}</div>`;
     if (d.kind === 'part') h += `<div style="margin-top:4px">Fits: Ruska 1600 (${d.type.replace(/_/g, ' ')})</div>`;
@@ -195,7 +196,7 @@ export class UI {
         body += `<div class="cat">Classified ads — sell your stuff</div><div class="muted">Put things you want to sell on the delivery pallet outside the garage door. Buyers pay about 40–70% of new price depending on condition. They pick them up immediately.</div>`;
         const items = g.palletItems();
         if (!items.length) body += '<div style="margin-top:8px">Nothing on the pallet.</div>';
-        else body += '<table><tr><th>Item</th><th>Condition</th><th>Offer</th><th></th></tr>' + items.map((it) => `<tr><td>${it.def.name}</td><td>${Math.round(it.cond * 100)}%</td><td>${fmtMoney(g.sellPrice(it))}</td><td><button data-sell="${it.uid}">Sell</button></td></tr>`).join('') + '</table>';
+        else body += '<table><tr><th>Item</th><th>Condition</th><th>Offer</th><th></th></tr>' + items.map((it) => `<tr><td>${it.def.name}</td><td>${it.def.kind === 'part' ? healthText(it) : Math.round(it.cond * 100) + '%'}</td><td>${fmtMoney(g.sellPrice(it))}</td><td><button data-sell="${it.uid}">Sell</button></td></tr>`).join('') + '</table>';
       } else if (tab === 'rally') {
         const R = g.rally;
         body += `<div class="cat">Finnish Rally Federation</div><div>Reputation: <b>${R.rep}</b> · Championship points: <b>${R.points}</b></div><button class="small" id="openRally">Open the event list & standings</button>`;

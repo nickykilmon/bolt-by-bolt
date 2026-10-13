@@ -163,7 +163,7 @@ export class Assembly {
     const reasons = [];
     if (!slot) return { ok: false, reasons: ['no such slot'] };
     if (slot.accepts !== inst.def.type) reasons.push(`${inst.def.name} does not fit here`);
-    if (isBroken(inst)) reasons.push(`This ${inst.def.name.toLowerCase()} is broken (${Math.round(inst.cond * 100)}%) — it's scrap now. Fit a new one (Raimo pays for scrap on his scale)`);
+    if (isBroken(inst)) reasons.push(`This ${inst.def.name.toLowerCase()} is broken — it's scrap now. Fit a new one (Raimo pays for scrap on his scale)`);
     if (host.kids[slotId]) reasons.push(`${slot.name} is already fitted`);
     for (const r of slot.req || []) {
       if (!this.at(host, r)) {

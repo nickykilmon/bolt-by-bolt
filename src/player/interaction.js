@@ -1,6 +1,7 @@
 // What the player is looking at, what they're holding, and what pressing a button does.
 import * as THREE from 'three';
 import { DEFS, slotById, SIZE_LABEL, HOSTS } from '../mechanics/partsdb.js';
+import { healthText } from '../mechanics/problems.js';
 import { TIGHT_OK, OVER_WARN, STRIP_AT } from '../mechanics/assembly.js';
 import { MAT } from '../core/materials.js';
 import { buildPartMesh } from '../mechanics/partMeshes.js';
@@ -205,7 +206,7 @@ export class Interaction {
       const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), input.mouse.dx * 0.01);
       const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), input.mouse.dy * 0.01);
       this.inspectQ.premultiply(qx).premultiply(qy);
-      if (this.held.known === false) { this.held.known = true; g.toast(`Inspected: ${this.held.def.name} — condition ${Math.round(this.held.cond * 100)}%`); }
+      if (this.held.known === false) { this.held.known = true; g.toast(`Inspected: ${this.held.def.name} — condition ${healthText(this.held)}`); }
     }
     this.layoutHeld();
     g.ui.partInfo(this.inspecting ? this.held : (this.target?.type === 'installed' || this.target?.type === 'loose') && input.down('Tab') ? this.target.inst : null);
@@ -423,7 +424,7 @@ export class Interaction {
     const g = this.game, asm = g.asm, inst = t.inst;
     const slot = asm.slotDef(inst);
     const sum = asm.fastenerSummary(inst);
-    let p = `${inst.def.name}${inst.known ? ` <span class="dim">${Math.round(inst.cond * 100)}%</span>` : ''}\n`;
+    let p = `${inst.def.name}${inst.known ? ` <span class="dim">${healthText(inst)}</span>` : ''}\n`;
     if (sum.total) p += `<span class="dim">${sum.total - sum.out}/${sum.total} fasteners in${sum.loose ? `, ${sum.loose} loose` : ''}${sum.stripped ? `, ${sum.stripped} stripped` : ''}</span>\n`;
     // sprocket: turn by hand to set the timing marks
     if ((inst.def.type === 'cam_sprocket' || inst.def.type === 'crank_sprocket') && !this.held) {
@@ -480,7 +481,7 @@ export class Interaction {
   handleLoose(t, input) {
     const g = this.game, inst = t.inst;
     const m = g.asm.subtreeMass(inst);
-    let p = `${inst.def.name}${inst.def.type === 'fluid' ? ` <span class="dim">${inst.props.amount.toFixed(1)} / ${inst.def.cap} L</span>` : ''}${inst.def.kind === 'part' && inst.known ? ` <span class="dim">${Math.round(inst.cond * 100)}%</span>` : inst.def.kind === 'part' ? ' <span class="dim">condition unknown</span>' : ''}\n`;
+    let p = `${inst.def.name}${inst.def.type === 'fluid' ? ` <span class="dim">${inst.props.amount.toFixed(1)} / ${inst.def.cap} L</span>` : ''}${inst.def.kind === 'part' && inst.known ? ` <span class="dim">${healthText(inst)}</span>` : inst.def.kind === 'part' ? ' <span class="dim">condition unknown</span>' : ''}\n`;
     // socket case: pick a socket while holding a ratchet / add a loose socket
     if (inst.def.type === 'socket_case' && this.held && (this.held.def.type === 'ratchet' || this.held.def.type === 'torque_wrench')) {
       p += `${K('E')}Choose socket ${K('Wheel')}Cycle`;

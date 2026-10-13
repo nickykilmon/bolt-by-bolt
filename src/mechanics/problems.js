@@ -7,6 +7,11 @@ export const BROKEN = 0.2; // condition below this = broken / needs replacing
 export const isBroken = (inst) => inst.def.kind === 'part' && (!!inst.props.broken || inst.cond < BROKEN);
 // crash damage: bent, or knocked below the limit -> it's broken: 0 % and scrap
 export function breakPart(inst) { inst.cond = 0; inst.props.broken = true; }
+// works fully (1) or not at all (0) — no "half working" parts
+export const works = (inst) => (inst && !isBroken(inst) ? 1 : 0);
+// the % shown to the player: life left before it breaks (0 % = broken)
+export const health = (inst) => (isBroken(inst) ? 0 : Math.max(1, Math.round((inst.cond - BROKEN) / (1 - BROKEN) * 100)));
+export const healthText = (inst) => (isBroken(inst) ? 'BROKEN' : `${health(inst)}%`);
 export const BODY_SLOTS = new Set(['bumperF', 'bumperR', 'hood', 'trunk', 'doorL', 'doorR', 'headlightL', 'headlightR', 'taillightL', 'taillightR', 'lightPod', 'splitter', 'skirtL', 'skirtR', 'radiator']);
 // add-ons the car runs fine without — never reported as "missing"
 export const OPTIONAL_SLOTS = new Set(['lightPod', 'splitter', 'skirtL', 'skirtR', 'spoiler', 'turbo', 'seatR']);
@@ -28,12 +33,12 @@ export function partProblems(asm, roots, { missing = false } = {}) {
         continue;
       }
       if (occ.def.kind !== 'part' || occ.def.type === 'block') continue;
-      const name = short(occ.def.name).toLowerCase(), pct = Math.round(occ.cond * 100);
+      const name = short(occ.def.name).toLowerCase();
       if (Math.abs(occ.props.bent || 0) > 0.003) out.push({ host: h, slot: s, inst: occ, type: occ.def.type, kind: 'bent', where, why: `Bent ${name} — broken (0%)` });
       else if (occ.cond < BROKEN) {
         const crash = BODY_SLOTS.has(s.id);
-        const dead = /light/.test(occ.def.type) && occ.cond < 0.15 ? ' — gives no light' : '';
-        out.push({ host: h, slot: s, inst: occ, type: occ.def.type, kind: crash || occ.props.broken ? 'crash' : 'worn', where, why: occ.props.broken ? `Broken ${name} (0%)${dead}` : `${crash ? 'Crash-damaged' : 'Worn out'} ${name} (${pct}%)${dead}` });
+        const dead = /light/.test(occ.def.type) ? ' — gives no light' : '';
+        out.push({ host: h, slot: s, inst: occ, type: occ.def.type, kind: crash || occ.props.broken ? 'crash' : 'worn', where, why: occ.props.broken ? `Broken ${name}${dead}` : `${crash ? 'Crash-damaged' : 'Worn-out'} ${name}${dead}` });
       }
     }
   }

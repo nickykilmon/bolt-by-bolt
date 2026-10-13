@@ -3,7 +3,7 @@
 import { clamp, lerp } from '../core/util.js';
 import { CORNERS } from '../mechanics/partsdb.js';
 import { TIGHT_OK } from '../mechanics/assembly.js';
-import { partProblems } from '../mechanics/problems.js';
+import { partProblems, works, isBroken } from '../mechanics/problems.js';
 
 export const OIL_CAP = 3.8, COOLANT_CAP = 6, GEAROIL_CAP = 1.6, BRAKE_CAP = 0.5, FUEL_CAP = 45;
 
@@ -50,7 +50,6 @@ export function analyze(asm, car) {
       const o = Math.abs(S.timingOffset);
       timingF = o === 0 ? 1 : o === 1 ? 0.78 : o === 2 ? 0.42 : 0.08;
       if (o) issue(o >= 2 ? 3 : 2, `Valve timing is ${o} tooth${o > 1 ? 's' : ''} off`);
-      if (belt.cond < 0.3) issue(2, 'Timing belt is cracked and could snap');
     }
   }
   // --- per cylinder compression and spark ---
@@ -84,14 +83,13 @@ export function analyze(asm, car) {
     let c = 0;
     if (p && head && gasket) {
       c = 1;
-      c *= p.kids.rings ? 0.35 + 0.65 * p.kids.rings.cond : 0.12;
-      c *= 0.5 + 0.5 * p.cond;
-      const gc = gasket.cond;
-      if (gc < 0.4 && (i === 1 || i === 2)) c *= gc / 0.4 * 0.5;
+      c *= works(p.kids.rings) ? 1 : 0.12;          // broken or missing rings: no compression
+      c *= works(p) ? 1 : 0.3;
+      if (!works(gasket) && (i === 1 || i === 2)) c *= 0.2; // blown between the middle cylinders
       c *= 1 - headLoose * 0.9;
       if (!valvesOk) c = 0; else if (!springsOk) c *= 0.1;
-      else c *= Math.min(head.kids.valvesIn.cond, head.kids.valvesEx.cond) < 0.3 ? 0.15 : 1;
-      if (!belt || !camOk) c *= 0.1; else c *= timingF;
+      else c *= works(head.kids.valvesIn) && works(head.kids.valvesEx) ? 1 : 0.15;
+      if (!works(belt) || !camOk) c *= 0.1; else c *= timingF;
       const plug = head.kids['plug' + (i + 1)];
       if (!plug) c *= 0.05; // open plug hole
       else c *= 1 - asm.looseness(plug) * 0.8;
@@ -99,14 +97,12 @@ export function analyze(asm, car) {
     const plug = head?.kids['plug' + (i + 1)];
     let s = ignBase && wires && plug ? 1 : 0;
     if (s && wires) { const f = wires.fast[i]; if (!f?.in) s = 0; }
-    if (s && plug) s *= plug.cond < 0.25 ? 0.2 : 0.6 + 0.4 * plug.cond;
+    if (s && plug) s *= works(plug) ? 1 : 0.2;
     S.cyl.push({ comp: c, spark: s });
     if (b && head && !plug) issue(2, `Spark plug #${i + 1} missing`, 'ignition');
-    else if (plug && plug.cond < 0.3) issue(1, `Spark plug #${i + 1} is fouled`, 'ignition');
     if (p && !p.kids.rings) issue(2, `Piston #${i + 1} has no rings — no compression`);
   }
   if (b && !gasket) issue(3, 'Head gasket missing');
-  else if (gasket && gasket.cond < 0.4) issue(2, 'Head gasket is damaged — compression & coolant leak');
   if (head && headLoose > 0.05) issue(2, 'Cylinder head bolts not torqued');
   if (b && !head) issue(3, 'Cylinder head not fitted');
 
@@ -135,7 +131,7 @@ export function analyze(asm, car) {
   for (const pp of [head?.kids.camshaft, carb, head?.kids.exManifold, ch.kids.muffler, ...[1, 2, 3, 4].map((i) => k('piston' + i))]) if (pp?.props.power) pm *= (pp.props.power - 1) / (pp.def.type === 'piston' ? 4 : 1) + 1;
   S.idleRough = head?.kids.camshaft?.props.idle ? 1 - head.kids.camshaft.props.idle : 0;
   const turbo = head?.kids.turbo;
-  S.boost = turbo ? (turbo.props.boost || 0.45) * (0.4 + 0.6 * turbo.cond) * (1 - asm.looseness(turbo) * 0.8) : 0;
+  S.boost = turbo ? (turbo.props.boost || 0.45) * works(turbo) * (1 - asm.looseness(turbo) * 0.8) : 0;
   if (turbo && asm.looseness(turbo) > 0.3) issue(2, 'Turbo flange nuts loose — boost leak', 'engine');
 
   // --- exhaust ---
@@ -194,7 +190,7 @@ export function analyze(asm, car) {
   const hoses = ch.kids.hoseUpper && ch.kids.hoseLower;
   S.coolLeak = 0;
   if (!rad || !hoses || !k('waterPump') || !head?.kids.thermostat || !head) S.coolLeak = 5;
-  else S.coolLeak = (asm.looseness(ch.kids.hoseUpper) + asm.looseness(ch.kids.hoseLower)) * 0.08 + (gasket && gasket.cond < 0.4 ? 0.004 : 0) + (rad.cond < 0.3 ? 0.01 : 0);
+  else S.coolLeak = (asm.looseness(ch.kids.hoseUpper) + asm.looseness(ch.kids.hoseLower)) * 0.08 + (gasket && !works(gasket) ? 0.004 : 0) + (!works(rad) ? 0.01 : 0);
   S.coolingOk = !!(rad && hoses && k('waterPump') && k('fanBelt') && head?.kids.thermostat && S.coolant > 3);
   S.fanOk = !!(ch.kids.fan && S.electric && asm.looseness(ch.kids.fan) < 0.5);
   if (b) {
@@ -229,7 +225,7 @@ export function analyze(asm, car) {
   S.gearOil = gb ? gb.props.oil || 0 : 0;
   S.clutchCap = 0;
   if (k('flywheel') && k('clutchDisc') && k('pressurePlate')) {
-    S.clutchCap = 300 * (k('clutchDisc').props.cap || 1) * (0.35 + 0.65 * k('clutchDisc').cond) * (1 - asm.looseness(k('pressurePlate')) * 0.8);
+    S.clutchCap = 300 * (k('clutchDisc').props.cap || 1) * (works(k('clutchDisc')) ? 1 : 0.35) * (1 - asm.looseness(k('pressurePlate')) * 0.8);
     S.lightFly = !!k('flywheel').props.light;
   }
   S.clutchCable = !!(ch.kids.clutchCable);
@@ -269,18 +265,18 @@ export function analyze(asm, car) {
   for (const [c, d] of Object.entries(CORNERS)) {
     const wheel = ch.kids['wheel' + c];
     const C = { wheel: !!wheel };
-    C.tyre = wheel ? wheel.cond : 0;
+    C.tyre = wheel ? (works(wheel) ? 1 : 0.1) : 0;   // worn-out tyre = bald
     C.grip = wheel ? (wheel.props.grip || 1) : 0;
     C.gravel = wheel ? (wheel.props.gravel || 0.8) : 0;
     C.pressure = wheel ? wheel.props.pressure ?? 2.1 : 0;
     C.wheelLoose = wheel ? asm.looseness(wheel) : 0;
     const pads = ch.kids['pads' + c], cal = ch.kids['caliper' + c], disc = ch.kids['disc' + c];
     C.bite = pads?.props.bite || 1;
-    C.brake = hydraulic && pads && cal && disc ? (0.25 + 0.75 * Math.min(pads.cond * 1.4, 1)) * (1 - asm.looseness(cal) * 0.7) : 0;
+    C.brake = hydraulic && pads && cal && disc ? (works(pads) ? 1 : 0.25) * (1 - asm.looseness(cal) * 0.7) : 0;
     const shock = ch.kids['shock' + c], spring = ch.kids['spring' + c];
-    C.k = spring ? 32000 * (spring.props.k || 1) * (0.7 + 0.3 * spring.cond) : 9000;
+    C.k = spring ? 32000 * (spring.props.k || 1) * (works(spring) ? 1 : 0.7) : 9000;
     C.preload = spring ? spring.props.preload || 0 : -0.04;
-    C.damp = shock ? 2600 * (shock.props.damp || 1) * (0.2 + 0.8 * shock.cond) * (1 - asm.looseness(shock) * 0.6) * ((shock.props.damp || 1) > 1 ? 0.55 + 0.1 * (shock.props.clicks ?? 5) : 1) : 300;
+    C.damp = shock ? 2600 * (shock.props.damp || 1) * (works(shock) ? 1 : 0.2) * (1 - asm.looseness(shock) * 0.6) * ((shock.props.damp || 1) > 1 ? 0.55 + 0.1 * (shock.props.clicks ?? 5) : 1) : 300;
     C.toe = 0;
     if (d.axle === 'F') {
       const tr = ch.kids['tieRod' + c], arm = ch.kids['controlArm' + c];
@@ -292,14 +288,11 @@ export function analyze(asm, car) {
     if (!wheel) issue(3, `Wheel ${c} missing`, 'wheels');
     else {
       if (C.wheelLoose > 0.05) issue(C.wheelLoose > 0.4 ? 3 : 2, `Wheel ${c} lug nuts not tight`, 'wheels');
-      if (C.tyre < 0.25) issue(2, `Tyre ${c} is bald`, 'wheels');
       if (Math.abs(C.pressure - 2.0) > 0.6) issue(1, `Tyre ${c} pressure ${C.pressure.toFixed(1)} bar`, 'wheels');
     }
     if (!shock) issue(2, `Shock absorber ${c} missing`, 'suspension');
-    else if (shock.cond < 0.35) issue(1, `Shock absorber ${c} worn — bouncy`, 'suspension');
     if (!spring) issue(3, `Coil spring ${c} missing`, 'suspension');
     if (!pads || !cal || !disc) issue(2, `Brake ${c} incomplete`, 'brakes');
-    else if (pads.cond < 0.2) issue(2, `Brake pads ${c} worn to the metal`, 'brakes');
     if (Math.abs(C.toe) > 0.02 && !(Math.abs(ch.kids['tieRod' + c]?.props.bent || 0) > 0.003 || Math.abs(ch.kids['controlArm' + c]?.props.bent || 0) > 0.003)) {
       const trB = ch.kids['tieRod' + c], armB = ch.kids['controlArm' + c];
       const bentTr = Math.abs(trB?.props.bent || 0) > 0.003, bentArm = Math.abs(armB?.props.bent || 0) > 0.003;
@@ -483,7 +476,7 @@ export function slowUpdate(pt, S, dt, car, rng = Math.random) {
       if (k.rodBearings) k.rodBearings.cond = Math.max(0, k.rodBearings.cond - dmg);
       if (k.mainBearings) k.mainBearings.cond = Math.max(0, k.mainBearings.cond - dmg * 0.7);
       for (let i = 1; i <= 4; i++) { const p = k['piston' + i]; if (p?.kids.rings) p.kids.rings.cond = Math.max(0, p.kids.rings.cond - dmg * 0.25); }
-      pt.knock = k.rodBearings ? clamp((0.4 - k.rodBearings.cond) * 2.5, 0, 1) : 1;
+      pt.knock = works(k.rodBearings) ? 0 : 1;   // knocks once the bearings are gone
       if (pt.knock > 0.3 && !pt.knockMsg) { pt.knockMsg = true; msgs.push('A deep knocking noise is coming from the bottom of the engine.'); }
       if ((k.rodBearings?.cond ?? 0) <= 0.02 || (!k.mainBearings && rng() < dt * 0.2)) {
         blk.props.seized = true; pt.running = false; pt.events.push('seize');
@@ -508,7 +501,7 @@ export function slowUpdate(pt, S, dt, car, rng = Math.random) {
   if (S.coolingOk) {
     const thermostatOpen = pt.temp > 86;
     const air = Math.min(car.speed / 18, 1.5) + (S.fanOk && pt.temp > 95 ? 0.8 : 0);
-    if (thermostatOpen) cool += (pt.temp - 86) * (0.06 + 0.12 * air) * (car.chassis.kids.radiator?.cond ?? 1);
+    if (thermostatOpen) cool += (pt.temp - 86) * (0.06 + 0.12 * air) * (car.chassis.kids.radiator ? (works(car.chassis.kids.radiator) ? 1 : 0.3) : 1);
   } else if (pt.running && pt.temp > 100 && !pt.steamMsg) { pt.steamMsg = true; msgs.push('Steam is pouring out of the engine bay!'); }
   pt.temp -= cool * dt;
   if (pt.temp < 100) pt.steamMsg = false;

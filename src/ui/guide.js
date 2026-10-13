@@ -242,10 +242,10 @@ export class Guide {
         const b = B(); if (b?.kids.piston4) return { done: true };
         const p = [...this.asm.items.values()].find((i) => i.def.type === 'piston' && !i.slot && !i.props.forSale && !this.isJobItem(i));
         if (!p) return { done: true };
-        if (p.kids.rings && p.kids.rings.cond >= 0.3) return { done: true };
+        if (p.kids.rings && p.kids.rings.cond >= 0.2) return { done: true };
         if (p.kids.rings) return { text: 'Those rings are broken — take them off the piston (E) and put them aside.', targets: [{ kind: 'mark', pos: this.center(p.kids.rings), text: 'Broken rings', col: COL.grab }] };
-        const r = this.pick('piston_rings', 0.3);
-        if (!r) return this.buyGuide('piston_rings', 0.3);
+        const r = this.pick('piston_rings', 0.2);
+        if (!r) return this.buyGuide('piston_rings', 0.2);
         if (this.game.interaction.held !== r) return { text: 'Grab the NEW piston ring set (not the broken one on the bench).', targets: [this.itemTarget(r)] };
         return { text: 'Look at piston #4 on the workbench and press LMB to fit the rings.', targets: [{ kind: 'mark', pos: this.center(p), text: 'Piston #4', col: COL.go }] };
       },
@@ -253,7 +253,7 @@ export class Guide {
     steps.push(this.fit('Fit piston #4 into the block', B, 'piston4', 'piston', { tip: 'Press R until the ARROW on the piston top points to the front (pulley end) — the ghost turns green. Then turn the engine upside down (E on the engine stand) and tighten the 2 rod nuts, which are then on top.' }));
     steps.push(this.fit('Fit the oil pan', B, 'oilPan', 'oil_pan', { tip: 'Easiest with the engine turned upside down (E on the engine stand): the bolts and drain plug then face up. Turn it back upright afterwards.' }));
     steps.push(this.fit('Fit a new oil filter', B, 'oilFilter', 'oil_filter', { tip: 'It screws on by hand: LMB with empty hands.' }));
-    steps.push(this.fit('Fit the new head gasket', B, 'headGasket', 'head_gasket', { minCond: 0.3 }));
+    steps.push(this.fit('Fit the new head gasket', B, 'headGasket', 'head_gasket', { minCond: 0.2 }));
     steps.push(this.fit('Fit the cylinder head', B, 'head', 'cylinder_head', {}));
     steps.push({
       title: 'Line up the timing marks',
@@ -268,7 +268,7 @@ export class Guide {
         return { text: `${held ? 'Put down what you\'re holding (G). ' : ''}Look at each timing gear with empty hands and turn it with the mouse wheel until the prompt says "Mark lined up ✔".`, targets: bad.map((x) => ({ kind: 'mark', pos: this.center(x), text: `${x.def.type === 'cam_sprocket' ? 'Cam' : 'Crank'} gear: ${x.props.tooth > 0 ? '+' : ''}${x.props.tooth} teeth`, col: COL.go })) };
       },
     });
-    steps.push(this.fit('Fit the new timing belt', B, 'timingBelt', 'timing_belt', { minCond: 0.3 }));
+    steps.push(this.fit('Fit the new timing belt', B, 'timingBelt', 'timing_belt', { minCond: 0.2 }));
     steps.push(this.fit('Fit the timing cover', B, 'timingCover', 'timing_cover', {}));
     steps.push(this.fit('Fit the crank pulley', B, 'crankPulley', 'crank_pulley', { tip: 'The crank bolt takes 110 Nm — keep pulling.' }));
     steps.push(this.fit('Fit the V-belt', B, 'fanBelt', 'fan_belt', {}));
@@ -376,13 +376,13 @@ export class Guide {
     const have = (type, minCond = 0) => [...this.asm.items.values()].some((i) => i.def.type === type && i.cond >= minCond && !i.props.forSale && !this.isJobItem(i));
     const ordered = (type) => this.game.orders.some((o) => o.items.some((id) => DEFS[id].type === type));
     const need = (type, id, minCond = 0) => { if (!have(type, minCond) && !ordered(type)) add(id); };
-    if (b && !b.kids.headGasket) need('head_gasket', 'head_gasket_16', 0.3);
+    if (b && !b.kids.headGasket) need('head_gasket', 'head_gasket_16', 0.2);
     if (!b?.kids.piston4 || !b.kids.piston4.kids.rings) {
-      const ok = [...this.asm.items.values()].some((i) => i.def.type === 'piston_rings' && i.cond >= 0.3 && !(this.asm.hostOf(i)?.def.type === 'piston' && this.asm.hostOf(i)?.slot));
+      const ok = [...this.asm.items.values()].some((i) => i.def.type === 'piston_rings' && i.cond >= 0.2 && !(this.asm.hostOf(i)?.def.type === 'piston' && this.asm.hostOf(i)?.slot));
       if (!ok && !ordered('piston_rings')) add('rings_16');
     }
     if (b && !b.kids.oilFilter) need('oil_filter', 'oil_filter');
-    if (b && !b.kids.timingBelt) need('timing_belt', 'timing_belt', 0.3);
+    if (b && !b.kids.timingBelt) need('timing_belt', 'timing_belt', 0.2);
     const head = b?.kids.head || [...this.asm.items.values()].find((i) => i.def.type === 'cylinder_head' && !this.isJobItem(i) && !i.props.forSale);
     if (head) {
       const empty = [1, 2, 3, 4].filter((n) => !head.kids['plug' + n]).length;

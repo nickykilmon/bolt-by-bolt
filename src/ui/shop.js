@@ -29,7 +29,7 @@ export function carNeeds(g) {
   for (const it of asm.items.values()) if (it.def.host && !it.slot && !it.props.forSale && it.props.owner !== 'esa' && !g.guide?.isJobItem?.(it) && it.def.kind === 'part') hosts.add(it); // e.g. the head on the bench
   const inCar = (i) => { for (let h = i; h; h = asm.hostOf(h)) if (h === g.car.chassis) return true; return false; };
   // you already own one that isn't in the car yet (on the stand, the bench, the floor, in the basket or on order)
-  const spare = (type) => [...asm.items.values()].some((i) => i.def.type === type && i.cond >= 0.3 && !i.props.forSale && i.props.owner !== 'esa' && !g.guide?.isJobItem?.(i) && !inCar(i))
+  const spare = (type) => [...asm.items.values()].some((i) => i.def.type === type && i.cond >= 0.2 && !i.props.broken && !i.props.forSale && i.props.owner !== 'esa' && !g.guide?.isJobItem?.(i) && !inCar(i))
     || g.orders.some((o) => o.items.some((id) => DEFS[id].type === type)) || g.basket.some((id) => DEFS[id].type === type);
   const cheapest = (type) => Object.values(DEFS).filter((d) => d.type === type && d.shop).sort((a, b) => a.price - b.price)[0];
   for (const p of partProblems(asm, [...hosts].filter((h) => !asm.hostOf(h) || !hosts.has(asm.hostOf(h))), { missing: true })) {

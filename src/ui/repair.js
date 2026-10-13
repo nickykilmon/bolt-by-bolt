@@ -48,7 +48,7 @@ export function installRepair(Guide) {
     // upgrade parts you own that aren't fitted yet
     const used = new Set();
     for (const it of asm.items.values()) {
-      if (it.slot || it.cond < 0.3 || !UPGRADE_CATS.has(it.def.cat) || !this.owned(it) || it.loc?.kind === 'hoist' || plan.some((t) => t.item === it.uid)) continue;
+      if (it.slot || it.cond < BROKEN || !UPGRADE_CATS.has(it.def.cat) || !this.owned(it) || it.loc?.kind === 'hoist' || plan.some((t) => t.item === it.uid)) continue;
       let best = null;
       for (const h of this.repairHosts()) for (const s of HOSTS[h.def.host] || []) {
         if (s.accepts !== it.def.type || used.has(h.uid + s.id) || has(h, s.id)) continue;
@@ -85,7 +85,7 @@ export function installRepair(Guide) {
   // the replacement / upgrade part to fit
   P.repairPart = function (t) {
     if (t.item) { const it = this.asm.get(t.item); if (it && !it.slot && this.owned(it)) return it; }
-    return this.pick(t.type, 0.3, t.defId);
+    return this.pick(t.type, 0.2, t.defId);
   };
   // first thing that can actually come off on the way to `occ` (things that need it come off first)
   P.removable = function (occ) {
@@ -157,7 +157,7 @@ export function installRepair(Guide) {
     for (const t of ready) {
       const h = this.asm.get(t.h);
       const part = this.repairPart(t);
-      const step = this.fit(`${t.why}`, () => h, t.s, t.type, { minCond: 0.3, defId: t.defId, car: this.asm.root(h) === this.C, bay: this.asm.root(h) === this.C, under: h === this.C && slotById(h.def.host, t.s)?.pos[1] < 0.35 && !/^(wheel|disc|pads|caliper|shock|spring|skirt|splitter)/.test(t.s) }).state();
+      const step = this.fit(`${t.why}`, () => h, t.s, t.type, { minCond: 0.2, defId: t.defId, car: this.asm.root(h) === this.C, bay: this.asm.root(h) === this.C, under: h === this.C && slotById(h.def.host, t.s)?.pos[1] < 0.35 && !/^(wheel|disc|pads|caliper|shock|spring|skirt|splitter)/.test(t.s) }).state();
       if (step.done || step.blocked || step.buy) continue;
       const title = h.kids[t.s] ? `Bolt up the ${short(h.kids[t.s].def.name)}` : `Fit the ${part ? short(part.def.name) : t.type} — ${t.where.toLowerCase()}`;
       return wrap2(title, step);

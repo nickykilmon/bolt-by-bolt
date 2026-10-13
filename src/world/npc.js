@@ -196,7 +196,7 @@ export class NPCs {
     const S = car.systems();
     const ch = car.chassis.kids;
     if (!ch.muffler && car.pt.running) return 'Sounds like a tractor! Your Ruska is louder than my combine harvester.';
-    if (ch.bumperF?.cond < 0.3) return 'Did you drive through a barn? That bumper has seen things.';
+    if (ch.bumperF && (ch.bumperF.props.broken || ch.bumperF.cond < 0.2)) return 'Did you drive through a barn? That bumper has seen things.';
     if (car.chassis.props.paint && car.chassis.props.livery && car.chassis.props.livery !== 'none') return 'Now THAT looks like a rally car. Respect.';
     if (S.issues.filter((i) => i.sev >= 3).length > 5) return 'You know cars are supposed to have all their parts, right?';
     return null;
