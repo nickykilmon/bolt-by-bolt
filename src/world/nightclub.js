@@ -179,12 +179,15 @@ export class Nightclub {
       });
     });
   }
-  dancePrompt() { return this.dancing ? `${K('E')}Stop dancing` : `${K('E')}Dance`; }
+  dancePrompt() { return this.dancing ? `${K('E')}Stop dancing` : `${K('E')}Dance <span class="dim">(or J anywhere)</span>`; }
   toggleDance() {
     const g = this.game;
-    if (!this.isOpen()) { g.say('Dancing to no music. Bold.'); }
-    this.dancing = !this.dancing; this.danceT = 0;
-    if (this.dancing) { g.say('You hit the dance floor! (Move to stop)', 2); g.ach?.unlock('dance'); }
+    if (this.dancing) { this.dancing = false; return; }
+    if (g.player.inCar || g.player.onMoped || g.fightclub?.fight || this.dj) return;
+    this.dancing = true; this.danceT = 0;
+    const club = this.inside() && this.isOpen();
+    g.say(club ? 'You hit the dance floor! (J or move to stop)' : this.music.track && this.isOpen() && g.player.pos.distanceTo(this.djSpot) < 40 ? 'Dancing to the muffled club beat outside. (J or move to stop)' : ['Dancing like nobody’s watching. (J or move to stop)', 'Busting out some moves. (J or move to stop)', 'Dancing to the music in your head. (J or move to stop)'][Math.floor(Math.random() * 3)], 2);
+    g.ach?.unlock('dance');
   }
 
   // ---------------- DJ job ----------------
@@ -323,14 +326,17 @@ export class Nightclub {
     this.music.update(level, !this.inside() && near > 6);
     // dancing yourself
     if (this.dancing) {
-      if (input.down('KeyW') || input.down('KeyA') || input.down('KeyS') || input.down('KeyD') || !this.inside()) this.dancing = false;
+      if (input.down('KeyW') || input.down('KeyA') || input.down('KeyS') || input.down('KeyD') || g.player.inCar || g.player.onMoped || g.fightclub?.fight) this.dancing = false;
       else {
-        const t = performance.now() * 0.001, bpm = this.music.track?.bpm || 120;
+        const club = this.inside() && open;
+        const t = performance.now() * 0.001, bpm = club ? this.music.track?.bpm || 120 : 118;
         g.player.pitch = -0.1 + Math.sin(t * bpm / 60 * Math.PI) * 0.06; g.camera.rotation.z = Math.sin(t * bpm / 120 * Math.PI) * 0.05;
+        g.player.yaw += Math.cos(t * bpm / 120 * Math.PI) * 0.004;
         this.danceT += dt;
-        if (this.danceT > 8) { this.danceT = 0; g.life.cheer(2, true); g.life.exert(4); }
+        if (this.danceT > (club ? 8 : 12)) { this.danceT = 0; g.life.cheer(club ? 2 : 1, true); g.life.exert(4); }
       }
     }
+    if (input.hit('KeyJ') && !g.ui.modal) this.toggleDance();
     if (this.dj) this.updateDJ(dt, input);
     // the heckler waits outside until closing time; leave the club and he's on you
     if (this.heckler) {
