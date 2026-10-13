@@ -14,11 +14,16 @@ import { mulberry32, clamp, fmtMoney } from '../core/util.js';
 const K = (k) => `<span class="k">${k}</span>`;
 const OPEN_FROM = 21, OPEN_TO = 4; // fight night: 21:00 - 04:00
 export const FIGHTERS = [
+  { name: 'Make "Mopo" Mäkinen', hp: 55, dmg: 5, speed: 1.9, wind: 0.5, block: 0.05, cd: 1.25, prize: 90, shirt: 0xd8a020, pants: 0x2a3a6a },         // quick, but hits like a pillow
   { name: 'Pasi "Puukko" Pöllänen', hp: 70, dmg: 7, speed: 1.4, wind: 0.55, block: 0.1, cd: 1.6, prize: 150, shirt: 0x6a6a6a, pants: 0x2a2a2a },
+  { name: 'Sami "Sauna" Saarinen', hp: 95, dmg: 7, speed: 1.2, wind: 0.62, block: 0.35, cd: 1.7, prize: 220, shirt: 0xf0f0f0, pants: 0x3a3a3a },     // slow, soaks up punches
   { name: 'Reijo "Rauta" Rautio', hp: 90, dmg: 9, speed: 1.6, wind: 0.5, block: 0.2, cd: 1.4, prize: 300, shirt: 0x8a2a1a, pants: 0x1a1a1a },
   { name: 'Tuomas "Tukki" Tukiainen', hp: 115, dmg: 10, speed: 1.5, wind: 0.48, block: 0.25, cd: 1.3, prize: 500, shirt: 0x2a4a2a, pants: 0x3a2a1a },
+  { name: 'Kalevi "Kirves" Korhonen', hp: 105, dmg: 14, speed: 1.4, wind: 0.62, block: 0.12, cd: 1.5, prize: 650, shirt: 0x5a3a1a, pants: 0x222222 }, // huge slow swings — block them
   { name: 'Jarkko "Jäänsärkijä" Järvi', hp: 125, dmg: 12, speed: 1.9, wind: 0.42, block: 0.35, cd: 1.15, prize: 800, shirt: 0x1a2a6a, pants: 0x111111 },
+  { name: 'Ville "Viikate" Virtanen', hp: 120, dmg: 11, speed: 2.3, wind: 0.36, block: 0.45, cd: 0.95, prize: 1100, shirt: 0x6a1a6a, pants: 0x111111 }, // fast hands, good guard
   { name: 'Iso-Jussi', hp: 160, dmg: 15, speed: 1.7, wind: 0.38, block: 0.4, cd: 1.05, prize: 1500, shirt: 0x111111, pants: 0x111111 },
+  { name: 'Tapio "Talvisota" Tervo', hp: 190, dmg: 16, speed: 2.0, wind: 0.34, block: 0.5, cd: 0.95, prize: 2500, shirt: 0xe8e8e8, pants: 0x1a2a4a }, // the undefeated champion
 ];
 
 export class FightClub {
@@ -229,7 +234,7 @@ export class FightClub {
     const champ = this.rank >= FIGHTERS.length;
     const prize = champ ? Math.round(f.prize * 0.6) : f.prize, fee = 30;
     ui.panel(`<h2>The ring master</h2>
-      <div>${champ ? 'You beat them all. Rematch against <b>Iso-Jussi</b> for the crowd?' : `Next on the ladder (${i + 1}/${FIGHTERS.length}): <b>${f.name}</b>`}</div>
+      <div>${champ ? `You beat them all. Rematch against <b>${FIGHTERS[FIGHTERS.length - 1].name}</b> for the crowd?` : `Next on the ladder (${i + 1}/${FIGHTERS.length}): <b>${f.name}</b>`}</div>
       <div class="muted">Entry ${fmtMoney(fee)} · Win ${fmtMoney(prize)} · ${f.hp} HP, hits ${f.dmg <= 8 ? 'soft' : f.dmg <= 11 ? 'hard' : 'very hard'}.</div>
       <div class="muted" style="margin-top:6px">${K('LMB')} punch (uses stamina) · hold ${K('RMB')} block · WASD move. Watch his arm pull back — that's your cue to block or step away.</div>
       <div class="svc"><span>${this.match ? 'Fight after the current match' : 'Step into the ring'}</span><button id="fgo">Fight! (${fmtMoney(fee)})</button></div>`, (el) => {
@@ -439,7 +444,7 @@ export class FightClub {
       g.life.cheer(15); this.wins++;
       if (this.rank === F.idx) this.rank++;
       g.ach?.unlock('fight_win'); if (this.rank >= FIGHTERS.length) g.ach?.unlock('fight_champ');
-      g.say(this.rank >= FIGHTERS.length && F.idx === FIGHTERS.length - 1 ? 'KNOCKOUT! You beat Iso-Jussi — you\'re the king of The Cellar!' : `KNOCKOUT! ${F.opp.f.name} is down. The crowd goes wild!`, 5);
+      g.say(this.rank >= FIGHTERS.length && F.idx === FIGHTERS.length - 1 ? `KNOCKOUT! You beat ${FIGHTERS[FIGHTERS.length - 1].name} — you're the king of The Cellar!` : `KNOCKOUT! ${F.opp.f.name} is down. The crowd goes wild!`, 5);
     } else {
       g.fade(() => {
         this.cleanupFight();
@@ -455,6 +460,6 @@ export class FightClub {
     if (F.won && !F.street) g.player.pos.set(this.rc.x, this.F, this.rc.z + this.R + 1.2); // climb out of the ring
     this.fight = null; this.showHud(false); if (this.fists) this.fists.visible = false;
   }
-  serialize() { return { rank: this.rank, wins: this.wins, met: this.metDoorman }; } // (bets & queued fights don't survive a save)
-  restore(d) { if (!d) return; this.rank = d.rank || 0; this.wins = d.wins || 0; this.metDoorman = !!d.met; }
+  serialize() { return { rank: this.rank, wins: this.wins, met: this.metDoorman, v: 2 }; } // (bets & queued fights don't survive a save)
+  restore(d) { if (!d) return; this.rank = d.v >= 2 ? d.rank || 0 : [0, 3, 4, 6, 8, 9][Math.min(5, d.rank || 0)]; this.wins = d.wins || 0; this.metDoorman = !!d.met; }
 }

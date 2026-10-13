@@ -34,7 +34,7 @@ export const ACH = [
   { id: 'drunk', icon: '🥴', title: 'Hyvää juhannusta', desc: 'Get properly drunk.' },
   { id: 'smoke_20', icon: '🚬', title: 'Pack a day', desc: 'Smoke 20 cigarettes.' },
   { id: 'fight_win', icon: '🥊', title: 'First blood', desc: 'Win a fight in The Cellar.' },
-  { id: 'fight_champ', icon: '👊', title: 'King of the Cellar', desc: 'Beat all five fighters, Iso-Jussi included.' },
+  { id: 'fight_champ', icon: '👊', title: 'King of the Cellar', desc: 'Beat every fighter on the ladder, the champion Tapio included.' },
   { id: 'bet_win', icon: '🎲', title: 'Called it', desc: 'Win a bet at The Cellar.' },
   { id: 'clubbing', icon: '🪩', title: 'On the list', desc: 'Get into Klubi Revontuli.' },
   { id: 'dance', icon: '💃', title: 'Dancing queen', desc: 'Hit the dance floor.' },
