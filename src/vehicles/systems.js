@@ -299,7 +299,12 @@ export function analyze(asm, car) {
     if (!spring) issue(3, `Coil spring ${c} missing`, 'suspension');
     if (!pads || !cal || !disc) issue(2, `Brake ${c} incomplete`, 'brakes');
     else if (pads.cond < 0.2) issue(2, `Brake pads ${c} worn to the metal`, 'brakes');
-    if (Math.abs(C.toe) > 0.02) issue(1, `Alignment off at ${c}`, 'suspension');
+    if (Math.abs(C.toe) > 0.02) {
+      const trB = ch.kids['tieRod' + c], armB = ch.kids['controlArm' + c];
+      const bentTr = Math.abs(trB?.props.bent || 0) > 0.003, bentArm = Math.abs(armB?.props.bent || 0) > 0.003;
+      const why = bentTr && bentArm ? 'bent tie rod and control arm' : bentTr ? 'bent tie rod' : bentArm ? 'bent control arm' : 'toe setting';
+      issue(1, `Alignment off at ${c}: ${why}${why === 'toe setting' ? ' (adjust it in the tuning screen)' : ' from a crash — bolts are fine; Esa/Ari can straighten it, or fit a new part'}`, 'suspension');
+    }
     S.corners[c] = C;
   }
   S.lights = !!(ch.kids.headlightL || ch.kids.headlightR) && S.electric;

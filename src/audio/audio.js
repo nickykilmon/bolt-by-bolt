@@ -194,7 +194,7 @@ export class Audio {
     try {
       if (!window.speechSynthesis) return;
       const u = new SpeechSynthesisUtterance(text.replace(/[“”"]/g, ''));
-      u.rate = opts.rate ?? 1.15; u.pitch = opts.pitch ?? 0.9; u.volume = Math.min(1, this.volume * 1.2);
+      u.rate = opts.rate ?? 1.15; u.pitch = opts.pitch ?? 0.9; u.volume = Math.min(1, this.volume * 1.2 * (opts.volume ?? 1));
       const v = this.voiceFor(opts.voice || 'codriver'); if (v) u.voice = v;
       speechSynthesis.cancel(); speechSynthesis.speak(u);
     } catch (e) { console.warn('speech unavailable', e); }

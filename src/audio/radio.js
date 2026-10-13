@@ -67,7 +67,8 @@ export class Radio {
     const s = SONGS[this.order[this.idx]];
     const djLine = DJ[Math.floor(Math.random() * DJ.length)].replace('{last}', last ? `${last.def.title} by ${last.def.artist}` : 'a classic').replace('{next}', `${s.title} by ${s.artist}`);
     const delay = first ? 0.2 : 3.2;
-    if (!first && this.a.speak) this.a.speak(djLine, { pitch: 1.1, rate: 1.15, voice: 'dj' });
+    // the DJ is on the same speaker as the music: only heard when you're close enough to hear the radio
+    if (!first && this.a.speak && (this.hear ?? 1) > 0.06) this.a.speak(djLine, { pitch: 1.1, rate: 1.15, voice: 'dj', volume: Math.min(1, this.hear ?? 1) });
     this.song = this.prepare(s, this.a.ctx.currentTime + delay);
     this.onSong?.(s);
   }
@@ -106,6 +107,8 @@ export class Radio {
   update(listenerPos, sourcePos) {
     if (!this.on || !this.song) return;
     this.setPos(sourcePos);
+    // how loud the speaker is where you stand (same 'inverse' falloff as the panner)
+    if (listenerPos && sourcePos) { const d = Math.max(1.5, listenerPos.distanceTo(sourcePos)); this.hear = 1.5 / (1.5 + 1.4 * (d - 1.5)); }
     const c = this.a.ctx, S = this.song, d = S.def;
     const ahead = c.currentTime + 0.25;
     while (S.nextStep < S.total) {
