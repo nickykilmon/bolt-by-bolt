@@ -7,7 +7,7 @@
 //   4. the normal build guide then refits whatever was taken off, in build order
 import * as THREE from 'three';
 import { DEFS, HOSTS, slotById } from '../mechanics/partsdb.js';
-import { partProblems, BROKEN } from '../mechanics/problems.js';
+import { partProblems, BROKEN, COSMETIC_SLOTS } from '../mechanics/problems.js';
 
 const COL = { grab: '#ffd23c', go: '#4ad8ff', tool: '#ff9a3c', bolt: '#ff7a2a', buy: '#ff6ad5' };
 const UPGRADE_CATS = new Set(['Performance', 'Body kits']);
@@ -109,7 +109,7 @@ export function installRepair(Guide) {
     const g = this.game;
     if (!(this.started || this.doneCount === this.total)) return null;
     this.scanRepairs();
-    const plan = this.repair = this.repair.filter((t) => !this.repairDone(t) && this.asm.get(t.h));
+    const plan = this.repair = this.repair.filter((t) => !this.repairDone(t) && this.asm.get(t.h) && !(t.kind === 'fix' && COSMETIC_SLOTS.has(t.s)));
     if (!plan.length) return null;
     const n = plan.filter((t) => t.kind !== 'refit').length || plan.length;
     const list = plan.filter((t) => t.kind !== 'refit').map((t, i) => `${i + 1}) ${t.why} — ${t.where}`).join('<br>') + (plan.some((t) => t.kind === 'refit') ? `<br>…then put back what was taken off (${plan.filter((t) => t.kind === 'refit').length})` : '');

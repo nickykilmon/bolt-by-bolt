@@ -13,6 +13,8 @@ export const works = (inst) => (inst && !isBroken(inst) ? 1 : 0);
 export const health = (inst) => (isBroken(inst) ? 0 : Math.max(1, Math.round((inst.cond - BROKEN) / (1 - BROKEN) * 100)));
 export const healthText = (inst) => (isBroken(inst) ? 'BROKEN' : `${health(inst)}%`);
 export const BODY_SLOTS = new Set(['bumperF', 'bumperR', 'hood', 'trunk', 'doorL', 'doorR', 'headlightL', 'headlightR', 'taillightL', 'taillightR', 'lightPod', 'splitter', 'skirtL', 'skirtR', 'radiator']);
+// body panels: dents and scrapes are only cosmetic — never reported as something to fix
+export const COSMETIC_SLOTS = new Set(['bumperF', 'bumperR', 'hood', 'trunk', 'doorL', 'doorR', 'splitter', 'skirtL', 'skirtR', 'spoiler']);
 // add-ons the car runs fine without — never reported as "missing"
 export const OPTIONAL_SLOTS = new Set(['lightPod', 'splitter', 'skirtL', 'skirtR', 'spoiler', 'turbo', 'seatR']);
 const CORNER = { FL: 'front-left', FR: 'front-right', RL: 'rear-left', RR: 'rear-right' };
@@ -32,9 +34,9 @@ export function partProblems(asm, roots, { missing = false } = {}) {
         if (missing && !OPTIONAL_SLOTS.has(s.id)) out.push({ host: h, slot: s, inst: null, type: s.accepts, kind: 'missing', where, why: `Missing: ${where}` });
         continue;
       }
-      if (occ.def.kind !== 'part' || occ.def.type === 'block') continue;
+      if (occ.def.kind !== 'part' || occ.def.type === 'block' || COSMETIC_SLOTS.has(s.id)) continue;
       const name = short(occ.def.name).toLowerCase();
-      if (Math.abs(occ.props.bent || 0) > 0.003) out.push({ host: h, slot: s, inst: occ, type: occ.def.type, kind: 'bent', where, why: `Bent ${name} — broken (0%)` });
+      if (Math.abs(occ.props.bent || 0) > 0.003) out.push({ host: h, slot: s, inst: occ, type: occ.def.type, kind: 'bent', where, why: `Bent ${name}` });
       else if (occ.cond < BROKEN) {
         const crash = BODY_SLOTS.has(s.id);
         const dead = /light/.test(occ.def.type) ? ' — gives no light' : '';

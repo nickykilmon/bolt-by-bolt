@@ -2,7 +2,7 @@
 // support state (jack / axle stands), damage, leaks and the cockpit.
 import * as THREE from 'three';
 import { dentAt, applyDents, undent } from './damage.js';
-import { breakPart, BROKEN, works } from '../mechanics/problems.js';
+import { breakPart, BROKEN, works, COSMETIC_SLOTS } from '../mechanics/problems.js';
 import { VehicleBody } from './physics.js';
 import { analyze, newPowertrain, stepPowertrain, slowUpdate } from './systems.js';
 import { buildShell, drawGauges } from './carBody.js';
@@ -323,6 +323,7 @@ export class Car {
     // anything bent, or knocked below the limit, is broken now: 0 % and it looks it
     for (const d of touched) {
       if (d.props.broken || d.def.kind !== 'part') continue;
+      if (COSMETIC_SLOTS.has(d.slot?.id)) { d.cond = Math.max(d.cond, BROKEN + 0.01); continue; } // dented, still does its job
       if (Math.abs(d.props.bent || 0) > 0.003 || d.cond < BROKEN) {
         const was = d.cond; breakPart(d); this.asm.buildVisual(d); this.asm.applyOpen?.(d);
         if (was > 0.3 || Math.abs(d.props.bent || 0) > 0.003) this.messages.push(`CRUNCH — the ${d.def.name.toLowerCase()} is broken.`);
