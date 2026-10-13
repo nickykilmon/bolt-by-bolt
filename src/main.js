@@ -825,7 +825,7 @@ class Game {
   openSettings() {
     const s = this.settings;
     $('setQuality').value = s.quality; $('setSens').value = s.sens; $('setFov').value = s.fov; $('setVol').value = s.vol;
-    $('setQuick').checked = s.quick; $('setAutoClutch').checked = s.autoClutch; $('setDebug').checked = s.debug;
+    $('setQuick').checked = s.quick; $('setAutoClutch').checked = s.autoClutch; $('setDebug').checked = s.debug; $('setInfinite').checked = !!s.infinite;
     $('settings').classList.remove('hidden');
   }
   saveSettings() {
@@ -833,6 +833,14 @@ class Game {
     const oldQ = s.quality;
     s.quality = $('setQuality').value; s.sens = +$('setSens').value; s.fov = +$('setFov').value; s.vol = +$('setVol').value;
     s.quick = $('setQuick').checked; s.autoClutch = $('setAutoClutch').checked; s.debug = $('setDebug').checked;
+    const inf = $('setInfinite').checked;
+    if (inf !== !!s.infinite) {
+      s.infinite = inf;
+      if (this.started) {
+        if (inf) { this.realMoney = this.money; this.toast('💰 Infinite money ON', 3); }
+        else { this.money = this.realMoney ?? this.money; this.realMoney = null; this.toast(`Infinite money OFF — back to your real balance (${fmtMoney(this.money)})`, 4); }
+      }
+    }
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
     this.audio.setVolume(s.vol);
     if (this.camera) { this.camera.fov = s.fov; this.camera.updateProjectionMatrix(); }
@@ -870,6 +878,7 @@ class Game {
   tick(dt) {
     const i = this.input;
     const active = !this.paused && !this.ui.modal && !this.dead;
+    if (this.settings.infinite && this.money < 999999) { if (this.realMoney == null) this.realMoney = this.money; this.money = 999999; }
     if (active) {
       this.life.update(dt);
       this.player.update(dt, i, this);

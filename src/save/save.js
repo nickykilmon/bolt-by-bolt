@@ -19,7 +19,7 @@ export function writeSave(game) {
     player: { pos: g.player.pos.toArray(), yaw: g.player.yaw, pitch: g.player.pitch, inCar: g.player.inCar },
     held: g.interaction.held?.uid || null,
     life: g.life.serialize(),
-    money: g.money, ledger: g.ledger.slice(-60), orders: g.orders, nextOrder: g.nextOrder,
+    money: g.settings.infinite && g.realMoney != null ? g.realMoney : g.money, // the save keeps your real balance ledger: g.ledger.slice(-60), orders: g.orders, nextOrder: g.nextOrder,
     inventory: g.inventory, basket: g.basket,
     jack: { p: g.jack.obj.position.toArray(), r: g.jack.obj.rotation.y },
     hoist: { p: g.hoist.obj.position.toArray(), r: g.hoist.obj.rotation.y, h: g.hoist.height },
