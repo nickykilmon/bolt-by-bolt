@@ -466,6 +466,62 @@ class Game {
     this.toast(st.props.flipped ? 'Engine turned upside down — the bottom end faces up' : 'Engine turned back upright', 3);
     this.asm.changed();
   }
+  useToilet() {
+    const L = this.life;
+    if (L.bowel < 15 && L.bladder < 15) { this.say('Nothing to do here right now.'); return; }
+    this.fade(() => {
+      const big = L.bowel > 50;
+      L.skip(big ? 8 : 3); L.bowel = 0; L.bladder = 0; L.cheer(big ? 6 : 3);
+      this.audio.burst(800, 0.6, 0.25, 1.2, 'lowpass');
+      this.say(big ? 'Ahh. Much better. (You washed your hands. Right?)' : 'Ahh, relief.', 3);
+    });
+  }
+  // poo outside: hold Y for a couple of seconds. Not near people, ideally.
+  updatePoo(dt, i) {
+    const L = this.life;
+    const want = i.down('KeyY') && !this.player.inCar && !this.player.onMoped && !this.interaction.held && !this.pets.carried && !this.fightclub?.fight;
+    if (!want) { if (this.pooT) { this.pooT = 0; this.player.crouchOn = this.pooCrouch || false; } return; }
+    if (L.bowel < 20) { if (i.hit('KeyY')) this.say('You don\'t need to go.', 1.5); return; }
+    if (!this.pooT) { this.pooCrouch = this.player.crouchOn; this.player.crouchOn = true; this.say('Squatting…', 1.5); }
+    this.pooT = (this.pooT || 0) + dt;
+    if (this.pooT < 2.5) return;
+    this.pooT = 0; this.player.crouchOn = this.pooCrouch || false;
+    const big = L.bowel; L.bowel = 0; L.cheer(2, true);
+    const p = this.player.pos, back = new THREE.Vector3(Math.sin(this.player.yaw), 0, Math.cos(this.player.yaw)).multiplyScalar(0.35);
+    const pile = new THREE.Group(); pile.position.set(p.x + back.x, this.floorAt(p.x + back.x, p.z + back.z, p.y + 0.5), p.z + back.z);
+    const brown = new THREE.MeshStandardMaterial({ color: 0x4a2a12, roughness: 0.6 });
+    [[0.07, 0.03], [0.055, 0.075], [0.035, 0.11]].forEach(([r, y]) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r * (0.7 + big / 300), 10, 8), brown); m.scale.y = 0.7; m.position.y = y; pile.add(m); });
+    pile.traverse((o) => { if (o.isMesh) o.raycast = () => {}; });
+    this.scene.add(pile); (this.poops ||= []).push(pile); if (this.poops.length > 12) this.scene.remove(this.poops.shift());
+    this.audio.burst(300, 1, 0.15, 0.4, 'lowpass');
+    this.ach.unlock('poop');
+    const seen = this.npcs.list.find((n) => n.present && n.g.visible && n.g.position.distanceTo(p) < 12);
+    if (seen) { this.say(`${seen.name.split(' ')[0]}: "${['Are you KIDDING me?!', 'In broad daylight?! Disgusting!', 'I saw that. I will never unsee that.'][Math.floor(Math.random() * 3)]}"`, 4); this.ach.unlock('poop_public'); L.cheer(-6, true); }
+    else this.say('Done. Nature is healing.', 2);
+  }
+  // the cigarette hanging from your mouth while you smoke
+  updateCig(dt) {
+    if (!this.cigT || this.cigT <= 0) { if (this.cig) this.cig.visible = false; return; }
+    this.cigT -= dt;
+    if (!this.cig) {
+      const c = new THREE.Group(); c.position.set(0.035, -0.105, -0.2); c.rotation.set(0.25, -0.35, 0);
+      const paper = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.06, 8), new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.8 })); paper.rotation.x = Math.PI / 2; paper.position.z = -0.02; c.add(paper);
+      const filter = new THREE.Mesh(new THREE.CylinderGeometry(0.0047, 0.0047, 0.02, 8), new THREE.MeshStandardMaterial({ color: 0xd08a3a, roughness: 0.8 })); filter.rotation.x = Math.PI / 2; filter.position.z = 0.02; c.add(filter);
+      this.cigEmber = new THREE.MeshStandardMaterial({ color: 0xff5010, emissive: 0xff3000, emissiveIntensity: 2 });
+      const ember = new THREE.Mesh(new THREE.CylinderGeometry(0.0046, 0.0046, 0.005, 8), this.cigEmber); ember.rotation.x = Math.PI / 2; ember.position.z = -0.052; c.add(ember);
+      this.cigTip = ember;
+      c.traverse((o) => { if (o.isMesh) { o.renderOrder = 11; o.raycast = () => {}; } });
+      this.camera.add(c); this.cig = c;
+    }
+    this.cig.visible = true;
+    this.cigEmber.emissiveIntensity = 1.5 + Math.sin(performance.now() * 0.01) * 0.8;
+    this.cigSmokeT = (this.cigSmokeT || 0) - dt;
+    if (this.cigSmokeT <= 0) {
+      this.cigSmokeT = 0.12;
+      const tp = this.cigTip.getWorldPosition(new THREE.Vector3());
+      this.fx.emit(tp.x, tp.y + 0.01, tp.z, (Math.random() - 0.5) * 0.05, 0.18, (Math.random() - 0.5) * 0.05, 0.05, 2.2, 0.85, 0.85, 0.85, 0.35, 2.4);
+    }
+  }
   // pee: hold U on foot. Hit someone and they'll let you know about it.
   updatePee(dt, i) {
     const L = this.life;
@@ -801,6 +857,8 @@ class Game {
       this.fightclub.update(dt, i);
       this.police.update(dt);
       this.updatePee(dt, i);
+      this.updatePoo(dt, i);
+      this.updateCig(dt);
       this.updateMisc(dt);
       if (this.player.inCar && this.car.speed > 4) this.life.cheer(dt * 0.05, true); // driving is fun
       this.driveControls(dt);

@@ -186,6 +186,14 @@ export function buildPlace(game) {
   box(bed, 1.0, 0.4, 2.0, MAT.wood, 0, 0.2, 0); box(bed, 0.95, 0.15, 1.95, mats.bedding, 0, 0.47, 0); box(bed, 0.6, 0.12, 0.35, mats.white, 0, 0.6, -0.75);
   addBoxCollider(-13.9, 0.3, -3.6, 1.0, 0.6, 2.0);
   interact(bed, { prompt: () => game.life.sleepPrompt(), use: () => game.life.sleep() });
+  // toilet in the corner by the bed
+  const wc = new THREE.Group(); wc.position.set(-14.55, 0, 3.4); wc.rotation.y = Math.PI / 2; g.add(wc);
+  const porc = mats.white;
+  box(wc, 0.38, 0.4, 0.5, porc, 0, 0.2, 0.05); box(wc, 0.42, 0.04, 0.48, porc, 0, 0.42, 0.06); box(wc, 0.44, 0.45, 0.16, porc, 0, 0.62, -0.24);
+  box(wc, 0.4, 0.025, 0.44, new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.5 }), 0, 0.455, 0.07);
+  const roll = cyl(wc, 0.05, 0.1, porc, 0.32, 0.6, -0.1, 'x', 10);
+  addBoxCollider(-14.55, 0.35, 3.4, 0.6, 0.7, 0.5);
+  interact(wc, { prompt: () => `<span class="k">E</span>Use the toilet${game.life.bowel > 40 || game.life.bladder > 40 ? '' : ' <span class="dim">(you don\'t really need to)</span>'}`, use: () => game.useToilet() });
   // fridge (container with door)
   const fr = new THREE.Group(); fr.position.set(-7.0, 0, -4.65); g.add(fr);
   box(fr, 0.65, 1.7, 0.08, mats.white, 0, 0.85, -0.28); box(fr, 0.06, 1.7, 0.62, mats.white, -0.3, 0.85, 0); box(fr, 0.06, 1.7, 0.62, mats.white, 0.3, 0.85, 0);

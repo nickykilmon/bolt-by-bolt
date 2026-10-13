@@ -28,6 +28,9 @@ export const ACH = [
   { id: 'pee_npc', icon: '😡', title: 'Social pariah', desc: 'Pee on a villager.' },
   { id: 'pee_car', icon: '🚗', title: 'Marking territory', desc: 'Pee on your own car.' },
   { id: 'pee_self', icon: '😳', title: 'Accident', desc: 'Wet yourself.' },
+  { id: 'poop', icon: '💩', title: 'Back to nature', desc: 'Poo outside.' },
+  { id: 'poop_public', icon: '🙈', title: 'Public indecency', desc: 'Poo in front of a villager.' },
+  { id: 'poop_pants', icon: '🩲', title: 'Code brown', desc: 'Poop your pants.' },
   { id: 'drunk', icon: '🥴', title: 'Hyvää juhannusta', desc: 'Get properly drunk.' },
   { id: 'smoke_20', icon: '🚬', title: 'Pack a day', desc: 'Smoke 20 cigarettes.' },
   { id: 'fight_win', icon: '🥊', title: 'First blood', desc: 'Win a fight in The Cellar.' },
@@ -40,7 +43,7 @@ export const ACH = [
 export class Achievements {
   constructor(game) { this.game = game; this.got = {}; }
   unlock(id) {
-    if (this.got[id]) return;
+    if (id in this.got) return; // (the stored value is the day — day 0 is falsy)
     const a = ACH.find((x) => x.id === id); if (!a) return;
     this.got[id] = this.game.life?.day ?? 0;
     const el = document.createElement('div'); el.className = 'ach-pop';

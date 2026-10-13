@@ -32,7 +32,7 @@ P.panel = function (html, bind) {
 const STORE = {
   parts: { title: 'Rautaosa car parts store — over the counter', filter: (d) => d.shop && d.cat !== 'Groceries' && d.cat !== 'Leisure', where: (g) => g.partsCounter },
   grocery: { title: 'Village shop (groceries)', filter: (d) => (d.cat === 'Groceries' && d.shop) || d.id === 'fishing_rod', where: (g) => g.groceryCounter },
-  kiosk: { title: 'Gas station kiosk', filter: (d) => ['sausage', 'coffee', 'milk', 'beer', 'cigarettes', 'fishing_rod', 'jerrycan', 'oil_jug', 'coolant_jug'].includes(d.id), where: (g) => g.kioskCounter, extra: [{ id: 'jerrycan_empty', name: 'Empty jerry can (10 L)', price: 45, make: 'jerrycan', amount: 0 }] },
+  kiosk: { title: 'Gas station kiosk', filter: (d) => ['sausage', 'hot_dog', 'coffee', 'energy_drink', 'cola', 'water_bottle', 'milk', 'beer', 'lonkero', 'salmiakki', 'ice_cream', 'pulla', 'cigarettes', 'fishing_rod', 'jerrycan', 'oil_jug', 'coolant_jug'].includes(d.id), where: (g) => g.kioskCounter, extra: [{ id: 'jerrycan_empty', name: 'Empty jerry can (10 L)', price: 45, make: 'jerrycan', amount: 0 }] },
 };
 P.openStore = function (kind) {
   const g = this.game, S = STORE[kind];

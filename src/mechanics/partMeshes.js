@@ -325,6 +325,18 @@ B.kit = (g, def) => {
 B.food = (g, def) => {
   if (def.id === 'sausage') { const m = cyl(g, 0.025, 0.25, MAT.redPaint, 0, 0.025, 0, 'x', 10); m.material = new THREE.MeshStandardMaterial({ color: 0xb0583a, roughness: 0.6 }); }
   else if (def.id === 'rye_bread') { box(g, 0.2, 0.06, 0.2, MAT.wood, 0, 0.03, 0); }
+  else if (def.props?.shape) {
+    const col = new THREE.MeshStandardMaterial({ color: def.props.col ?? 0xcccccc, roughness: 0.4, metalness: def.props.shape === 'can' || def.props.shape === 'tin' ? 0.6 : 0 });
+    const sh = def.props.shape;
+    if (sh === 'can') { cyl(g, 0.033, 0.12, col, 0, 0.06, 0, 'y', 14); cyl(g, 0.03, 0.01, MAT.alu, 0, 0.125, 0, 'y', 14); }
+    else if (sh === 'tin') { cyl(g, 0.042, 0.11, col, 0, 0.055, 0, 'y', 14); cyl(g, 0.043, 0.012, MAT.alu, 0, 0.11, 0, 'y', 14); }
+    else if (sh === 'bottle') { const m = cyl(g, 0.035, 0.2, col, 0, 0.1, 0, 'y', 12); m.material = new THREE.MeshStandardMaterial({ color: def.props.col, roughness: 0.05, transparent: true, opacity: 0.6 }); cyl(g, 0.016, 0.03, MAT.bluePaint, 0, 0.215, 0, 'y', 10); }
+    else if (sh === 'carton') { box(g, 0.08, 0.2, 0.08, col, 0, 0.1, 0); box(g, 0.081, 0.05, 0.081, MAT.whitePlastic, 0, 0.13, 0); }
+    else if (sh === 'hotdog') { const bun = new THREE.MeshStandardMaterial({ color: 0xd8a860, roughness: 0.8 }); box(g, 0.05, 0.035, 0.17, bun, 0, 0.02, 0); cyl(g, 0.016, 0.2, new THREE.MeshStandardMaterial({ color: 0xa04830, roughness: 0.5 }), 0, 0.045, 0, 'z', 8); }
+    else if (sh === 'pastry') { const m = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 6), col); m.scale.set(1.4, 0.45, 1); m.position.y = 0.02; g.add(m); }
+    else if (sh === 'bag') { box(g, 0.1, 0.13, 0.02, col, 0, 0.065, 0); box(g, 0.06, 0.03, 0.021, MAT.whitePlastic, 0, 0.08, 0); }
+    else if (sh === 'cone') { const c = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.1, 10), new THREE.MeshStandardMaterial({ color: 0xc8904a })); c.rotation.x = Math.PI; c.position.y = 0.05; g.add(c); const s = new THREE.Mesh(new THREE.SphereGeometry(0.033, 10, 8), new THREE.MeshStandardMaterial({ color: 0xf8e8d0 })); s.position.y = 0.11; g.add(s); }
+  }
   else if (def.id === 'beer') { cyl(g, 0.033, 0.17, new THREE.MeshStandardMaterial({ color: 0x5a3010, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.9 }), 0, 0.085, 0, 'y', 12); cyl(g, 0.014, 0.07, new THREE.MeshStandardMaterial({ color: 0x5a3010, roughness: 0.15 }), 0, 0.2, 0, 'y', 10); cyl(g, 0.034, 0.06, MAT.paper, 0, 0.08, 0, 'y', 12); }
   else if (def.id === 'cigarettes') { box(g, 0.055, 0.085, 0.022, MAT.whitePlastic, 0, 0.043, 0); box(g, 0.056, 0.03, 0.023, MAT.redPlastic, 0, 0.07, 0); }
   else if (def.id === 'fish') { const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshStandardMaterial({ color: 0x7a8a60, roughness: 0.3, metalness: 0.4 })); m.scale.set(0.6, 0.9, 3); m.position.y = 0.05; g.add(m); const t = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.08, 4), m.material); t.rotation.x = Math.PI / 2; t.scale.set(0.3, 1, 1); t.position.set(0, 0.05, -0.2); g.add(t); }

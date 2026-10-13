@@ -14,7 +14,7 @@ export class Life {
     this.passedOut = false;
     this.happiness = 70;   // 0..100: working on the car, driving and pets keep it up
     this.griefUntil = 0;   // after a pet dies you can't be properly happy for a while
-    this.bladder = 10; this.drunk = 0; this.smoked = 0; this.lastSmoke = -1e9;
+    this.bladder = 10; this.bowel = 10; this.drunk = 0; this.smoked = 0; this.lastSmoke = -1e9;
   }
   get day() { return Math.floor(this.minutes / 1440); }
   get hours() { return (this.minutes % 1440) / 60; }
@@ -48,6 +48,10 @@ export class Life {
     if (this.bladder >= 100) { this.bladder = 0; this.happiness = clamp(this.happiness - 12, 0, 100); this.game.say('Oh no. You couldn\'t hold it any longer… You wet yourself.', 5); this.game.ach?.unlock('pee_self'); }
     else if (this.bladder > 80 && (this.peeWarnT || 0) <= this.minutes) { this.peeWarnT = this.minutes + 45; this.game.say('I really need to pee. (Hold U somewhere discreet.)', 4); }
     this.drunk = Math.max(0, this.drunk - gm / 60 * 0.22);
+    // bowels fill from eating (and slowly over time)
+    this.bowel = clamp(this.bowel + gm * 100 / (60 * 36), 0, 100);
+    if (this.bowel >= 100) { this.bowel = 0; this.happiness = clamp(this.happiness - 15, 0, 100); this.game.say('Oh no… you couldn\'t hold it. You pooped your pants. Classy.', 5); this.game.ach?.unlock('poop_pants'); }
+    else if (this.bowel > 80 && (this.pooWarnT || 0) <= this.minutes) { this.pooWarnT = this.minutes + 45; this.game.say('I need to poo. (The toilet is in the house — or hold Y somewhere private.)', 4); }
     // smokers get cravings
     if (this.smoked >= 5 && this.minutes - this.lastSmoke > 8 * 60) {
       this.happiness = clamp(this.happiness - gm / 60 * 1.2, 0, this.cap());
@@ -70,6 +74,8 @@ export class Life {
   exert(x) { this.fatigue = clamp(this.fatigue + x * 0.3, 0, 100); this.thirst = clamp(this.thirst - x * 0.2, 0, 100); }
   consume(p = {}) {
     if (p.thirst > 0) this.bladder = clamp(this.bladder + p.thirst * 0.6, 0, 100);
+    if (p.hunger > 0) this.bowel = clamp(this.bowel + p.hunger * 0.45, 0, 100);
+    if (p.treat) this.cheer(3);
     if (p.beer) { this.drunk = Math.min(2, this.drunk + 0.3); this.cheer(5); this.bladder = clamp(this.bladder + 12, 0, 100); if (this.drunk > 1) this.game.ach?.unlock('drunk'); }
     if (p.hunger) this.hunger = clamp(this.hunger + p.hunger, 0, 100);
     if (p.thirst) this.thirst = clamp(this.thirst + p.thirst, 0, 100);
@@ -128,6 +134,6 @@ export class Life {
       this.passedOut = false;
     });
   }
-  serialize() { return { m: this.minutes, h: this.hunger, t: this.thirst, f: this.fatigue, bw: this.billWeek, hp: this.happiness, gu: this.griefUntil, gn: this.griefName, bl: this.bladder, dr: this.drunk, sm: this.smoked, ls: this.lastSmoke }; }
-  restore(d) { if (!d) return; this.minutes = d.m; this.hunger = d.h; this.thirst = d.t; this.fatigue = d.f; this.billWeek = d.bw ?? Math.floor(d.m / 1440 / 7); this.happiness = d.hp ?? 70; this.griefUntil = d.gu || 0; this.griefName = d.gn; this.bladder = d.bl ?? 10; this.drunk = d.dr || 0; this.smoked = d.sm || 0; this.lastSmoke = d.ls ?? -1e9; }
+  serialize() { return { m: this.minutes, h: this.hunger, t: this.thirst, f: this.fatigue, bw: this.billWeek, hp: this.happiness, gu: this.griefUntil, gn: this.griefName, bl: this.bladder, bw: this.bowel, dr: this.drunk, sm: this.smoked, ls: this.lastSmoke }; }
+  restore(d) { if (!d) return; this.minutes = d.m; this.hunger = d.h; this.thirst = d.t; this.fatigue = d.f; this.billWeek = d.bw ?? Math.floor(d.m / 1440 / 7); this.happiness = d.hp ?? 70; this.griefUntil = d.gu || 0; this.griefName = d.gn; this.bladder = d.bl ?? 10; this.bowel = d.bw ?? 10; this.drunk = d.dr || 0; this.smoked = d.sm || 0; this.lastSmoke = d.ls ?? -1e9; }
 }

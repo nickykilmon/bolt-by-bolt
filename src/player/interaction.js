@@ -248,7 +248,7 @@ export class Interaction {
       const left = this.held.props.left ?? 20;
       prompt = `${K('LMB')}Smoke a cigarette <span class="dim">(${left} left)</span>\n` + prompt;
       if (input.mouse.lDown && (this.smokeT || 0) <= 0) {
-        this.smokeT = 6; g.life.smoked++; g.life.lastSmoke = g.life.minutes; g.life.cheer(3);
+        this.smokeT = 6; g.life.smoked++; g.life.lastSmoke = g.life.minutes; g.life.cheer(3); g.cigT = 6;
         const cam = g.camera.position, f = g.camera.getWorldDirection(new THREE.Vector3());
         for (let i = 0; i < 8; i++) setTimeout(() => g.fx.emit(cam.x + f.x * 0.35, cam.y - 0.05, cam.z + f.z * 0.35, f.x * 0.4 + (Math.random() - 0.5) * 0.2, 0.25, f.z * 0.4 + (Math.random() - 0.5) * 0.2, 0.18, 2.5, 0.85, 0.85, 0.85, 0.45, 2.2), i * 350);
         g.audio.burst(500, 0.8, 0.05, 0.6, 'lowpass');
