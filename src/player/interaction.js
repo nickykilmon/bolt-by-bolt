@@ -123,7 +123,9 @@ export class Interaction {
       if (hits.length) {
         const fx = hits[0].object.userData.fastener;
         // make sure nothing solid is in between
-        const solid = this.firstSolid();
+        // suspension bolts sit up inside the wheel arch: you reach in under the wing, so the body panels don't block them
+        const arch = /^(shock|spring|controlArm|tieRod|disc|pads|caliper|wheel)/.test(fx.inst.slot?.id || '') && this.game.car.shell?.group;
+        const solid = this.firstSolid(false, arch);
         if (!solid || solid.distance > hits[0].distance - 0.03 || solid.object.userData.inst === fx.inst) return { type: 'fastener', ...fx, dist: hits[0].distance };
       }
     }
@@ -171,7 +173,7 @@ export class Interaction {
     if (u.surface || u.terrain || u.shell) return { type: 'surface', point: solid.point, obj: o, normal: solid.face?.normal };
     return { type: 'surface', point: solid.point, obj: o };
   }
-  firstSolid(includeFill = false) {
+  firstSolid(includeFill = false, skip = null) {
     const g = this.game;
     const hits = this.ray.intersectObjects(g.pickables(), true);
     for (const h of hits) {
@@ -180,6 +182,7 @@ export class Interaction {
       if (h.object.material === MAT.hit && !u.action && !u.interact && !u.grabProxy && !(u.fill && includeFill)) continue;
       if (u.grabProxy && h.object.userData.inst?.slot) continue; // only for loose items
       if (!h.object.visible) continue;
+      if (skip) { let q = h.object; while (q && q !== skip) q = q.parent; if (q) continue; }
       return h;
     }
     return null;
