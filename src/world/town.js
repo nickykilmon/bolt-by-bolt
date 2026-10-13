@@ -238,7 +238,7 @@ export function buildTown(game) {
   // village dressing: houses, lamps, benches
   const houses = [[528, 230, Math.PI / 2, 0xc8a050, 'Virtanen'], [610, 245, -Math.PI / 2, 0x8a3a2a, 'Laine'], [545, 262, Math.PI / 2, 0x6a8aa8, 'Heikkinen'], [500, 150, 0, 0xd8d0b0, 'Koskinen'], [640, 140, -Math.PI / 2, 0xb8c070, 'Salo']];
   for (const [x, z, r, c, n] of houses) {
-    house(root, x, z, r, c, T);
+    house(root, x, z, r, c, heightAt(x, z)); // on its own level plot (see ZONES)
     const off = new THREE.Vector3(3.0, 0, 4.6).applyAxisAngle(new THREE.Vector3(0, 1, 0), r); // beside the path to the door
     mailbox(game, root, 'mb_' + n.toLowerCase(), n, x + off.x, z + off.z, r);
   }

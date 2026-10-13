@@ -10,6 +10,10 @@ export const YARD = { x: 0, z: 8, r: 34 };
 // flattened building zones (h filled in at build time)
 export const ZONES = [
   { id: 'home', x: 0, z: 8, r: 34, fixed: 0 },
+  // level plots (listed first so they win over the village area) for the village houses that stand outside the flat village centre
+  { id: 'plot_virtanen', x: 528, z: 230, r: 9, blend: 14, sameAs: 'town' }, // inside the village: village height
+  { id: 'plot_laine', x: 610, z: 245, r: 9, blend: 14 },
+  { id: 'plot_heikkinen', x: 545, z: 262, r: 9, blend: 14 },
   { id: 'town', x: 565, z: 135, r: 105 },
   { id: 'scrapyard', x: -470, z: 225, r: 55 },
   { id: 'pertti', x: -205, z: 112, r: 32 },
@@ -76,7 +80,8 @@ function zoneBlend(x, z, h) {
   for (const zn of ZONES) {
     const d = Math.hypot(x - zn.x, z - zn.z);
     if (d < zn.r) return zn.h;
-    if (d < zn.r + 35) h = lerp(zn.h, h, smooth((d - zn.r) / 35));
+    const m = zn.blend ?? 35;
+    if (d < zn.r + m) h = lerp(zn.h, h, smooth((d - zn.r) / m));
   }
   return h;
 }
@@ -116,6 +121,7 @@ export function nearestRoad(x, z, reach = 30) {
 
 export function buildTerrainData() {
   for (const zn of ZONES) zn.h = zn.fixed ?? Math.round(rawNatural(zn.x, zn.z) * 2) / 2;
+  for (const zn of ZONES) if (zn.sameAs) zn.h = ZONES.find((o) => o.id === zn.sameAs).h;
   for (const r of ROADS) sampleRoad(r);
   // road heights: natural, smoothed
   for (const r of ROADS) {
