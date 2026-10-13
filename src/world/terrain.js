@@ -24,6 +24,7 @@ export const ZONES = [
   { id: 'farm', x: 230, z: 305, r: 62 },
   { id: 'logcamp', x: -150, z: -440, r: 28 },
   { id: 'sawmill', x: -292, z: 128, r: 20 },
+  { id: 'carlot', x: 420, z: 130, r: 17, blend: 20 },
 ];
 const HILLS = [
   { x: -560, z: -200, h: 52, r: 320 },   // Hirvimäki
@@ -43,6 +44,7 @@ export const ROADS = [
   { name: 'Makelantie', label: 'Mäkelä\'s road', type: 'gravel', w: 3.5, smooth: 4, rough: 0.03, pts: [[332, 86], [331, 102], [330, 116]] },
   { name: 'Kiveläntie', label: 'Kivelä farm road', type: 'gravel', w: 4.5, smooth: 8, rough: 0.025, pts: [[240, 58], [238, 130], [234, 200], [231, 255]] },
   { name: 'Tukkitie', label: 'Logging road', type: 'gravel', w: 4.8, smooth: 8, rough: 0.04, pts: [[-10, -232], [-35, -300], [-85, -372], [-130, -428]] },
+  { name: 'Autoliikkeentie', label: 'Car lot', type: 'gravel', w: 5, smooth: 4, rough: 0.01, pts: [[421, 100], [420, 110], [420, 118]] },
   { name: 'Sahatie', label: 'Sawmill road', type: 'gravel', w: 5, smooth: 4, rough: 0.02, pts: [[-298, 77], [-296, 100], [-293, 116]] },
   { name: 'Metsätie', label: 'Forest Road (rally stage)', type: 'gravel', w: 5.5, smooth: 10, rough: 0.035, stage: true, pts: [[170, 42], [205, -20], [262, -62], [300, -90], [335, -150], [310, -230], [250, -280], [190, -300], [110, -290], [40, -270], [-10, -230], [-30, -170], [-75, -125], [-120, -70], [-160, -20], [-200, 60]] },
   { name: 'Harju', label: 'Harju Ridge (rally stage)', type: 'dirt', w: 4.6, smooth: 11, rough: 0.07, stage: true, jumps: [0.22, 0.47, 0.68, 0.86], pts: [[-330, 82], [-345, 30], [-310, -10], [-350, -60], [-300, -100], [-245, -85], [-200, -125], [-225, -185], [-170, -225], [-120, -200], [-90, -240], [-40, -230], [-10, -230]] },
@@ -253,7 +255,9 @@ const SURF = {
   concrete: { name: 'concrete', grip: 0.95, roll: 0.0, dust: 0, noise: 0.1 },
   water: { name: 'water', grip: 0.3, roll: 0.2, dust: 0, noise: 0 },
 };
-export const WEATHER = { wet: 0 };
+export const WEATHER = { wet: 0, ice: 0 };
+// things the seasons recolour (filled in while the world is built)
+export const SEASON_REFS = { snowMats: [] };
 export function surfaceAt(x, z) {
   let s;
   if (x > -6.2 && x < 6.2 && z > -5.2 && z < 5.2) s = SURF.concrete;
@@ -263,7 +267,7 @@ export function surfaceAt(x, z) {
     else if (heightAt(x, z) < LAKE.level - 0.3) s = SURF.water;
     else { const zn = zoneAt(x, z); s = zn && (zn.id === 'town' || zn.id === 'scrapyard') ? SURF.gravel : SURF.grass; }
   }
-  if (WEATHER.wet > 0) return { ...s, grip: s.grip * (1 - WEATHER.wet * (s.name === 'asphalt' ? 0.25 : 0.15)) };
+  if (WEATHER.wet > 0 || WEATHER.ice > 0) return { ...s, grip: s.grip * (1 - WEATHER.wet * (s.name === 'asphalt' ? 0.25 : 0.15)) * (1 - WEATHER.ice * (s.name === 'water' ? 0 : 0.32)), ice: WEATHER.ice };
   return s;
 }
 
@@ -304,6 +308,7 @@ export function buildTerrainMesh(scene, quality) {
   geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   geo.computeVertexNormals();
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.grass(), roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
+  SEASON_REFS.snowMats.push({ mat, k: 1, autumn: true });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
   mesh.userData.surface = true;
@@ -316,6 +321,7 @@ export function buildTerrainMesh(scene, quality) {
     gravel: new THREE.MeshStandardMaterial({ map: repeated(TEX.gravel(), 1, 1), bumpMap: repeated(TEX.gravel(), 1, 1), bumpScale: 1.2, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }),
     dirt: new THREE.MeshStandardMaterial({ map: repeated(TEX.gravel(), 1, 1), bumpMap: repeated(TEX.gravel(), 1, 1), bumpScale: 1.2, color: 0x9a7a58, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide }),
   };
+  for (const m of Object.values(roadMats)) SEASON_REFS.snowMats.push({ mat: m, k: 0.6 });
   for (const r of ROADS) {
     const s = r.samples, P = [], U = [], I = [];
     let dist = 0;
@@ -342,6 +348,7 @@ export function buildTerrainMesh(scene, quality) {
   // lake
   const water = new THREE.Mesh(new THREE.CircleGeometry(LAKE.SHORE + 5, 64), new THREE.MeshStandardMaterial({ color: 0x2a4a5a, roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.88 }));
   water.rotation.x = -Math.PI / 2; water.position.set(LAKE.x, LAKE.level, LAKE.z);
+  SEASON_REFS.water = water;
   scene.add(water);
   return mesh;
 }
@@ -381,6 +388,7 @@ export function buildTrees(scene, quality) {
     t.castShadow = c.castShadow = quality !== 'low';
     t.receiveShadow = c.receiveShadow = true;
     scene.add(t, c);
+    return { t, c };
   };
   // spruce: five drooping tiers with jagged edges; birch: a cluster of leafy blobs on a white trunk
   const jag = (geo, amt, seed) => {
@@ -396,11 +404,12 @@ export function buildTrees(scene, quality) {
   }
   const merged = mergeGeos(tiers);
   const needleM = new THREE.MeshStandardMaterial({ color: 0x2c4a30, roughness: 0.95, side: THREE.DoubleSide, flatShading: true });
+  SEASON_REFS.needles = needleM;
   mk(spruce, new THREE.CylinderGeometry(0.12, 0.3, 4.5, 7).translate(0, 2.25, 0), new THREE.MeshStandardMaterial({ map: TEX.bark(), bumpMap: TEX.bark(), bumpScale: 2, roughness: 1 }),
     merged, needleM);
   const blobs = [[0, 7.6, 0, 2.2], [1.1, 6.6, 0.4, 1.5], [-1.0, 6.9, -0.5, 1.6], [0.2, 8.9, -0.2, 1.5]]
     .map(([x, y, z, r0], i) => jag(new THREE.IcosahedronGeometry(r0, 1).scale(1, 1.15, 1).translate(x, y, z), 0.3, 50 + i));
-  mk(birch, new THREE.CylinderGeometry(0.09, 0.17, 7.4, 7).translate(0, 3.7, 0), new THREE.MeshStandardMaterial({ map: TEX.birch(), roughness: 0.8 }),
+  SEASON_REFS.birch = mk(birch, new THREE.CylinderGeometry(0.09, 0.17, 7.4, 7).translate(0, 3.7, 0), new THREE.MeshStandardMaterial({ map: TEX.birch(), roughness: 0.8 }),
     mergeGeos(blobs), new THREE.MeshStandardMaterial({ color: 0x6f9440, roughness: 0.9, flatShading: true }));
   // ground cover: grass tufts (crossed alpha cards), denser around places you spend time
   const tuftN = quality === 'low' ? 0 : quality === 'medium' ? 6000 : 12000;
@@ -429,6 +438,7 @@ export function buildTrees(scene, quality) {
     tufts.count = n;
     tufts.raycast = () => {};
     scene.add(tufts);
+    SEASON_REFS.tufts = tufts;
   }
   // rocks
   const rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0x77736c, roughness: 1, flatShading: true }), 300);

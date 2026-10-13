@@ -8,7 +8,7 @@ import { analyze, newPowertrain, stepPowertrain, slowUpdate } from './systems.js
 import { buildShell, drawGauges } from './carBody.js';
 import { CORNERS, ENGINE_POS } from '../mechanics/partsdb.js';
 import { ENV } from '../world/colliders.js';
-import { heightAt } from '../world/terrain.js';
+import { heightAt, WEATHER } from '../world/terrain.js';
 import { clamp } from '../core/util.js';
 import { MAT } from '../core/materials.js';
 import { labelTex } from '../core/textures.js';
@@ -56,7 +56,7 @@ export class Car {
     const col = new THREE.Color(P.paint || '#c4a25a');
     MAT.carPaint.color.copy(col);
     MAT.carPaintDull.color.copy(col).multiplyScalar(0.82);
-    this.cosKey = [P.paint, P.livery, P.number, P.mudflaps, P.stripe].join('|');
+    this.cosKey = [P.paint, P.livery, P.number, P.mudflaps, P.stripe, P.rims, P.tint, P.glow].join('|');
     const g = this.cosmetics;
     while (g.children.length) g.remove(g.children[0]);
     const stripeM = new THREE.MeshStandardMaterial({ color: P.stripe || '#ffffff', roughness: 0.5 });
@@ -85,7 +85,40 @@ export class Car {
       const fm = new THREE.MeshStandardMaterial({ color: P.stripe || '#d02020', roughness: 0.8, side: THREE.DoubleSide });
       for (const [x, z] of [[0.72, 0.75], [-0.72, 0.75], [0.72, -1.65], [-0.72, -1.65]]) add(0.22, 0.3, 0.012, x, 0.2, z, fm);
     }
-    g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    // underglow: neon strips under the sills + a coloured light on the ground
+    if (P.glow) {
+      const gm = new THREE.MeshBasicMaterial({ color: P.glow, toneMapped: false });
+      for (const sx of [-1, 1]) add(0.03, 0.02, 3.2, sx * 0.72, 0.17, -0.1, gm);
+      add(1.3, 0.02, 0.03, 0, 0.17, 1.75, gm); add(1.3, 0.02, 0.03, 0, 0.17, -1.9, gm);
+      // glow on the ground: an additive gradient decal (cheap — no real light, so nothing has to recompile)
+      if (!this.glowTex) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const gr = x.createRadialGradient(32, 32, 4, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); this.glowTex = new THREE.CanvasTexture(c); }
+      this.glowMat = new THREE.MeshBasicMaterial({ map: this.glowTex, color: P.glow, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, opacity: 0.8 });
+      const pool = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 5.2), this.glowMat); pool.rotation.x = -Math.PI / 2; pool.position.y = 0.03; pool.raycast = () => {}; g.add(pool);
+    }
+    g.traverse((o) => { if (o.isMesh && !o.material.isMeshBasicMaterial) o.castShadow = true; });
+    this.applyTrim();
+  }
+  // rim colour & window tint: parts get rebuilt when you swap them, so this is re-applied now and then
+  applyTrim() {
+    const P = this.chassis.props;
+    if (!this.trimMats) this.trimMats = { rim: new THREE.MeshStandardMaterial({ roughness: 0.3, metalness: 0.85 }), face: new THREE.MeshStandardMaterial({ roughness: 0.25, metalness: 0.9 }), tint: MAT.glass.clone() };
+    const T = this.trimMats;
+    if (P.rims) { T.rim.color.set(P.rims); T.face.color.set(P.rims).multiplyScalar(1.15); }
+    T.tint.color.set(P.tint === 'dark' ? 0x080a0c : 0x22282e); T.tint.opacity = P.tint === 'dark' ? 0.92 : 0.75; T.tint.transparent = true;
+    for (const c of ['FL', 'FR', 'RL', 'RR']) {
+      const w = this.chassis.kids['wheel' + c]; if (!w?.obj) continue;
+      w.obj.traverse((o) => {
+        if (!o.isMesh) return;
+        const kind = o.userData.rim; if (!kind) return;
+        if (!o.userData.rimOrig || (o.material !== T.rim && o.material !== T.face)) o.userData.rimOrig = o.material;
+        o.material = P.rims ? (kind === 'barrel' ? T.rim : T.face) : o.userData.rimOrig;
+      });
+    }
+    this.chassis.obj.traverse((o) => {
+      if (!o.isMesh || !o.userData.glass) return;
+      if (!o.userData.glassOrig) o.userData.glassOrig = o.material;
+      o.material = P.tint && P.tint !== 'none' ? T.tint : o.userData.glassOrig;
+    });
   }
 
   // ---------- helpers ----------
@@ -126,7 +159,7 @@ export class Car {
       w.k = C.k; w.c = C.damp;
       w.anchor.y = 0.56 + C.preload;
       const pressF = 1 - Math.min(Math.abs(C.pressure - 2.0) * 0.18, 0.4);
-      w.mu = (0.55 + 0.45 * Math.min(1, C.tyre * 1.5)) * pressF;
+      w.mu = (0.55 + 0.45 * Math.min(1, C.tyre * 1.5)) * pressF * (this.chassis.props.studs && WEATHER.ice ? 1 / (1 - WEATHER.ice * 0.28) : 1); // studs bite into the ice
       w.gripRoad = C.grip; w.gripGravel = C.gravel;
       w.toe = C.toe;
       w.loose = C.wheelLoose;
@@ -333,6 +366,8 @@ export class Car {
   }
 
   updateVisuals(dt, ctl) {
+    this.trimT = (this.trimT || 0) - dt;
+    if (this.trimT <= 0) { this.trimT = 1.5; this.applyTrim(); if (this.glowMat) this.glowMat.opacity = 0.25 + 0.75 * (1 - clamp(((this.ambient ?? 16) - 7) / 13, 0, 1)); }
     const S = this.S, pt = this.pt;
     // wheels & suspension
     const lifted = (k) => this.support[k[0]].lift > 0.05;

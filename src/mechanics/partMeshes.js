@@ -222,10 +222,10 @@ B.brake_pads = (g) => { for (const s of [1, -1]) box(g, 0.008, 0.07, 0.04, MAT.g
 B.caliper = (g) => { box(g, 0.07, 0.15, 0.06, MAT.redPaint, 0, 0.07, -0.085, 0.95); };
 B.wheel = (g) => {
   const t = cyl(g, 0.3, 0.17, MAT.tire, 0.06, 0, 0, 'x', 28);
-  cyl(g, 0.19, 0.172, MAT.darkSteel, 0.06, 0, 0, 'x', 20);
-  cyl(g, 0.17, 0.02, MAT.steel, 0.14, 0, 0, 'x', 20);
+  cyl(g, 0.19, 0.172, MAT.darkSteel, 0.06, 0, 0, 'x', 20).userData.rim = 'barrel';
+  cyl(g, 0.17, 0.02, MAT.steel, 0.14, 0, 0, 'x', 20).userData.rim = 'face';
   cyl(g, 0.05, 0.03, MAT.chrome, 0.15, 0, 0, 'x', 12);
-  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; box(g, 0.02, 0.035, 0.035, MAT.steel, 0.145, Math.cos(a) * 0.11, Math.sin(a) * 0.11); }
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; box(g, 0.02, 0.035, 0.035, MAT.steel, 0.145, Math.cos(a) * 0.11, Math.sin(a) * 0.11).userData.rim = 'face'; }
   t.name = 'tire';
 };
 B.steering_wheel = (g) => {

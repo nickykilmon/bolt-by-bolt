@@ -114,7 +114,7 @@ export class UI {
     const bar = (n, v, inv) => `<div class="n ${(inv ? v > 75 : v < 25) ? 'low' : ''}">${n}<div class="b"><div style="width:${clamp(v, 0, 100)}%"></div></div></div>`;
     const pets = (g.pets?.hud || []).map((p) => bar(`${p.kind === 'cat' ? '🐱' : '🐶'} ${p.name}`, p.h)).join('');
     this.el.needs.innerHTML = bar('Hunger', L.hunger) + bar('Thirst', L.thirst) + bar('Energy', 100 - L.fatigue) + bar(L.minutes < L.griefUntil ? 'Happy 💔' : 'Happy', L.happiness) + (L.bladder > 40 ? bar('Bladder', L.bladder, true) : '') + (L.bowel > 40 ? bar('Bowels', L.bowel, true) : '') + (L.drunk > 0.15 ? `<div class="n" style="color:#f2c14e">${L.drunk > 1 ? 'Drunk 🥴' : 'Tipsy 🍺'}</div>` : '') + pets;
-    this.el.clock.innerHTML = `${L.dayName()} ${L.clock()}<br><b>${fmtMoney(g.money)}</b>`;
+    this.el.clock.innerHTML = `${g.seasons ? `${g.seasons.icon} ${g.seasons.name} · ` : ''}${L.dayName()} ${L.clock()}<br><b>${fmtMoney(g.money)}</b>`;
     const h = g.interaction.held;
     this.el.held.innerHTML = h ? `${h.def.name}${(h.def.type === 'ratchet' || h.def.type === 'torque_wrench') ? ` · ${h.props.socket ? h.props.socket + ' mm socket' : 'no socket'}` : ''}${h.def.type === 'fluid' ? ` · ${h.props.amount.toFixed(1)} L` : ''}<br><span style="opacity:.7">G put down · Q pocket</span>` : '';
     // drive HUD
@@ -341,6 +341,8 @@ const MAP_POIS = [
   { t: 'job', n: 'Kivelä farm (farm work)', x: 218, z: 287, big: true },
   { t: 'job', n: 'Logging camp (logging job)', x: -160, z: -442, big: true },
   { t: 'job', n: 'Sawmill (deliver logs)', x: -292, z: 128, big: true },
+  { t: 'store', n: 'Huttusen Autoliike (used cars)', x: 420, z: 128, big: true },
+  { t: 'rally', n: 'Jari — street races (20–03)', x: 496, z: 100 },
   { t: 'store', n: "Raimo's scrapyard (used parts)", x: -462, z: 238, big: true },
   { t: 'job', n: 'Scrap scale (sell scrap)', x: -484, z: 205 },
   { t: 'store', n: 'Gas station, kiosk & air pump', x: 482, z: 108 },

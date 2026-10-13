@@ -32,6 +32,9 @@ import { FightClub } from './world/fightclub.js';
 import { Police } from './world/police.js';
 import { Nightclub } from './world/nightclub.js';
 import { Farm } from './world/farm.js';
+import { Seasons } from './world/seasons.js';
+import { CarDealer } from './world/cardealer.js';
+import { Rival } from './world/rival.js';
 import { Logging } from './world/logging.js';
 import './ui/screens.js';
 import { Guide } from './ui/guide.js';
@@ -117,9 +120,12 @@ class Game {
     this.fightclub = new FightClub(this);
     this.police = new Police(this);
     this.nightclub = new Nightclub(this);
+    this.seasons = new Seasons(this);
     this.farm = new Farm(this);
     this.logging = new Logging(this);
-    this.workVehicles = [this.farm.tractor, this.logging.truck];
+    this.dealer = new CarDealer(this);
+    this.rival = new Rival(this);
+    this.workVehicles = [this.farm.tractor, this.logging.truck, ...this.dealer.cars];
     this.ach = new Achievements(this);
     this.stats = {};
     this.rally = new Rally(this);
@@ -184,7 +190,7 @@ class Game {
     return [{ m: o.matrixWorld, inv: o.matrixWorld.clone().invert(), half: new THREE.Vector3(0.86, 0, 2.08), cz: 0, minY: 0.2, maxY: 1.42 }];
   }
   pickables() {
-    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || []), ...this.fightclub.pickRoots, this.police.officer.g, this.nightclub.root, this.farm.root, this.logging.root, ...this.workVehicles.map((v) => v.obj)];
+    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || []), ...this.fightclub.pickRoots, this.police.officer.g, this.nightclub.root, this.farm.root, this.logging.root, this.dealer.root, this.rival.root, ...this.workVehicles.map((v) => v.obj)];
     for (const it of this.asm.items.values()) if (it.loc?.kind === 'world' && !it.loc.cont) list.push(it.obj);
     return list;
   }
@@ -840,7 +846,7 @@ class Game {
   updateWeather(dt) {
     const w = this.weather;
     w.nextChange -= dt;
-    if (w.nextChange <= 0) { w.nextChange = 300 + Math.random() * 900; w.target = Math.random() < 0.3 ? 0.5 + Math.random() * 0.5 : 0; w.fog = Math.random() < 0.15 ? 0.6 : 0; }
+    if (w.nextChange <= 0) { w.nextChange = 300 + Math.random() * 900; w.target = Math.random() < (this.seasons?.rainChance() ?? 0.3) ? 0.5 + Math.random() * 0.5 : 0; w.fog = Math.random() < 0.15 ? 0.6 : 0; }
     w.rain += clamp(w.target - w.rain, -dt * 0.02, dt * 0.02);
     this.sky.rainAmt = w.rain;
     this.sky.fogAmt += clamp((w.fog || 0) - this.sky.fogAmt, -dt * 0.01, dt * 0.01);
@@ -875,6 +881,9 @@ class Game {
       this.police.update(dt);
       this.nightclub.update(dt, i);
       this.farm.update(dt, i);
+      this.seasons.update(dt);
+      this.dealer.update(dt, i);
+      this.rival.update(dt);
       this.logging.update(dt, i);
       this.updatePee(dt, i);
       this.updatePoo(dt, i);

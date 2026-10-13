@@ -458,6 +458,8 @@ export const DEFS = {};
   { id: 'scrap_big', type: 'scrap', name: 'Heavy scrap (old engine parts)', kind: 'scrap', mass: 32, price: 0, shop: false },
   { id: 'fuel_nozzle', type: 'fluid', fluid: 'fuel', cap: 9999, infinite: true, name: 'Fuel pump nozzle', kind: 'fluid', mass: 1, price: 0, shop: false },
 ].forEach((d) => { DEFS[d.id] = d; });
+// parts (regular and performance) are 15 % cheaper than their list price
+for (const d of Object.values(DEFS)) if (d.kind === 'part' && d.price > 0) d.price = Math.max(5, Math.round(d.price * 0.85 / 5) * 5);
 
 export function slotById(host, id) { return HOSTS[host]?.find((s) => s.id === id); }
 export function fastenerCount(slot) { return (slot.fast || []).reduce((n, g) => n + g.pts.length, 0); }

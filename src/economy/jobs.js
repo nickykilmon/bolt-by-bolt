@@ -379,6 +379,7 @@ export class Jobs {
     const g = this.game;
     if (g.farm?.job) a.push({ key: 'farm', title: g.farm.job.kind === 'plough' ? 'Ploughing Kivelä\'s field' : 'Chores at Kivelä farm' });
     if (g.logging?.job) a.push({ key: 'logging', title: 'Logging for Metsä-Pekka' });
+    if (g.rival?.state === 'lineup') a.push({ key: 'race', title: 'Street race against Jari' });
     return a;
   }
   cancel(key) {
@@ -388,6 +389,7 @@ export class Jobs {
     if (key === 'workshop' && this.workshop) { for (const u of this.workshop.items) { const it = asm.get(u); if (it && !it.slot) drop(u); else if (it) { asm.uninstall?.(it, { silent: true }); drop(u); } } this.workshop = null; this.returnEsaTools?.(); g.say('You told Esa you can\'t finish the job. "Pfft. Fine. Ask again tomorrow."', 5); }
     if (key === 'mowing' && this.mowing) { this.mowing = null; if (g.player.pushing === this.mower) g.player.pushing = null; g.say('You told Pertti you won\'t mow the lawn after all.', 4); }
     if (key === 'farm' && g.farm?.job) g.farm.cancel();
+    if (key === 'race' && g.rival?.state === 'lineup') g.rival.cancel();
     if (key === 'logging' && g.logging?.job) { g.logging.endJob(false); g.say('You called Metsä-Pekka: "Suit yourself. Trees aren\'t going anywhere."', 4); }
     if (key === 'scrap') { this.scrapActive = false; g.say('Stopped collecting scrap. (You can still sell scrap to Raimo any time.)', 4); }
     if (this.focus === key) this.focus = null;

@@ -106,13 +106,19 @@ export class Sky {
     if (this.rain.visible) {
       const a = this.rain.geometry.attributes.position;
       for (let i = 0; i < a.count; i++) {
-        let y = a.getY(i) - dt * 14;
+        let y = a.getY(i) - dt * (this.snowing ? 2.2 : 14);
+        if (this.snowing) a.setX(i, a.getX(i) + Math.sin(y * 0.7 + i) * dt * 0.4);
         if (y < 0) y += 25;
         a.setY(i, y);
       }
       a.needsUpdate = true;
       this.rain.position.set(camPos.x, camPos.y - 8, camPos.z);
-      this.rain.material.opacity = 0.6 * this.rainAmt;
+      this.rain.material.opacity = (this.snowing ? 0.95 : 0.6) * this.rainAmt;
+      if (this.snowing && !this.flake) { const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'); const gr = x.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 32, 32); this.flake = new THREE.CanvasTexture(c); }
+      const wantMap = this.snowing ? this.flake : null;
+      if (this.rain.material.map !== wantMap) { this.rain.material.map = wantMap; this.rain.material.needsUpdate = true; }
+      this.rain.material.size = this.snowing ? 0.09 : 0.06;
+      this.rain.material.color.setHex(this.snowing ? 0xffffff : 0xaabbcc);
     }
   }
 }

@@ -109,12 +109,14 @@ P.openTuning = function () {
 
 // ---------- paint shop ----------
 const COLORS = ['#c4a25a', '#b01818', '#1a3a8a', '#f2f2ee', '#151515', '#2a6a3a', '#e8a020', '#5a2a7a', '#3a8ac8', '#8a8a86', '#d86a1a', '#e8d020'];
+const RIMS = [['', 'Plain steel'], ['#151515', 'Gloss black'], ['#f2f2ee', 'White'], ['#d8b040', 'Gold'], ['#e8ecf0', 'Chrome'], ['#b01818', 'Red'], ['#2a5ad0', 'Blue']];
+const GLOWS = [['', 'None'], ['#20a0ff', 'Ice blue'], ['#ff2fc0', 'Pink'], ['#30ff70', 'Toxic green'], ['#ff2020', 'Red'], ['#a040ff', 'Purple']];
 P.openPaint = function () {
   const g = this.game, P0 = g.car.chassis.props;
   const c = g.car.chassis.obj.position;
   if (Math.hypot(c.x - 596, c.z - 112) > 18) { g.say('Tuula: "Bring the car into the workshop first."'); return; }
-  const sel = { paint: P0.paint || '#c4a25a', stripe: P0.stripe || '#ffffff', livery: P0.livery || 'none', number: P0.number || '', mudflaps: !!P0.mudflaps };
-  const cost = () => (sel.paint !== (P0.paint || '#c4a25a') ? 900 : 0) + (sel.livery !== (P0.livery || 'none') || sel.stripe !== (P0.stripe || '#ffffff') ? 350 : 0) + (String(sel.number) !== String(P0.number || '') ? 60 : 0) + (sel.mudflaps !== !!P0.mudflaps ? 140 : 0);
+  const sel = { paint: P0.paint || '#c4a25a', stripe: P0.stripe || '#ffffff', livery: P0.livery || 'none', number: P0.number || '', mudflaps: !!P0.mudflaps, rims: P0.rims || '', tint: P0.tint || 'none', glow: P0.glow || '' };
+  const cost = () => (sel.paint !== (P0.paint || '#c4a25a') ? 900 : 0) + (sel.livery !== (P0.livery || 'none') || sel.stripe !== (P0.stripe || '#ffffff') ? 350 : 0) + (String(sel.number) !== String(P0.number || '') ? 60 : 0) + (sel.mudflaps !== !!P0.mudflaps ? 140 : 0) + (sel.rims !== (P0.rims || '') ? 250 : 0) + (sel.tint !== (P0.tint || 'none') ? 180 : 0) + (sel.glow !== (P0.glow || '') ? 300 : 0);
   const render = () => {
     this.panel(`<h2>Paint shop — paint & livery</h2>
       <div>Body colour</div><div class="swatches">${COLORS.map((c2) => `<button data-c="${c2}" class="${sel.paint === c2 ? 'on' : ''}" style="background:${c2}"></button>`).join('')} <input type="color" id="pcCustom" value="${sel.paint}"></div>
@@ -122,7 +124,10 @@ P.openPaint = function () {
       <label style="margin-top:8px">Livery <select id="pcLiv">${[['none', 'Plain'], ['stripes', 'Twin racing stripes'], ['side', 'Side stripes'], ['rally', 'Full rally livery + sponsors'], ['checker', 'Checkered roof']].map(([v, n]) => `<option value="${v}" ${sel.livery === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
       <label>Race number <input id="pcNum" type="number" min="0" max="99" value="${sel.number}" style="width:70px"></label>
       <label><input type="checkbox" id="pcMud" ${sel.mudflaps ? 'checked' : ''}> Rally mud flaps</label>
-      <div style="margin-top:8px">Price: <b>${fmtMoney(cost())}</b> (paint 900, livery 350, number 60, mud flaps 140) · takes 3 hours</div>
+      <div style="margin-top:8px">Rims</div><div class="swatches">${RIMS.map(([v, n]) => `<button data-r="${v}" title="${n}" class="${sel.rims === v ? 'on' : ''}" style="background:${v || '#5a5c60'}"></button>`).join('')} <span class="dim">${RIMS.find(([v]) => v === sel.rims)?.[1] || ''}</span></div>
+      <label style="margin-top:8px">Window tint <select id="pcTint">${[['none', 'None'], ['light', 'Light smoke'], ['dark', 'Limo black']].map(([v, n]) => `<option value="${v}" ${sel.tint === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      <div style="margin-top:8px">Neon underglow</div><div class="swatches">${GLOWS.map(([v, n]) => `<button data-g="${v}" title="${n}" class="${sel.glow === v ? 'on' : ''}" style="background:${v || '#222'}">${v ? '' : '✖'}</button>`).join('')}</div>
+      <div style="margin-top:8px">Price: <b>${fmtMoney(cost())}</b> (paint 900, livery 350, number 60, mud flaps 140, rims 250, tint 180, underglow 300) · takes 3 hours</div>
       <button id="pcGo" ${cost() ? '' : 'disabled'}>Paint it!</button>`, (el) => {
       el.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => { sel.paint = b.dataset.c; render(); });
       el.querySelectorAll('[data-s]').forEach((b) => b.onclick = () => { sel.stripe = b.dataset.s; render(); });
@@ -131,6 +136,9 @@ P.openPaint = function () {
       $('pcLiv').onchange = (e) => { sel.livery = e.target.value; render(); };
       $('pcNum').onchange = (e) => { sel.number = e.target.value ? clamp(+e.target.value, 0, 99) : ''; render(); };
       $('pcMud').onchange = (e) => { sel.mudflaps = e.target.checked; render(); };
+      el.querySelectorAll('[data-r]').forEach((b) => b.onclick = () => { sel.rims = b.dataset.r; render(); });
+      el.querySelectorAll('[data-g]').forEach((b) => b.onclick = () => { sel.glow = b.dataset.g; render(); });
+      $('pcTint').onchange = (e) => { sel.tint = e.target.value; render(); };
       $('pcGo').onclick = () => {
         const price = cost();
         if (g.money < price) { this.toast('Not enough money'); return; }
@@ -160,6 +168,8 @@ P.serviceItems = function () {
   const shocks = ['FL', 'FR', 'RL', 'RR'].map((k) => ch['shock' + k]).filter((p) => p && isBroken(p));
   if (shocks.length) out.push({ label: `Rebuild shock absorbers (${shocks.length})`, cost: shocks.length * 180, min: 20 * shocks.length, go: () => shocks.forEach((p) => { p.cond = 0.95; p.props.broken = false; asm.buildVisual(p); }) });
   if (ch.radiator && isBroken(ch.radiator)) out.push({ label: 'Repair radiator', cost: 170, min: 25, go: () => { ch.radiator.cond = 0.95; ch.radiator.props.broken = false; asm.buildVisual(ch.radiator); } });
+  if (g.seasons?.winter && !g.car.chassis.props.studs) out.push({ label: '❄ Fit studded winter tyres (grip on ice)', cost: 380, min: 30, go: () => { g.car.chassis.props.studs = true; } });
+  if (g.car.chassis.props.studs && g.seasons && !g.seasons.winter) out.push({ label: 'Swap back to summer tyres', cost: 60, min: 20, go: () => { g.car.chassis.props.studs = false; } });
   const S = g.car.systems();
   const needF = (S.oil < 3.6 && S.block && S.oilLeak < 1) || (S.coolant < 5.8 && S.coolLeak < 1) || S.brakeFluid < 0.45 || (S.gearbox && S.gearOil < 1.5);
   if (needF) out.push({ label: 'Top up all fluids', cost: 110, min: 10, go: () => { if (S.block && S.oilLeak < 1) S.block.props.oil = 3.8; if (S.coolLeak < 1) g.car.chassis.props.coolant = 6; if (ch.masterCyl) ch.masterCyl.props.fluid = 0.5; if (S.gearbox && S.gearbox.kids.gbCover) S.gearbox.props.oil = 1.6; } });

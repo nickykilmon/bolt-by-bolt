@@ -21,7 +21,7 @@ export class WorkVehicle {
     this.obj = new THREE.Group(); game.scene.add(this.obj);
     this.body = new THREE.Group(); this.obj.add(this.body);
     o.build(this.body, this);
-    this.wheels = o.wheels.map(([x, z, r, w = 0.3]) => { const wg = new THREE.Group(); wg.position.set(x, r, z); this.body.add(wg); cyl(wg, r, w, MAT.tire, 0, 0, 0, 'x', 18); cyl(wg, r * 0.55, w + 0.02, MAT.yellowPaint, 0, 0, 0, 'x', 12); wg.userData.r = r; return wg; });
+    this.wheels = this.extWheels || o.wheels.map(([x, z, r, w = 0.3]) => { const wg = new THREE.Group(); wg.position.set(x, r, z); this.body.add(wg); cyl(wg, r, w, MAT.tire, 0, 0, 0, 'x', 18); cyl(wg, r * 0.55, w + 0.02, MAT.yellowPaint, 0, 0, 0, 'x', 12); wg.userData.r = r; return wg; });
     const hit = new THREE.Mesh(new THREE.BoxGeometry(o.wid, 2.2, o.len), MAT.hit); hit.position.y = 1.1; hit.castShadow = false; this.obj.add(hit);
     this.obj.traverse((m) => { if (m.isMesh && m.material !== MAT.hit) { m.castShadow = true; m.receiveShadow = true; } });
     interact(this.obj, {
@@ -86,7 +86,7 @@ export class WorkVehicle {
     this.speed += a * dt;
     if (!thr && !brk && Math.sign(before) !== Math.sign(this.speed)) this.speed = 0;
     this.speed = clamp(this.speed, -3.5, max);
-    this.yaw += st * dt * clamp(Math.abs(this.speed) / 3, 0, 1) * o.turn * Math.sign(this.speed || 1);
+    this.yaw += st * dt * clamp(Math.abs(this.speed) / 3, 0, 1) * o.turn * (1 - 0.45 * clamp(Math.abs(this.speed) / 40, 0, 1)) * Math.sign(this.speed || 1);
     const next = this.pos.clone().addScaledVector(fwd, this.speed * dt);
     // bump into walls / trees with the nose, the tail and the middle
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
