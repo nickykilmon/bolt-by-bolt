@@ -147,18 +147,18 @@ P.openPaint = function () {
 P.serviceItems = function () {
   const g = this.game, ch = g.car.chassis.kids, asm = g.asm, out = [];
   const body = ['hood', 'doorL', 'doorR', 'trunk', 'bumperF', 'bumperR', 'headlightL', 'headlightR', 'taillightL', 'taillightR', 'lightPod', 'splitter', 'skirtL', 'skirtR'].map((k) => ch[k]).filter((p) => p && (p.cond < 0.85 || p.props.dents?.length));
-  if (body.length) out.push({ label: `Repair body panels & lights (${body.length})`, cost: Math.round(body.reduce((s, p) => s + (1 - p.cond) * p.def.price * 0.5, 0)), min: 30, go: () => body.forEach((p) => { p.cond = 1; p.props.dents = []; asm.buildVisual(p); asm.applyOpen(p); }) });
+  if (body.length) out.push({ label: `Repair body panels & lights (${body.length})`, cost: Math.round(body.reduce((s, p) => s + (1 - p.cond) * p.def.price * 0.5, 0)), min: 30, go: () => body.forEach((p) => { p.cond = 1; p.props.broken = false; p.props.dents = []; asm.buildVisual(p); asm.applyOpen(p); }) });
   const sd = g.car.chassis.props.shellDents?.length || 0;
   if (sd) out.push({ label: `Panel-beat the dented body shell (${sd} dent${sd > 1 ? 's' : ''})`, cost: 70 + sd * 45, min: 20 + sd * 10, go: () => g.car.repairShell() });
   const bent = ['controlArmFL', 'controlArmFR', 'tieRodFL', 'tieRodFR'].map((k) => ch[k]).filter((p) => p && Math.abs(p.props.bent || 0) > 0.003);
-  if (bent.length) out.push({ label: 'Straighten suspension & alignment', cost: 220, min: 30, go: () => bent.forEach((p) => { p.props.bent = 0; }) });
+  if (bent.length) out.push({ label: 'Straighten suspension & alignment', cost: 220, min: 30, go: () => bent.forEach((p) => { p.props.bent = 0; p.props.broken = false; p.cond = Math.max(p.cond, 0.9); asm.buildVisual(p); }) });
   const tyres = ['FL', 'FR', 'RL', 'RR'].map((k) => ch['wheel' + k]).filter((p) => p && p.cond < 0.6);
   if (tyres.length) out.push({ label: `New tyres (${tyres.length})`, cost: tyres.length * 160, min: 15 * tyres.length, go: () => tyres.forEach((p) => { p.cond = 1; asm.buildVisual(p); }) });
   const pads = ['FL', 'FR', 'RL', 'RR'].map((k) => ch['pads' + k]).filter((p) => p && p.cond < 0.5);
   if (pads.length) out.push({ label: `Brake pads (${pads.length} corners)`, cost: pads.length * 110, min: 10 * pads.length, go: () => pads.forEach((p) => { p.cond = 1; }) });
   const shocks = ['FL', 'FR', 'RL', 'RR'].map((k) => ch['shock' + k]).filter((p) => p && p.cond < 0.5);
   if (shocks.length) out.push({ label: `Rebuild shock absorbers (${shocks.length})`, cost: shocks.length * 180, min: 20 * shocks.length, go: () => shocks.forEach((p) => { p.cond = 0.95; }) });
-  if (ch.radiator && ch.radiator.cond < 0.6) out.push({ label: 'Repair radiator', cost: 170, min: 25, go: () => { ch.radiator.cond = 0.95; } });
+  if (ch.radiator && ch.radiator.cond < 0.6) out.push({ label: 'Repair radiator', cost: 170, min: 25, go: () => { ch.radiator.cond = 0.95; ch.radiator.props.broken = false; asm.buildVisual(ch.radiator); } });
   const S = g.car.systems();
   const needF = (S.oil < 3.6 && S.block && S.oilLeak < 1) || (S.coolant < 5.8 && S.coolLeak < 1) || S.brakeFluid < 0.45 || (S.gearbox && S.gearOil < 1.5);
   if (needF) out.push({ label: 'Top up all fluids', cost: 110, min: 10, go: () => { if (S.block && S.oilLeak < 1) S.block.props.oil = 3.8; if (S.coolLeak < 1) g.car.chassis.props.coolant = 6; if (ch.masterCyl) ch.masterCyl.props.fluid = 0.5; if (S.gearbox && S.gearbox.kids.gbCover) S.gearbox.props.oil = 1.6; } });

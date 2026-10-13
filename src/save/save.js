@@ -1,5 +1,6 @@
 // Versioned localStorage save / load with validation.
 import { DEFS } from '../mechanics/partsdb.js';
+import { breakPart } from '../mechanics/problems.js';
 
 export const SAVE_KEY = 'jcscar.save';
 export const SAVE_VERSION = 1;
@@ -98,6 +99,7 @@ export function applySave(game, d) {
   game.police.restore(d.police);
   game.ach.restore(d.ach); game.stats = d.stats || {};
   game.car.reapplyShellDents();
+  for (const it of asm.items.values()) if (Math.abs(it.props.bent || 0) > 0.003 && !it.props.broken) { breakPart(it); asm.buildVisual(it); asm.applyOpen?.(it); }
   if (game.stand.props.flipped && game.stand.kids.engine) game.asm.anchor(game.stand, 'engine').rotation.z = Math.PI;
   if (d.held) { const h = asm.get(d.held); if (h) game.interaction.hold(h); }
   if (d.player.inCar) game.enterCar();

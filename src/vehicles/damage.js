@@ -47,6 +47,30 @@ export function applyDent(root, d, owner = null) {
     if (moved) { pos.needsUpdate = true; m.geometry.computeVertexNormals(); m.geometry.computeBoundingSphere(); }
   });
 }
+// a broken part: bow it along its longest side and blacken it
+const brokenMats = new Map();
+export function breakLook(root, owner) {
+  root.traverse((m) => {
+    if (!m.isMesh || m.material === MAT.hit || m.material === MAT.glass || m.userData.fastener || m.userData.grabProxy || m.isSprite) return;
+    if (owner && m.userData.inst && m.userData.inst !== owner) return;
+    prep(m);
+    const g = m.geometry; g.computeBoundingBox();
+    const bb = g.boundingBox, size = bb.getSize(new THREE.Vector3());
+    const axes = ['x', 'y', 'z'].sort((a, b) => size[b] - size[a]);
+    const a = axes[0], b = axes[1] === 'y' ? axes[1] : axes[2] === 'y' ? 'y' : axes[1], len = size[a] || 1e-3;
+    const pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      _v.fromBufferAttribute(pos, i);
+      const t = (_v[a] - bb.min[a]) / len;
+      _v[b] += Math.sin(t * Math.PI) * len * 0.12 + Math.sin(i * 7.31) * len * 0.006;
+      pos.setXYZ(i, _v.x, _v.y, _v.z);
+    }
+    pos.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere();
+    let bm = brokenMats.get(m.material);
+    if (!bm && m.material.isMeshStandardMaterial) { bm = m.material.clone(); bm.color = m.material.color.clone().lerp(new THREE.Color(0x2a1a12), 0.65); bm.roughness = 1; bm.metalness *= 0.3; brokenMats.set(m.material, bm); }
+    if (bm) m.material = bm;
+  });
+}
 export function applyDents(root, list, owner = null) { for (const d of list || []) applyDent(root, d, owner); }
 // panel-beat: restore the original shape of every dented mesh under root
 export function undent(root) {

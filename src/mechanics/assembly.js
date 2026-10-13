@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { DEFS, HOSTS, slotById, fastenerList, fastenerCount, SIZE_LABEL, FILL_POINTS } from './partsdb.js';
 import { buildPartMesh } from './partMeshes.js';
 import { MAT, wornMat } from '../core/materials.js';
-import { applyDents } from '../vehicles/damage.js';
+import { applyDents, breakLook } from '../vehicles/damage.js';
+import { isBroken } from './problems.js';
 import { newUid } from '../core/util.js';
 
 const _v = new THREE.Vector3(), _q = new THREE.Quaternion();
@@ -69,6 +70,7 @@ export class Assembly {
     inst.vis = vis;
     inst.obj.add(vis);
     if (inst.props.dents?.length) applyDents(inst.obj, inst.props.dents, inst);
+    if (inst.props.broken) breakLook(inst.obj, inst); // bent out of shape and blackened
     if (inst.def.type === 'cam_sprocket' || inst.def.type === 'crank_sprocket') this.updateSprocket(inst);
     this.computeBounds(inst);
     // small things (sockets, plugs, screwdrivers...) get an invisible, easier-to-hit grab zone
@@ -161,6 +163,7 @@ export class Assembly {
     const reasons = [];
     if (!slot) return { ok: false, reasons: ['no such slot'] };
     if (slot.accepts !== inst.def.type) reasons.push(`${inst.def.name} does not fit here`);
+    if (isBroken(inst)) reasons.push(`This ${inst.def.name.toLowerCase()} is broken (${Math.round(inst.cond * 100)}%) — it's scrap now. Fit a new one (Raimo pays for scrap on his scale)`);
     if (host.kids[slotId]) reasons.push(`${slot.name} is already fitted`);
     for (const r of slot.req || []) {
       if (!this.at(host, r)) {

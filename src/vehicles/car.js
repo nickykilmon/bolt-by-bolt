@@ -2,6 +2,7 @@
 // support state (jack / axle stands), damage, leaks and the cockpit.
 import * as THREE from 'three';
 import { dentAt, applyDents, undent } from './damage.js';
+import { breakPart, BROKEN } from '../mechanics/problems.js';
 import { VehicleBody } from './physics.js';
 import { analyze, newPowertrain, stepPowertrain, slowUpdate } from './systems.js';
 import { buildShell, drawGauges } from './carBody.js';
@@ -297,27 +298,36 @@ export class Car {
     const imp = this.body.impacts;
     if (!imp.length) return;
     let worst = 0;
+    const touched = new Set();
     for (const { local, speed } of imp) {
       worst = Math.max(worst, speed);
       if (speed > 3.5) this.dent(local, speed);
       const dmg = (speed - 2.5) * 0.04;
       const ch = this.chassis.kids;
-      const hit = (inst, k = 1) => { if (inst) { inst.cond = Math.max(0, inst.cond - dmg * k); } };
+      const hit = (inst, k = 1) => { if (inst) { inst.cond = Math.max(0, inst.cond - dmg * k); touched.add(inst); } };
       if (local.z > 1.6) {
         hit(ch.bumperF, 1.2); hit(ch.headlightL, local.x > 0 ? 1.5 : 0.3); hit(ch.headlightR, local.x < 0 ? 1.5 : 0.3); hit(ch.hood, 0.6);
         if (speed > 5) hit(ch.radiator, 1);
-        if (speed > 7) { const side = local.x > 0 ? 'FL' : 'FR'; const arm = ch['controlArm' + side]; if (arm) arm.props.bent = (arm.props.bent || 0) + (speed - 7) * 0.006 * (Math.random() < 0.5 ? 1 : -1); }
+        if (speed > 7) { const side = local.x > 0 ? 'FL' : 'FR'; const arm = ch['controlArm' + side]; if (arm) { arm.props.bent = (arm.props.bent || 0) + (speed - 7) * 0.006 * (Math.random() < 0.5 ? 1 : -1); touched.add(arm); } }
       } else if (local.z < -1.6) { hit(ch.bumperR, 1.2); hit(ch.taillightL, 0.8); hit(ch.taillightR, 0.8); hit(ch.trunk, 0.5); if (speed > 4) hit(ch.muffler, 0.8); }
       else { hit(local.x > 0 ? ch.doorL : ch.doorR, 0.8); }
       if (local.y < 0.3 && speed > 6) { hit(ch.engine?.kids.oilPan, 0.25); hit(ch.muffler, 0.2); }
       if (Math.abs(local.x) > 0.6 && Math.abs(Math.abs(local.z) - 1.2) < 0.5 && speed > 6) {
         const c = (local.x > 0 ? (local.z > 0 ? 'FL' : 'RL') : (local.z > 0 ? 'FR' : 'RR'));
         hit(ch['wheel' + c], 0.5); hit(ch['shock' + c], 0.7);
-        const tr = ch['tieRod' + c]; if (tr) tr.props.bent = (tr.props.bent || 0) + (speed - 6) * 0.004;
+        const tr = ch['tieRod' + c]; if (tr) { tr.props.bent = (tr.props.bent || 0) + (speed - 6) * 0.004; touched.add(tr); }
       }
     }
     this.body.impacts.length = 0;
     this.lastImpact = worst;
+    // anything bent, or knocked below the limit, is broken now: 0 % and it looks it
+    for (const d of touched) {
+      if (d.props.broken || d.def.kind !== 'part') continue;
+      if (Math.abs(d.props.bent || 0) > 0.003 || d.cond < BROKEN) {
+        const was = d.cond; breakPart(d); this.asm.buildVisual(d); this.asm.applyOpen?.(d);
+        if (was > 0.3 || Math.abs(d.props.bent || 0) > 0.003) this.messages.push(`CRUNCH — the ${d.def.name.toLowerCase()} is broken.`);
+      }
+    }
     this.asm.changed();
   }
 

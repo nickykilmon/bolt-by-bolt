@@ -60,10 +60,11 @@ export class Guide {
   // best loose (or held / pocketed) item of a type, optionally needing a minimum condition
   pick(type, minCond = 0, defId = null) {
     const held = this.game.interaction.held;
-    if (held && held.def.type === type && held.cond >= minCond && (!defId || held.def.id === defId)) return held;
+    if (held && held.def.type === type && held.cond >= minCond && !(held.def.kind === 'part' && (held.props.broken || held.cond < 0.2)) && (!defId || held.def.id === defId)) return held;
     let best = null;
     for (const it of this.asm.items.values()) {
       if (it.def.type !== type || it.slot || it.props.forSale || this.isJobItem(it) || (defId && it.def.id !== defId)) continue;
+      if (it.def.kind === 'part' && (it.props.broken || it.cond < 0.2)) continue; // scrap — never refit it
       if (it.loc?.kind === 'hoist') continue;
       if (it.cond < minCond) continue;
       const p = it.loc?.kind === 'inv' ? this.game.player.pos : it.obj.getWorldPosition(new THREE.Vector3());
