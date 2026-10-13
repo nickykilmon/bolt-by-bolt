@@ -10,6 +10,7 @@ import { DEFS, HOSTS, slotById } from '../mechanics/partsdb.js';
 
 const COL = { grab: '#ffd23c', go: '#4ad8ff', tool: '#ff9a3c', bolt: '#ff7a2a', buy: '#ff6ad5' };
 const UPGRADE_CATS = new Set(['Performance', 'Body kits']);
+const BODY = new Set(['bumperF', 'bumperR', 'hood', 'trunk', 'doorL', 'doorR', 'headlightL', 'headlightR', 'taillightL', 'taillightR', 'lightPod', 'splitter', 'skirtL', 'skirtR']);
 const NO_SWAP = new Set(['block', 'chassis', 'stand']);   // too big to plan automatically
 const CORNER = { FL: 'front-left', FR: 'front-right', RL: 'rear-left', RR: 'rear-right' };
 const words = (s) => s.replace(/\b(FL|FR|RL|RR)\b/g, (m) => CORNER[m]);
@@ -38,8 +39,8 @@ export function installRepair(Guide) {
         if (!occ || NO_SWAP.has(occ.def.type) || occ.def.kind !== 'part' || has(h, s.id)) continue;
         const bent = Math.abs(occ.props.bent || 0) > 0.003;
         if (occ.cond < 0.2 || bent) {
-          plan.push({ h: h.uid, s: s.id, type: occ.def.type, kind: 'fix', why: bent ? `Bent ${short(occ.def.name).toLowerCase()} (crash damage)` : `Worn out ${short(occ.def.name).toLowerCase()} (${Math.round(occ.cond * 100)}%)`, where: words(s.name) });
-          this.game.toast(`🔧 New repair job: ${bent ? 'bent' : 'worn out'} ${words(s.name).toLowerCase()} — see the guide (H)`, 4);
+          plan.push({ h: h.uid, s: s.id, type: occ.def.type, kind: 'fix', why: bent ? `Bent ${short(occ.def.name).toLowerCase()} (crash damage)` : BODY.has(s.id) ? `Crash-damaged ${short(occ.def.name).toLowerCase()} (${Math.round(occ.cond * 100)}%)` : `Worn out ${short(occ.def.name).toLowerCase()} (${Math.round(occ.cond * 100)}%)`, where: words(s.name) });
+          this.game.toast(`🔧 New repair job: ${bent ? 'bent' : BODY.has(s.id) ? 'crash-damaged' : 'worn out'} ${words(s.name).toLowerCase()} — see the guide (H)`, 4);
         }
       }
     }
@@ -117,9 +118,9 @@ export function installRepair(Guide) {
     const noPart = plan.filter((t) => !this.repairPart(t) && !(this.asm.get(t.h)?.kids[t.s] && !this.mustRemove(t)));
     if (noPart.length) {
       const names = [...new Set(noPart.map((t) => { const d = Object.values(DEFS).filter((x) => x.type === t.type && x.shop).sort((a, b) => a.price - b.price)[0]; return d ? `${d.name} (${d.price} mk)` : t.type; }))];
-      const bentOnly = noPart.every((t) => /Bent/.test(t.why));
+      const bentOnly = noPart.every((t) => /Bent/.test(t.why)), bodyOnly = noPart.every((t) => /Crash-damaged/.test(t.why));
       return wrap(names.length === 1 ? `Get a new ${names[0].replace(/ \(\d+ mk\)$/, '').toLowerCase()}` : `Get new parts (${names.length})`, {
-        text: `You need: ${names.join(', ')}. Order on the computer (⭐ My car needs) or buy at the parts store in Ruskala.${bentOnly ? ' Or let Esa or Ari straighten it ("Straighten suspension & alignment").' : ''} Nothing gets taken apart until you have it.`,
+        text: `You need: ${names.join(', ')}. Order on the computer (⭐ My car needs) or buy at the parts store in Ruskala.${bentOnly ? ' Or let Esa or Ari straighten it ("Straighten suspension & alignment").' : bodyOnly ? ' Cheaper: drive (or tow) the car to Esa’s workshop or Ari’s service park and pick "Repair body panels & lights" — that fixes them all without new parts.' : ''} Nothing gets taken apart until you have it.`,
         targets: [{ kind: 'mark', pos: this.pcPos(), text: 'Computer: order parts', col: COL.buy }],
       });
     }

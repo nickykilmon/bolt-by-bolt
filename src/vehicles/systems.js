@@ -310,6 +310,13 @@ export function analyze(asm, car) {
   S.lights = !!(ch.kids.headlightL || ch.kids.headlightR) && S.electric;
   S.firing = S.cyl.filter((c) => c.comp > 0.35 && c.spark > 0.3).length;
   S.quality = S.cyl.reduce((s, c) => s + (c.comp > 0.35 && c.spark > 0.3 ? c.comp * c.spark : 0), 0) / 4;
+  // crash damage on body panels and lights (looks only — except lights that stop working)
+  const BODY = { bumperF: 'Front bumper', bumperR: 'Rear bumper', hood: 'Bonnet', trunk: 'Boot lid', doorL: 'Left door', doorR: 'Right door', headlightL: 'Left headlight', headlightR: 'Right headlight', taillightL: 'Left tail light', taillightR: 'Right tail light', lightPod: 'Rally light pod', splitter: 'Front splitter', skirtL: 'Left side skirt', skirtR: 'Right side skirt' };
+  for (const [k, n] of Object.entries(BODY)) {
+    const p = ch.kids[k]; if (!p || p.cond >= 0.2) continue;
+    const dead = /light/i.test(k) && p.cond < 0.15;
+    issue(dead ? 2 : 1, `Crash damage: ${n} ${Math.round(p.cond * 100)}%${dead ? ' — broken, gives no light' : ''} (replace it, or Esa/Ari can repair the body)`, 'body');
+  }
   S.issues.sort((a, b2) => b2.sev - a.sev);
   return S;
 }
