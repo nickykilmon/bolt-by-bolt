@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { MAT } from '../core/materials.js';
 import { box, cyl } from '../mechanics/partMeshes.js';
-import { LAKE, heightAt } from './terrain.js';
+import { LAKE, heightAt, TREES } from './terrain.js';
 import { addCollider, FLOORS } from './colliders.js';
 import { interact, mats } from './buildings.js';
 import { labelTex } from '../core/textures.js';
@@ -30,7 +30,21 @@ export class Lake {
     this.buildSauna(dir, ang);
     this.buildJetty(dir, ang);
     this.fish = { state: 'idle' };
+    this.clearAround();
     game.saunaPos = this.saunaPos;
+  }
+  // trees/rocks/tufts were scattered before the sauna existed: remove any around the sauna and the jetty
+  clearAround() {
+    const pts = [this.saunaPos, this.jettyEnd, this.shore];
+    const near = (x, z) => pts.some((p) => Math.hypot(p.x - x, p.z - z) < 11);
+    const m = new THREE.Matrix4(), p = new THREE.Vector3(), zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    this.game.scene.traverse((o) => {
+      if (!o.isInstancedMesh) return;
+      let changed = false;
+      for (let i = 0; i < o.count; i++) { o.getMatrixAt(i, m); p.setFromMatrixPosition(m); if (near(p.x, p.z)) { o.setMatrixAt(i, zero); changed = true; } }
+      if (changed) o.instanceMatrix.needsUpdate = true;
+    });
+    for (const [k, l] of TREES.grid) TREES.grid.set(k, l.filter((t) => !near(t.x, t.z))); // no invisible tree collisions either
   }
   buildSauna(dir, ang) {
     const g = this.game;

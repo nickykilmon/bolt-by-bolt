@@ -5,7 +5,7 @@ import { TEX, repeated } from '../core/textures.js';
 
 export const SIZE = 1600, CELL = 4, N = SIZE / CELL;
 const HALF = SIZE / 2;
-export const LAKE = { x: 150, z: -175, r: 70, level: -1.6 };
+export const LAKE = { x: 150, z: -175, r: 70, level: -1.6, SHORE: 88 }; // SHORE: radius of the waterline
 export const YARD = { x: 0, z: 8, r: 34 };
 // flattened building zones (h filled in at build time)
 export const ZONES = [
@@ -58,12 +58,17 @@ function rawNatural(x, z) {
   const calm = 0.25 + 0.75 * smooth(clamp((dh - 60) / 260, 0, 1)); // gentle around home
   let h = (fbm(x / 380, z / 380, 4) * 34 + fbm(x / 120 + 7, z / 120 - 3, 3) * 7 + Math.abs(fbm(x / 70 - 3, z / 70 + 9, 2)) * 4) * calm;
   for (const hl of HILLS) { const d2 = ((x - hl.x) ** 2 + (z - hl.z) ** 2) / (hl.r * hl.r); h += hl.h * Math.exp(-d2 * 2.2); }
-  // lake bowl
-  const dl = Math.hypot(x - LAKE.x, z - LAKE.z);
-  if (dl < LAKE.r * 1.8) {
-    const t = clamp(dl / (LAKE.r * 1.8), 0, 1);
-    const bowl = LAKE.level - 3 + Math.pow(t, 2) * 3;
-    h = lerp(Math.min(h, bowl), h, smooth(clamp((t - 0.55) / 0.45, 0, 1)));
+  // lake: a bowl below the water inside the shoreline, and a beach that is always above the water
+  // outside it, so there are no dry dips lower than the lake next to it
+  const dl = Math.hypot(x - LAKE.x, z - LAKE.z), RS = LAKE.SHORE;
+  if (dl < RS) {
+    const t = dl / RS;
+    const bowl = LAKE.level - 3.2 + Math.pow(t, 2) * 2.9;          // reaches level - 0.3 at the shore
+    h = Math.min(h, bowl);
+  } else {
+    // floor that rises gently from the waterline, then slowly lets go far from the lake (continuous, no steps)
+    const floor = LAKE.level + 0.3 + Math.min(dl - RS, 40) * 0.04 - Math.max(0, dl - RS - 200) * 0.05;
+    h = Math.max(h, floor);
   }
   return h;
 }
@@ -317,7 +322,7 @@ export function buildTerrainMesh(scene, quality) {
     scene.add(m);
   }
   // lake
-  const water = new THREE.Mesh(new THREE.CircleGeometry(LAKE.r * 1.5, 48), new THREE.MeshStandardMaterial({ color: 0x2a4a5a, roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.88 }));
+  const water = new THREE.Mesh(new THREE.CircleGeometry(LAKE.SHORE + 5, 64), new THREE.MeshStandardMaterial({ color: 0x2a4a5a, roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.88 }));
   water.rotation.x = -Math.PI / 2; water.position.set(LAKE.x, LAKE.level, LAKE.z);
   scene.add(water);
   return mesh;

@@ -5,7 +5,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { initMaterials } from './core/materials.js';
 import { clamp, fmtMoney } from './core/util.js';
 import { createRenderer, Sky } from './world/sky.js';
-import { buildTerrainData, buildTerrainMesh, buildTrees, surfaceAt, heightAt, WEATHER } from './world/terrain.js';
+import { buildTerrainData, buildTerrainMesh, buildTrees, surfaceAt, heightAt, WEATHER, LAKE } from './world/terrain.js';
 import { floorAt } from './world/colliders.js';
 import { buildPlace } from './world/buildings.js';
 import { Assembly } from './mechanics/assembly.js';
@@ -790,6 +790,12 @@ class Game {
     }
     if (active) this.fx.update(dt);
     this.sky.update(this.life.hours, this.camera.position, dt);
+    // head under the lake surface: blue tint and murky fog
+    const cp = this.camera.position, under = cp.y < LAKE.level - 0.02 && Math.hypot(cp.x - LAKE.x, cp.z - LAKE.z) < LAKE.SHORE + 5;
+    if (under) { const f = this.scene.fog; f.color.setRGB(0.06, 0.22, 0.3); f.near = 0.5; f.far = 14; }
+    this.sky.dome.visible = !under; this.sky.stars.visible = !under;
+    this.scene.background = under ? this.scene.fog.color : null;
+    if (under !== this.underwater) { this.underwater = under; $('underwater').classList.toggle('on', under); if (under) this.say('Brr! You\'re underwater.', 1.5); }
     // audio
     const S = this.car.S, pt = this.car.pt;
     const wheels = this.car.body.wheels;
