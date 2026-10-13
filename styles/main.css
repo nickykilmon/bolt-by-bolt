@@ -202,3 +202,9 @@ table.keys th { color: #f2c14e; padding-top: 10px; }
 .phone { width: 380px; background: #111; border: 10px solid #333; border-radius: 22px; padding: 14px; color: #ddd; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
 .phone h2 { margin: 0; color: #9fe39a; font-family: Consolas, monospace; }
 .phone button { min-width: 0; font-size: 13px; }
+
+.slot { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 10px 12px; margin: 8px 0; border: 1px solid #ffffff22; border-radius: 8px; background: #ffffff08; }
+.slot.cur { border-color: #f2c14e88; }
+.slot-t { line-height: 1.45; }
+.slot-b { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; max-width: 60%; }
+.slot-b button { margin: 0; }

@@ -4,9 +4,23 @@ import { breakPart, BROKEN, COSMETIC_SLOTS } from '../mechanics/problems.js';
 
 export const SAVE_KEY = 'jcscar.save';
 export const SAVE_VERSION = 1;
+export const SLOTS = 3;
+export const slotKey = (n) => (+n === 1 ? SAVE_KEY : `${SAVE_KEY}.${n}`);
+export function currentSlot() { const n = +(localStorage.getItem('jcscar.slot') || 1); return n >= 1 && n <= SLOTS ? n : 1; }
+export function setSlot(n) { localStorage.setItem('jcscar.slot', String(n)); }
+const KEY = () => slotKey(currentSlot());
+// what's in a slot, for the slot picker
+export function slotInfo(n) {
+  try {
+    const raw = localStorage.getItem(slotKey(n)); if (!raw) return null;
+    const d = JSON.parse(raw); if (d.v !== SAVE_VERSION) return null;
+    return { name: d.profile?.name || 'JC', day: Math.floor((d.life?.m ?? 0) / 1440) + 1, money: d.money ?? 0, at: d.at, size: raw.length };
+  } catch { return null; }
+}
+export function deleteSlot(n) { localStorage.removeItem(slotKey(n)); localStorage.removeItem(slotKey(n) + '.bak'); }
 
 export function hasSave() {
-  try { const s = localStorage.getItem(SAVE_KEY); return !!s && JSON.parse(s).v === SAVE_VERSION; } catch { return false; }
+  try { const s = localStorage.getItem(KEY()); return !!s && JSON.parse(s).v === SAVE_VERSION; } catch { return false; }
 }
 
 export function writeSave(game) {
@@ -19,7 +33,8 @@ export function writeSave(game) {
     player: { pos: g.player.pos.toArray(), yaw: g.player.yaw, pitch: g.player.pitch, inCar: g.player.inCar },
     held: g.interaction.held?.uid || null,
     life: g.life.serialize(),
-    money: g.settings.infinite && g.realMoney != null ? g.realMoney : g.money, // the save keeps your real balance ledger: g.ledger.slice(-60), orders: g.orders, nextOrder: g.nextOrder,
+    money: g.settings.infinite && g.realMoney != null ? g.realMoney : g.money, // (infinite money: the save keeps your real balance)
+    ledger: g.ledger.slice(-60), orders: g.orders, nextOrder: g.nextOrder,
     inventory: g.inventory, basket: g.basket,
     jack: { p: g.jack.obj.position.toArray(), r: g.jack.obj.rotation.y },
     hoist: { p: g.hoist.obj.position.toArray(), r: g.hoist.obj.rotation.y, h: g.hoist.height },
@@ -33,14 +48,14 @@ export function writeSave(game) {
     ach: g.ach.serialize(), stats: g.stats, fightclub: g.fightclub.serialize(), police: g.police.serialize(), nightclub: g.nightclub.serialize(), farm: g.farm.serialize(), logging: g.logging.serialize(), dealer: g.dealer.serialize(), rival: g.rival.serialize(),
   };
   const json = JSON.stringify(data);
-  const prev = localStorage.getItem(SAVE_KEY);
-  if (prev) localStorage.setItem(SAVE_KEY + '.bak', prev);
-  localStorage.setItem(SAVE_KEY, json);
+  const k = KEY(), prev = localStorage.getItem(k);
+  if (prev) localStorage.setItem(k + '.bak', prev);
+  localStorage.setItem(k, json);
   return json.length;
 }
 
 export function readSave() {
-  const raw = localStorage.getItem(SAVE_KEY);
+  const raw = localStorage.getItem(KEY());
   if (!raw) return null;
   const d = JSON.parse(raw);
   if (d.v !== SAVE_VERSION) throw new Error(`Save version ${d.v} is not supported (expected ${SAVE_VERSION})`);

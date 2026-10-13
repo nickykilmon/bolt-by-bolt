@@ -38,7 +38,7 @@ import { Rival } from './world/rival.js';
 import { Logging } from './world/logging.js';
 import './ui/screens.js';
 import { Guide } from './ui/guide.js';
-import { hasSave, writeSave, readSave, applySave, SAVE_KEY } from './save/save.js';
+import { hasSave, writeSave, readSave, applySave, SAVE_KEY, SLOTS, slotKey, slotInfo, currentSlot, setSlot, deleteSlot } from './save/save.js';
 import { renderProfileEditor, DEFAULT_PROFILE, MONEY } from './ui/profile.js';
 import { drawFace } from './ui/face.js';
 
@@ -623,7 +623,7 @@ class Game {
       this.gameOver = true;
       d.querySelector('.big').textContent = 'GAME OVER';
       d.querySelector('.why').textContent = `${reason} Permadeath: ${this.profile.name}'s story ends here. The save has been deleted.`;
-      localStorage.removeItem(SAVE_KEY); localStorage.removeItem(SAVE_KEY + '.bak');
+      deleteSlot(currentSlot());
       setTimeout(() => { this.started = false; location.reload(); }, 7000);
       return;
     }
@@ -789,15 +789,62 @@ class Game {
       if (!silent) this.toast(`Game saved (${Math.round(n / 1024)} KB)`);
     } catch (e) { console.error('Save failed', e); this.toast('SAVE FAILED: ' + e.message, 6); }
   }
-  bindMenus() {
+  // save slots: load, start a new game, delete, back up to a file or restore from one
+  openSlots(forNew = false) {
+    const scr = $('slots'); scr.classList.remove('hidden'); $('title').classList.add('hidden');
+    const back = () => { scr.classList.add('hidden'); $('title').classList.remove('hidden'); this.refreshTitle(); };
+    const render = () => {
+      let h = `<h2>${forNew ? 'New game — pick a slot' : 'Save slots'}</h2>`;
+      for (let n = 1; n <= SLOTS; n++) {
+        const s = slotInfo(n), cur = n === currentSlot();
+        h += `<div class="slot ${cur ? 'cur' : ''}"><div class="slot-t"><b>Slot ${n}</b>${cur ? ' <span class="dim">(last played)</span>' : ''}<br>${s ? `${s.name} · day ${s.day} · ${fmtMoney(s.money)}<br><span class="dim">saved ${new Date(s.at).toLocaleString()}</span>` : '<span class="dim">Empty</span>'}</div><div class="slot-b">
+          ${s && !forNew ? `<button data-load="${n}">Load</button>` : ''}
+          <button data-new="${n}" class="${s ? 'small' : ''}">${s ? 'New game here' : 'New game'}</button>
+          ${s ? `<button class="small" data-dl="${n}">Download backup</button><button class="small" data-del="${n}">Delete</button>` : ''}
+          <button class="small" data-up="${n}">Restore from file</button></div></div>`;
+      }
+      h += '<input type="file" id="slotFile" accept=".json,application/json" style="display:none"><button id="slotBack">Back</button>';
+      scr.querySelector('.panel').innerHTML = h;
+      scr.querySelectorAll('[data-load]').forEach((b) => b.onclick = () => { setSlot(+b.dataset.load); scr.classList.add('hidden'); this.boot('continue'); });
+      scr.querySelectorAll('[data-new]').forEach((b) => b.onclick = () => {
+        const n = +b.dataset.new;
+        if (slotInfo(n) && !confirmTwice(b)) return;
+        setSlot(n); scr.classList.add('hidden'); this.startNew();
+      });
+      scr.querySelectorAll('[data-del]').forEach((b) => b.onclick = () => { if (!confirmTwice(b)) return; deleteSlot(+b.dataset.del); render(); });
+      scr.querySelectorAll('[data-dl]').forEach((b) => b.onclick = () => {
+        const n = +b.dataset.dl, blob = new Blob([localStorage.getItem(slotKey(n))], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `bolt-by-bolt-slot${n}-${new Date().toISOString().slice(0, 10)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      });
+      const file = $('slotFile');
+      scr.querySelectorAll('[data-up]').forEach((b) => b.onclick = () => { file.dataset.slot = b.dataset.up; file.value = ''; file.click(); });
+      file.onchange = async () => {
+        const f = file.files[0]; if (!f) return;
+        try { const txt = await f.text(); const d = JSON.parse(txt); if (!d.v || !Array.isArray(d.asm)) throw new Error('not a Bolt by Bolt save'); const k = slotKey(+file.dataset.slot); if (localStorage.getItem(k)) localStorage.setItem(k + '.bak', localStorage.getItem(k)); localStorage.setItem(k, txt); render(); }
+        catch (e) { alert('That file isn\'t a valid save: ' + e.message); }
+      };
+      $('slotBack').onclick = back;
+    };
+    // destructive buttons need a second click
+    const confirmTwice = (b) => { if (b.dataset.sure) return true; b.dataset.sure = '1'; b.textContent = 'Click again to confirm'; setTimeout(() => { if (b.isConnected) render(); }, 3000); return false; };
+    render();
+  }
+  refreshTitle() {
+    const ci = slotInfo(currentSlot());
     $('btnContinue').disabled = !hasSave();
+    $('btnContinue').textContent = ci ? `Continue — slot ${currentSlot()}: ${ci.name}, day ${ci.day}` : 'Continue';
+  }
+  bindMenus() {
+    this.refreshTitle();
     $('btnContinue').onclick = () => this.boot('continue');
-    $('btnNew').onclick = () => {
+    $('btnSlots').onclick = () => this.openSlots();
+    $('btnNew').onclick = () => this.openSlots(true);
+    this.startNew = () => {
       const scr = $('newgame'); scr.classList.remove('hidden'); $('title').classList.add('hidden');
       renderProfileEditor($('newgameHost'), {
         profile: DEFAULT_PROFILE, isNew: true,
         onDone: (p) => { scr.classList.add('hidden'); $('newgameHost').innerHTML = ''; this.pendingProfile = p; this.boot('new'); },
-        onCancel: () => { scr.classList.add('hidden'); $('title').classList.remove('hidden'); },
+        onCancel: () => { scr.classList.add('hidden'); $('title').classList.remove('hidden'); this.refreshTitle(); },
       });
     };
     $('btnSettingsT').onclick = () => this.openSettings();
