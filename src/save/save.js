@@ -45,7 +45,7 @@ export function writeSave(game) {
     jobs: g.jobs.serialize(), moped: g.moped.serialize(), guide: g.guide.serialize(),
     profile: g.profile,
     pets: g.pets.serialize(),
-    ach: g.ach.serialize(), stats: g.stats, fightclub: g.fightclub.serialize(), police: g.police.serialize(), nightclub: g.nightclub.serialize(), farm: g.farm.serialize(), logging: g.logging.serialize(), dealer: g.dealer.serialize(), rival: g.rival.serialize(),
+    ach: g.ach.serialize(), stats: g.stats, fightclub: g.fightclub.serialize(), police: g.police.serialize(), nightclub: g.nightclub.serialize(), farm: g.farm.serialize(), logging: g.logging.serialize(), rival: g.rival.serialize(),
   };
   const json = JSON.stringify(data);
   const k = KEY(), prev = localStorage.getItem(k);
@@ -115,7 +115,6 @@ export function applySave(game, d) {
   game.nightclub.restore(d.nightclub);
   game.farm.restore(d.farm);
   game.logging.restore(d.logging);
-  game.dealer.restore(d.dealer);
   game.rival.restore(d.rival);
   game.ach.restore(d.ach); game.stats = d.stats || {};
   game.car.reapplyShellDents();

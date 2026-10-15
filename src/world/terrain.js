@@ -24,7 +24,6 @@ export const ZONES = [
   { id: 'farm', x: 230, z: 305, r: 62 },
   { id: 'logcamp', x: -150, z: -440, r: 28 },
   { id: 'sawmill', x: -292, z: 128, r: 20 },
-  { id: 'carlot', x: 420, z: 130, r: 17, blend: 20 },
 ];
 const HILLS = [
   { x: -560, z: -200, h: 52, r: 320 },   // Hirvimäki
@@ -44,7 +43,6 @@ export const ROADS = [
   { name: 'Makelantie', label: 'Mäkelä\'s road', type: 'gravel', w: 3.5, smooth: 4, rough: 0.03, pts: [[332, 86], [331, 102], [330, 116]] },
   { name: 'Kiveläntie', label: 'Kivelä farm road', type: 'gravel', w: 4.5, smooth: 8, rough: 0.025, pts: [[240, 58], [238, 130], [234, 200], [231, 255]] },
   { name: 'Tukkitie', label: 'Logging road', type: 'gravel', w: 4.8, smooth: 8, rough: 0.04, pts: [[-10, -232], [-35, -300], [-85, -372], [-130, -428]] },
-  { name: 'Autoliikkeentie', label: 'Car lot', type: 'gravel', w: 5, smooth: 4, rough: 0.01, pts: [[421, 100], [420, 110], [420, 118]] },
   { name: 'Sahatie', label: 'Sawmill road', type: 'gravel', w: 5, smooth: 4, rough: 0.02, pts: [[-298, 77], [-296, 100], [-293, 116]] },
   { name: 'Metsätie', label: 'Forest Road (rally stage)', type: 'gravel', w: 5.5, smooth: 10, rough: 0.035, stage: true, pts: [[170, 42], [205, -20], [262, -62], [300, -90], [335, -150], [310, -230], [250, -280], [190, -300], [110, -290], [40, -270], [-10, -230], [-30, -170], [-75, -125], [-120, -70], [-160, -20], [-200, 60]] },
   { name: 'Harju', label: 'Harju Ridge (rally stage)', type: 'dirt', w: 4.6, smooth: 11, rough: 0.07, stage: true, jumps: [0.22, 0.47, 0.68, 0.86], pts: [[-330, 82], [-345, 30], [-310, -10], [-350, -60], [-300, -100], [-245, -85], [-200, -125], [-225, -185], [-170, -225], [-120, -200], [-90, -240], [-40, -230], [-10, -230]] },

@@ -41,7 +41,6 @@ export const ACH = [
   { id: 'dj', icon: '🎧', title: 'Selecta', desc: 'Play a good DJ set at the club.' },
   { id: 'farmhand', icon: '🚜', title: 'Farmhand', desc: 'Plough Kivelä\'s field.' },
   { id: 'lumberjack', icon: '🪵', title: 'Lumberjack', desc: 'Deliver a full load of 6 logs to the sawmill.' },
-  { id: 'second_car', icon: '🚗', title: 'Two-car family', desc: 'Buy a car from Hessu Huttunen.' },
   { id: 'street_race', icon: '🏁', title: 'Street racer', desc: 'Beat Jari in a street race.' },
   { id: 'street_king', icon: '👑', title: 'King of Route 54', desc: 'Beat Jari five times.' },
   { id: 'dj_fight', icon: '🤜', title: 'Meet me outside', desc: 'Win the fight after a bad DJ set.' },

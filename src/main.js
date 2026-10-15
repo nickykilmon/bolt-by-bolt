@@ -33,7 +33,6 @@ import { Police } from './world/police.js';
 import { Nightclub } from './world/nightclub.js';
 import { Farm } from './world/farm.js';
 import { Seasons } from './world/seasons.js';
-import { CarDealer } from './world/cardealer.js';
 import { Rival } from './world/rival.js';
 import { Logging } from './world/logging.js';
 import './ui/screens.js';
@@ -123,9 +122,8 @@ class Game {
     this.seasons = new Seasons(this);
     this.farm = new Farm(this);
     this.logging = new Logging(this);
-    this.dealer = new CarDealer(this);
     this.rival = new Rival(this);
-    this.workVehicles = [this.farm.tractor, this.logging.truck, ...this.dealer.cars];
+    this.workVehicles = [this.farm.tractor, this.logging.truck];
     this.ach = new Achievements(this);
     this.stats = {};
     this.rally = new Rally(this);
@@ -190,7 +188,7 @@ class Game {
     return [{ m: o.matrixWorld, inv: o.matrixWorld.clone().invert(), half: new THREE.Vector3(0.86, 0, 2.08), cz: 0, minY: 0.2, maxY: 1.42 }];
   }
   pickables() {
-    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || []), ...this.fightclub.pickRoots, this.police.officer.g, this.nightclub.root, this.farm.root, this.logging.root, this.dealer.root, this.rival.root, ...this.workVehicles.map((v) => v.obj)];
+    const list = [this.place, this.car.chassis.obj, this.stand.obj, this.townRoot, this.moped.obj, this.jobs.mower.obj, ...this.npcs.list.map((n) => n.g), ...this.pets.list.filter((p) => !p.dead && p.loc === 'world').map((p) => p.g), ...(this.pets.graveObjs || []), ...this.fightclub.pickRoots, this.police.officer.g, this.nightclub.root, this.farm.root, this.logging.root, this.rival.root, ...this.workVehicles.map((v) => v.obj)];
     for (const it of this.asm.items.values()) if (it.loc?.kind === 'world' && !it.loc.cont) list.push(it.obj);
     return list;
   }
@@ -938,7 +936,6 @@ class Game {
       this.nightclub.update(dt, i);
       this.farm.update(dt, i);
       this.seasons.update(dt);
-      this.dealer.update(dt, i);
       this.rival.update(dt);
       this.logging.update(dt, i);
       this.updatePee(dt, i);

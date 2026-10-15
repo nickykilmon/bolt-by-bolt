@@ -341,7 +341,6 @@ const MAP_POIS = [
   { t: 'job', n: 'Kivelä farm (farm work)', x: 218, z: 287, big: true },
   { t: 'job', n: 'Logging camp (logging job)', x: -160, z: -442, big: true },
   { t: 'job', n: 'Sawmill (deliver logs)', x: -292, z: 128, big: true },
-  { t: 'store', n: 'Huttusen Autoliike (used cars)', x: 420, z: 128, big: true },
   { t: 'rally', n: 'Jari — street races (20–03)', x: 496, z: 100 },
   { t: 'store', n: "Raimo's scrapyard (used parts)", x: -462, z: 238, big: true },
   { t: 'job', n: 'Scrap scale (sell scrap)', x: -484, z: 205 },
